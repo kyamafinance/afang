@@ -29,5 +29,3 @@ repos:
   hooks:
     - id: mypy
       args: [--no-strict-optional, --ignore-missing-imports]
-ci:
-    autoupdate_branch: pre-commit-ci-update-config
