@@ -1,4 +1,4 @@
-name: Running Tests and Code Coverage
+name: Tests
 
 on:
   push:
