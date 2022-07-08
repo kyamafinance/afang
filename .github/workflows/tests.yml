@@ -1,4 +1,4 @@
-name: Running Code Coverage
+name: Tests
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  coverage:
+  unit_tests:
     runs-on: ubuntu-latest
 
     steps:
