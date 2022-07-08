@@ -1,2 +1,2 @@
-def calc_addition(x, b):
-    return x + b
+def calc_addition(v, b):
+    return v + b
