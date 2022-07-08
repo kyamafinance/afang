@@ -8,4 +8,4 @@ def test_calc_addition():
 
 def test_calc_mul():
     output = calc_mul(2, 4)
-    assert output == 7
+    assert output == 8
