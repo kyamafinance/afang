@@ -1,4 +1,4 @@
-name: Running Code Coverage
+name: Running Tests and Code Coverage
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  coverage:
+  running_tests_and_code_coverage:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,7 +22,7 @@ jobs:
           python-version: 3.10.5
       - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: Run tests and collect coverage
+      - name: Run tests and collect coverage 0
         run: pytest --cov=afang tests
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
