@@ -1,5 +1,8 @@
 .env
 
+logs/*
+!logs/.gitkeep
+
 venv/
 
 .idea/
