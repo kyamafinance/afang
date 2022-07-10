@@ -29,3 +29,8 @@ repos:
   hooks:
     - id: mypy
       args: [--no-strict-optional, --ignore-missing-imports]
+- repo: https://github.com/myint/docformatter
+  rev: v1.3.1
+  hooks:
+    - id: docformatter
+      args: [--in-place]
