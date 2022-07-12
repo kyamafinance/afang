@@ -3,6 +3,12 @@
 logs/*
 !logs/.gitkeep
 
+data/ohlcv/*
+!data/ohlcv/.gitkeep
+
+tests/testdata/database/ohlcv/*
+!tests/testdata/database/ohlcv/.gitkeep
+
 venv/
 
 .idea/
