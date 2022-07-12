@@ -3,10 +3,13 @@ cfgv==3.3.1
 coverage==6.4.1
 distlib==0.3.4
 filelock==3.7.1
+h5py==3.7.0
 identify==2.5.1
 iniconfig==1.1.1
 nodeenv==1.7.0
+numpy==1.23.1
 packaging==21.3
+pandas==1.4.3
 platformdirs==2.5.2
 pluggy==1.0.0
 pre-commit==2.19.0
@@ -14,6 +17,9 @@ py==1.11.0
 pyparsing==3.0.9
 pytest==7.1.2
 pytest-cov==3.0.0
+pytest-mock==3.8.2
+python-dateutil==2.8.2
+pytz==2022.1
 PyYAML==6.0
 six==1.16.0
 toml==0.10.2
