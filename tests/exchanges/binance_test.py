@@ -120,5 +120,5 @@ def test_get_historical_data(mocker, req_response, expected_candles) -> None:
 
     binance_exchange = BinanceExchange()
     assert (
-        binance_exchange.get_historical_data("test_symbol", 0, 100) == expected_candles
+        binance_exchange.get_historical_data("test_symbol", 2, 100) == expected_candles
     )
