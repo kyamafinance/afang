@@ -1,32 +1,5 @@
-from typing import Any, Dict, List, Optional, Tuple
-
 import pytest
 import requests
-
-from afang.exchanges.is_exchange import IsExchange
-
-
-@pytest.fixture
-def dummy_is_exchange() -> IsExchange:
-    class Dummy(IsExchange):
-        def __init__(self, name: str, base_url: str) -> None:
-            super().__init__(name, base_url)
-
-        def _get_symbols(self) -> List[str]:
-            return super()._get_symbols()
-
-        def _make_request(self, endpoint: str, query_parameters: Dict) -> Any:
-            return super()._make_request(endpoint, query_parameters)
-
-        def get_historical_data(
-            self,
-            _symbol: str,
-            _start_time: Optional[int] = None,
-            _end_time: Optional[int] = None,
-        ) -> Optional[List[Tuple[float, float, float, float, float, float]]]:
-            return super().get_historical_data(_symbol, _start_time, _end_time)
-
-    return Dummy(name="test_exchange", base_url="https://dummy.com")
 
 
 def test_is_exchange_initialization(dummy_is_exchange) -> None:

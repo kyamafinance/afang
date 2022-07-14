@@ -56,17 +56,17 @@ class IsExchange(ABC):
     @abstractmethod
     def get_historical_data(
         self,
-        _symbol: str,
-        _start_time: Optional[int] = None,
-        _end_time: Optional[int] = None,
+        symbol: str,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
     ) -> Optional[List[Tuple[float, float, float, float, float, float]]]:
         """Fetch candlestick bars for a particular symbol from the exchange. If
         start_time and end_time are not provided, the most recent klines are
         returned.
 
-        :param _symbol: symbol to fetch historical candlestick bars for.
-        :param _start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
-        :param _end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param symbol: symbol to fetch historical candlestick bars for.
+        :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
 
         :return: Optional[List[Tuple[float, float, float, float, float, float]]]
         """

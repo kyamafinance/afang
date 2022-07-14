@@ -77,7 +77,7 @@ class BinanceExchange(IsExchange):
                     float(candle[2]),  # high
                     float(candle[3]),  # low
                     float(candle[4]),  # close
-                    float(candle[5]),  # volume
+                    float(candle[7]),  # quote asset volume
                 )
             )
 
