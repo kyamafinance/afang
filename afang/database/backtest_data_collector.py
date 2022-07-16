@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Union
 
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges.is_exchange import IsExchange
-from afang.utils.utils import milliseconds_to_datetime
+from afang.utils.util import milliseconds_to_datetime
 
 logger = logging.getLogger()
 

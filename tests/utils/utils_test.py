@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from afang.utils.utils import milliseconds_to_datetime
+from afang.utils.util import milliseconds_to_datetime
 
 
 def test_milliseconds_to_datetime() -> None:
