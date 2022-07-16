@@ -15,6 +15,15 @@ class BinanceExchange(IsExchange):
 
         super().__init__(name, base_url)
 
+    @classmethod
+    def get_config_params(cls) -> Dict:
+        """Get configuration parameters unique to the exchange.
+
+        :return: dict
+        """
+
+        return {"query_limit": 1.1, "write_limit": 10000}
+
     def _get_symbols(self) -> List[str]:
         """Fetch all Binance USDT Futures symbols.
 
@@ -58,8 +67,14 @@ class BinanceExchange(IsExchange):
         params["limit"] = "1500"
 
         if start_time:
+            start_time += (
+                60000  # adding a minute due to how binance API returns results.
+            )
             params["startTime"] = str(start_time)
         if end_time:
+            end_time -= (
+                60000  # subtracting a minute due to how binance API returns results.
+            )
             params["endTime"] = str(end_time)
 
         endpoint = "/fapi/v1/klines"

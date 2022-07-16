@@ -35,6 +35,10 @@ def dummy_is_exchange() -> IsExchange:
         def __init__(self, name: str, base_url: str) -> None:
             super().__init__(name, base_url)
 
+        @classmethod
+        def get_config_params(cls) -> Dict:
+            return super().get_config_params()
+
         def _get_symbols(self) -> List[str]:
             return super()._get_symbols()
 

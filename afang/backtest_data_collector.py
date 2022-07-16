@@ -23,9 +23,7 @@ def fetch_initial_data(
     :return: Union[Tuple[None, None], Tuple[float, float]]
     """
 
-    data = exchange.get_historical_data(
-        symbol, end_time=int(time.time() * 1000) - 60000
-    )
+    data = exchange.get_historical_data(symbol, end_time=int(time.time() * 1000))
 
     if data is None:
         logger.warning(
@@ -33,11 +31,12 @@ def fetch_initial_data(
         )
         return None, None
 
-    if not len(data):
+    if len(data) < 2:
         logger.warning("%s %s: no initial data found", exchange.name, symbol)
         return None, None
 
     data = sorted(data, key=itemgetter(0))
+    data = data[:-1]  # removing the last candle because it is likely unfinished.
 
     logger.info(
         "%s %s: collected %s initial data candles from %s to %s",
@@ -81,7 +80,7 @@ def fetch_most_recent_data(
 
     while True:
         data = exchange.get_historical_data(
-            symbol, start_time=int(_most_recent_timestamp) + 60000
+            symbol, start_time=int(_most_recent_timestamp)
         )
         data = sorted(data, key=itemgetter(0))
 
@@ -155,9 +154,7 @@ def fetch_older_data(
     _oldest_timestamp = oldest_timestamp
 
     while True:
-        data = exchange.get_historical_data(
-            symbol, end_time=int(_oldest_timestamp) - 60000
-        )
+        data = exchange.get_historical_data(symbol, end_time=int(_oldest_timestamp))
         data = sorted(data, key=itemgetter(0))
 
         if data is None:
@@ -227,6 +224,14 @@ def collect_all(
 
     :return: Optional[bool]
     """
+
+    if symbol not in exchange.symbols:
+        logger.warning(
+            "%s %s: provided symbol not present in the exchange",
+            exchange.name,
+            symbol,
+        )
+        return None
 
     ohlcv_db = OHLCVDatabase(root_db_dir, exchange.name, symbol)
     ohlcv_db.create_dataset(symbol)

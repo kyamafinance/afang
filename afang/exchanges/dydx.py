@@ -21,6 +21,15 @@ class DyDxExchange(IsExchange):
 
         super().__init__(name, base_url)
 
+    @classmethod
+    def get_config_params(cls) -> Dict:
+        """Get configuration parameters unique to the exchange.
+
+        :return: dict
+        """
+
+        return {"query_limit": 0.2, "write_limit": 20000}
+
     def _get_symbols(self) -> List[str]:
         """Fetch all DyDx Futures symbols.
 

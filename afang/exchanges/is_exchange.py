@@ -16,6 +16,18 @@ class IsExchange(ABC):
         self._base_url = base_url
         self.symbols = self._get_symbols()
 
+    @classmethod
+    def get_config_params(cls) -> Dict:
+        """Get configuration parameters unique to the exchange.
+
+            - query_limit: rate limit of how long to sleep between HTTP requests.
+            - write_limit: threshold of how many candles to fetch before saving them to the DB.
+
+        :return: dict
+        """
+
+        return {"query_limit": 1, "write_limit": 50000}
+
     @abstractmethod
     def _get_symbols(self) -> List[str]:
         """Fetch all the available symbols on the exchange.
