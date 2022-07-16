@@ -14,8 +14,17 @@ from afang.database.ohlcv_database import OHLCVDatabase
     [
         (None, (None, None)),
         ([], (None, None)),
-        ([(1, 2, 3, 4, 5, 6)], (1, 1)),
-        ([(2, 2, 3, 4, 5, 6), (1, 2, 3, 4, 5, 6), (3, 2, 3, 4, 5, 6)], (1, 3)),
+        ([(1, 2, 3, 4, 5, 6)], (None, None)),
+        ([(1, 2, 3, 4, 5, 6), (1, 2, 3, 4, 5, 6)], (1, 1)),
+        (
+            [
+                (2, 2, 3, 4, 5, 6),
+                (1, 2, 3, 4, 5, 6),
+                (4, 2, 3, 4, 5, 6),
+                (3, 2, 3, 4, 5, 6),
+            ],
+            (1, 3),
+        ),
     ],
 )
 def test_fetch_initial_data(
@@ -108,6 +117,8 @@ def test_fetch_older_data(
 
 
 def test_collect_all(mocker, dummy_is_exchange, ohlcv_root_db_dir):
+    dummy_is_exchange.symbols = ["test_symbol"]
+
     # mock the get_min_max_timestamp function
     mocked_get_min_max_timestamp = mocker.patch(
         "afang.backtest_data_collector.OHLCVDatabase.get_min_max_timestamp"

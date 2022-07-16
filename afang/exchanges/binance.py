@@ -67,8 +67,14 @@ class BinanceExchange(IsExchange):
         params["limit"] = "1500"
 
         if start_time:
+            start_time += (
+                60000  # adding a minute due to how binance API returns results.
+            )
             params["startTime"] = str(start_time)
         if end_time:
+            end_time -= (
+                60000  # subtracting a minute due to how binance API returns results.
+            )
             params["endTime"] = str(end_time)
 
         endpoint = "/fapi/v1/klines"
