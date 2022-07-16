@@ -15,6 +15,15 @@ class BinanceExchange(IsExchange):
 
         super().__init__(name, base_url)
 
+    @classmethod
+    def get_config_params(cls) -> Dict:
+        """Get configuration parameters unique to the exchange.
+
+        :return: dict
+        """
+
+        return {"query_limit": 1.1, "write_limit": 10000}
+
     def _get_symbols(self) -> List[str]:
         """Fetch all Binance USDT Futures symbols.
 

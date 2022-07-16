@@ -1,6 +1,6 @@
 import logging
 
-from afang.utils.logger import Logger
+from utils.logger import Logger
 
 # Initialize logger
 Logger().setup_logger()

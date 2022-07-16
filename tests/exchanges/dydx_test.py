@@ -19,6 +19,10 @@ def test_dydx_exchange_init(mocker) -> None:
     assert dydx_exchange.name == "dydx"
     assert dydx_exchange._base_url == "https://api.dydx.exchange"
     assert dydx_exchange.symbols == ["BTCUSDT", "ETHUSDT"]
+    assert dydx_exchange.get_config_params() == {
+        "query_limit": 0.2,
+        "write_limit": 20000,
+    }
 
 
 @pytest.mark.parametrize(
