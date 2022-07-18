@@ -8,7 +8,7 @@ from afang.cli_handler import parse_args
 from afang.database.backtest_data_collector import collect_all
 from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def get_exchange_client(exchange_arg: str) -> Optional[IsExchange]:

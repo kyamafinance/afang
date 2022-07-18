@@ -3,6 +3,9 @@ import os
 import pathlib
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class Logger:
@@ -29,6 +32,12 @@ class Logger:
         if os.path.exists(path):
             with open(path) as file:
                 config = yaml.safe_load(file.read())
+
+                # disable the file handler if not in production.
+                if os.environ.get("ENV", "development") != "production":
+                    del config["handlers"]["file"]
+                    config["root"]["handlers"] = ["console"]
+
                 logging.config.dictConfig(config)
                 logging.captureWarnings(True)
         else:

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class IsExchange(ABC):

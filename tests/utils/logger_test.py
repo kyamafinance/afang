@@ -25,9 +25,10 @@ def delete_logs_dir() -> None:
         pass
 
 
-def test_custom_logger() -> None:
+def test_custom_logger(mocker) -> None:
     create_logs_dir()
 
+    mocker.patch.dict(os.environ, {"ENV": "production"})
     Logger().setup_logger()
 
     # test console handler
@@ -44,6 +45,6 @@ def test_custom_logger() -> None:
     assert file_handler.formatter._fmt == "%(asctime)s %(levelname)s :: %(message)s"
     assert file_handler.formatter.datefmt == "%m/%d/%Y %H:%M:%S"
     assert file_handler.__class__ == handlers.RotatingFileHandler
-    assert file_handler.level == getattr(logging, "DEBUG")
+    assert file_handler.level == getattr(logging, "INFO")
 
     delete_logs_dir()

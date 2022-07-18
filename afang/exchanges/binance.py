@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 from afang.exchanges.is_exchange import IsExchange
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class BinanceExchange(IsExchange):
