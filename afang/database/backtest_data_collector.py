@@ -7,7 +7,7 @@ from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges.is_exchange import IsExchange
 from afang.utils.util import milliseconds_to_datetime
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def fetch_initial_data(

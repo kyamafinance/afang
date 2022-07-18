@@ -7,7 +7,7 @@ import pytz
 
 from afang.exchanges.is_exchange import IsExchange
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class DyDxExchange(IsExchange):
