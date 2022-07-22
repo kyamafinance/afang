@@ -10,8 +10,7 @@ from afang.main import main
         (["-m", "data", "-e", "unknown_exchange"], "Unknown exchange provided"),
     ],
 )
-def test_unknown_inputs(mocker, args, expected_log, caplog) -> None:
-    mocker.patch("afang.main.collect_all", return_value=True)
+def test_unknown_inputs(args, expected_log, caplog) -> None:
     main(args)
 
     assert caplog.records[0].levelname == "WARNING"
@@ -20,7 +19,9 @@ def test_unknown_inputs(mocker, args, expected_log, caplog) -> None:
 
 def test_fetch_historical_price_data(mocker, dummy_is_exchange) -> None:
     args = ["-m", "data", "-e", "dydx", "--symbols", "BTC-USD"]
-    mocked_collect_all = mocker.patch("afang.main.collect_all", return_value=True)
+    mocked_collect_all = mocker.patch(
+        "afang.main.fetch_historical_price_data", return_value=None
+    )
     main(args)
 
     assert mocked_collect_all.assert_called

@@ -1,4 +1,6 @@
+import argparse
 import logging
+import multiprocessing
 import time
 from operator import itemgetter
 from typing import Optional, Tuple, Union
@@ -205,12 +207,12 @@ def fetch_older_data(
     return _oldest_timestamp
 
 
-def collect_all(
+def fetch_symbol_data(
     exchange: IsExchange,
     symbol: str,
-    root_db_dir: str,
     query_limit: float,
     write_limit: int,
+    root_db_dir: Optional[str] = None,
 ) -> Optional[bool]:
     """Collect all historical price data for a given symbol from a given
     exchange and store this data in the database. Returns an optional bool on
@@ -218,9 +220,9 @@ def collect_all(
 
     :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
     :param symbol: name of the symbol whose historical price data should be fetched.
-    :param root_db_dir: path to the intended root OHLCV database directory.
     :param query_limit: rate limit of how long to sleep between HTTP requests.
     :param write_limit: threshold of how many candles to fetch before saving them to the DB.
+    :param root_db_dir: path to the intended root OHLCV database directory.
 
     :return: Optional[bool]
     """
@@ -272,3 +274,34 @@ def collect_all(
 
     # Validate symbol data
     return ohlcv_db.is_dataset_valid(symbol)
+
+
+def fetch_historical_price_data(
+    exchange: IsExchange, parsed_args: argparse.Namespace
+) -> None:
+    """Fetch historical price data for the parsed symbols.
+
+    :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
+    :param parsed_args: arguments parsed from the CLI.
+
+    :return: None
+    """
+
+    symbols = parsed_args.symbols
+    if not symbols:
+        logger.warning("No symbols found to fetch historical price data")
+        return
+
+    client_config = exchange.get_config_params()
+    query_limit = client_config.get("query_limit")
+    write_limit = client_config.get("write_limit")
+
+    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    for symbol in symbols:
+        pool.apply_async(
+            fetch_symbol_data,
+            (exchange, symbol, query_limit, write_limit),
+        )
+
+    pool.close()
+    pool.join()
