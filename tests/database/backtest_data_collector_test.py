@@ -1,10 +1,13 @@
+import argparse
+
 import pytest
 
 from afang.database.backtest_data_collector import (
-    collect_all,
+    fetch_historical_price_data,
     fetch_initial_data,
     fetch_most_recent_data,
     fetch_older_data,
+    fetch_symbol_data,
 )
 from afang.database.ohlcv_database import OHLCVDatabase
 
@@ -116,7 +119,7 @@ def test_fetch_older_data(
     assert return_val == expected_return_value
 
 
-def test_collect_all(mocker, dummy_is_exchange, ohlcv_root_db_dir):
+def test_fetch_symbol_data(mocker, dummy_is_exchange, ohlcv_root_db_dir):
     dummy_is_exchange.symbols = ["test_symbol"]
 
     # mock the get_min_max_timestamp function
@@ -149,10 +152,30 @@ def test_collect_all(mocker, dummy_is_exchange, ohlcv_root_db_dir):
     )
     mocked_is_dataset_valid.return_value = True
 
-    collect_all(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir, 1, 1)
+    fetch_symbol_data(dummy_is_exchange, "test_symbol", 1, 1, ohlcv_root_db_dir)
 
     assert mocked_get_min_max_timestamp.assert_called
     assert mocked_fetch_initial_data.assert_called
     assert mocked_fetch_most_recent_data.assert_called
     assert mocked_fetch_older_data.assert_called
     assert mocked_is_dataset_valid.assert_called
+
+
+def test_fetch_historical_price_data_no_symbols(dummy_is_exchange, caplog) -> None:
+    test_args = argparse.Namespace(symbols=[])
+    fetch_historical_price_data(dummy_is_exchange, test_args)
+
+    assert caplog.records[0].levelname == "WARNING"
+    assert "No symbols found to fetch historical price data" in caplog.text
+
+
+def test_fetch_historical_price_data(mocker, dummy_is_exchange) -> None:
+    test_args = argparse.Namespace(symbols=["test_symbol"])
+    mocked_fetch_symbol_data = mocker.patch(
+        "afang.database.backtest_data_collector.fetch_symbol_data",
+        return_value=True,
+    )
+
+    fetch_historical_price_data(dummy_is_exchange, test_args)
+
+    assert mocked_fetch_symbol_data.assert_called
