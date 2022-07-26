@@ -2,7 +2,7 @@ import logging
 import os
 import pathlib
 import time
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import h5py
 import numpy as np
@@ -15,7 +15,7 @@ class OHLCVDatabase:
     """Interface to store, retrieve, and manipulate price data in a HDF5
     database."""
 
-    def __init__(self, root_db_dir: str, exchange: str, symbol: str) -> None:
+    def __init__(self, root_db_dir: Optional[str], exchange: str, symbol: str) -> None:
         """Initialize the OHLCVDatabase class.
 
         :param root_db_dir: root database directory.
@@ -130,7 +130,7 @@ class OHLCVDatabase:
 
     def get_data(
         self, symbol: str, from_time: int, to_time: int
-    ) -> Union[pd.DataFrame, None]:
+    ) -> Optional[pd.DataFrame]:
         """Retrieve price data from the database for a given symbol sorted by
         timestamps and within the from_time and to_time parameters.
 
@@ -138,7 +138,7 @@ class OHLCVDatabase:
         :param from_time: UNIX timestamp in ms which retrieved price data should not be older than.
         :param to_time: UNIX timestamp in ms which retrieved price data should not be newer than.
 
-        :return: Union[None, pd.DataFrame]
+        :return: Optional[pd.DataFrame]
         """
 
         if symbol not in self.hf.keys():

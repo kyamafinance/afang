@@ -1,0 +1,9 @@
+name: SampleStrategy
+timeframe: 15m
+watchlist:
+  dydx:
+    - BTC-USD
+    - ETH-USD
+  binance:
+    - BTCUSDT
+    - ETHUSDT

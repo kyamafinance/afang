@@ -34,6 +34,24 @@ def parse_args(args) -> argparse.Namespace:
         default=[],
         help="list of symbols to use",
     )
+    parser.add_argument("--strategy", type=str, help="strategy to use")
+    parser.add_argument(
+        "--timeframe",
+        type=str,
+        help="timeframe to use",
+    )
+    parser.add_argument(
+        "--from-time",
+        type=str,
+        help="backtest from time. format: (yyyy-mm-dd). if not provided, backtest will start from the beginning of "
+        "the available price data",
+    )
+    parser.add_argument(
+        "--to-time",
+        type=str,
+        help="backtest to time. format: (yyyy-mm-dd). if not provided, backtest will complete at the end of the "
+        "available price data",
+    )
 
     parsed_args = parser.parse_args(args)
     return parsed_args
