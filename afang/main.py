@@ -1,7 +1,9 @@
 import logging
+import operator
 import sys
-from typing import Optional
+from typing import Callable, Optional
 
+import afang.strategies as strategies
 from afang.cli_handler import parse_args
 from afang.database.backtest_data_collector import fetch_historical_price_data
 from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
@@ -9,21 +11,35 @@ from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
 logger = logging.getLogger(__name__)
 
 
-def get_exchange_client(exchange_arg: str) -> Optional[IsExchange]:
+def get_exchange_client(exchange_name: str) -> Optional[IsExchange]:
     """Get the proper exchange client given the exchange's name.
 
-    :param exchange_arg: name of the exchange client.
+    :param exchange_name: name of the exchange client.
 
     :return: Optional[IsExchange]
     """
 
     exchange: Optional[IsExchange] = None
-    if exchange_arg == "binance":
+    if exchange_name == "binance":
         exchange = BinanceExchange()
-    elif exchange_arg == "dydx":
+    elif exchange_name == "dydx":
         exchange = DyDxExchange()
 
     return exchange
+
+
+def get_strategy_instance(strategy_name: str) -> Callable:
+    """Returns a callable strategy instance. If the strategy name does not
+    correspond to a properly defined strategy, a ValueError is raised.
+
+    :param strategy_name: name of the user defined strategy.
+    :return: Callable
+    """
+
+    try:
+        return operator.attrgetter(f"{strategy_name}.{strategy_name}")(strategies)
+    except AttributeError:
+        raise ValueError(f"Unknown strategy name provided: {strategy_name}")
 
 
 def main(args):
@@ -37,7 +53,7 @@ def main(args):
 
     parsed_args = parse_args(args)
 
-    # Define the exchange client.
+    # Get the exchange client.
     exchange = get_exchange_client(parsed_args.exchange)
     if not exchange:
         logger.warning("Unknown exchange provided: %s", parsed_args.exchange)
@@ -46,6 +62,11 @@ def main(args):
     if parsed_args.mode == "data":
         # If the provided mode is data, collect historical price data.
         fetch_historical_price_data(exchange, parsed_args)
+
+    elif parsed_args.mode == "backtest":
+        # If the mode provided is backtest, run a backtest on the provided strategy
+        strategy = get_strategy_instance(parsed_args.strategy)
+        strategy().run_backtest(exchange, parsed_args)
 
     else:
         logger.warning("Unknown mode provided: %s", parsed_args.mode)
