@@ -44,7 +44,7 @@ def test_fetch_initial_data(
         "afang.database.backtest_data_collector.OHLCVDatabase.write_data"
     )
 
-    test_ohlcv_db = OHLCVDatabase(ohlcv_root_db_dir, "test_exchange", "test_symbol")
+    test_ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
     test_ohlcv_db.create_dataset("test_symbol")
     return_val = fetch_initial_data(dummy_is_exchange, "test_symbol", test_ohlcv_db)
 
@@ -75,7 +75,7 @@ def test_fetch_most_recent_data(
         "afang.database.backtest_data_collector.OHLCVDatabase.write_data"
     )
 
-    test_ohlcv_db = OHLCVDatabase(ohlcv_root_db_dir, "test_exchange", "test_symbol")
+    test_ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
     test_ohlcv_db.create_dataset("test_symbol")
     return_val = fetch_most_recent_data(
         dummy_is_exchange, "test_symbol", test_ohlcv_db, 0, 1, 1
@@ -108,7 +108,7 @@ def test_fetch_older_data(
         "afang.database.backtest_data_collector.OHLCVDatabase.write_data"
     )
 
-    test_ohlcv_db = OHLCVDatabase(ohlcv_root_db_dir, "test_exchange", "test_symbol")
+    test_ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
     test_ohlcv_db.create_dataset("test_symbol")
     return_val = fetch_older_data(
         dummy_is_exchange, "test_symbol", test_ohlcv_db, 5, 1, 1

@@ -367,7 +367,7 @@ class Backtester(ABC):
             self.strategy_name,
         )
 
-        ohlcv_db = OHLCVDatabase(None, exchange.name, symbol)
+        ohlcv_db = OHLCVDatabase(exchange.name, symbol)
         ohlcv_data = ohlcv_db.get_data(symbol, backtest_from_time, backtest_to_time)
         resampled_ohlcv_data = resample_timeframe(ohlcv_data, timeframe)
         self.backtest_data[symbol] = resampled_ohlcv_data

@@ -72,7 +72,7 @@ def ohlcv_db(ohlcv_root_db_dir, ohlcv_df) -> OHLCVDatabase:
                 ],
             )
 
-    return DummyOHLCVDatabase(ohlcv_root_db_dir, "test_exchange", "test_symbol")
+    return DummyOHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
 
 
 def test_generate_uuid(dummy_is_strategy) -> None:
