@@ -37,17 +37,26 @@ def test_resample_timeframe() -> None:
         },
         index=[
             pd.to_datetime("2022-01-01 01:00:00"),
-            pd.to_datetime("2022-01-01 01:00:01"),
-            pd.to_datetime("2022-01-01 01:00:02"),
-            pd.to_datetime("2022-01-01 01:00:03"),
-            pd.to_datetime("2022-01-01 01:00:04"),
-            pd.to_datetime("2022-01-01 01:00:05"),
+            pd.to_datetime("2022-01-01 01:01:00"),
+            pd.to_datetime("2022-01-01 01:02:00"),
+            pd.to_datetime("2022-01-01 01:03:00"),
+            pd.to_datetime("2022-01-01 01:04:00"),
+            pd.to_datetime("2022-01-01 01:05:00"),
         ],
     )
 
     expected_df = pd.DataFrame(
-        {"open": [1], "high": [12], "low": [13], "close": [24], "volume": [165]},
-        index=[pd.to_datetime("2022-01-01 01:00:00")],
+        {
+            "open": [1, 6],
+            "high": [11, 12],
+            "low": [13, 18],
+            "close": [23, 24],
+            "volume": [135, 30],
+        },
+        index=[
+            pd.to_datetime("2022-01-01 01:00:00"),
+            pd.to_datetime("2022-01-01 01:05:00"),
+        ],
     )
 
     assert resample_timeframe(test_df, "5m").equals(expected_df)

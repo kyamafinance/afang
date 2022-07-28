@@ -100,6 +100,7 @@ class Backtester(ABC):
             "target_price": target_price,
             "stop_price": stop_price,
             "holding_time": 0,
+            "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
         }
 
         if symbol in self.backtest_positions:
@@ -133,6 +134,7 @@ class Backtester(ABC):
             "target_price": target_price,
             "stop_price": stop_price,
             "holding_time": 0,
+            "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
         }
 
         if symbol in self.backtest_positions:
@@ -170,7 +172,6 @@ class Backtester(ABC):
 
         position["exit_time"] = exit_time
         position["close_price"] = close_price
-        position["trade_count"] = len(self.backtest_positions[symbol])
         position["initial_account_balance"] = self.current_backtest_balance
 
         roe = (
@@ -178,15 +179,14 @@ class Backtester(ABC):
         ) * 100.0
         position["roe"] = round(roe, 4)
 
-        acc_balance_to_trade = self.current_backtest_balance
+        position["position_size"] = self.leverage * (
+            (self.percentage_risk_per_trade / 100.0) * self.current_backtest_balance
+        )
         if (
             self.max_amount_per_trade
-            and self.current_backtest_balance > self.max_amount_per_trade
+            and position["position_size"] > self.max_amount_per_trade
         ):
-            acc_balance_to_trade = self.max_amount_per_trade
-        position["position_size"] = self.leverage * (
-            (self.percentage_risk_per_trade / 100.0) * acc_balance_to_trade
-        )
+            position["position_size"] = self.max_amount_per_trade
 
         cost_adjusted_roe = (
             position["roe"] - (2 * self.commission) - self.expected_slippage
