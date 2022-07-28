@@ -15,12 +15,14 @@ class OHLCVDatabase:
     """Interface to store, retrieve, and manipulate price data in a HDF5
     database."""
 
-    def __init__(self, root_db_dir: Optional[str], exchange: str, symbol: str) -> None:
+    def __init__(
+        self, exchange: str, symbol: str, root_db_dir: Optional[str] = None
+    ) -> None:
         """Initialize the OHLCVDatabase class.
 
-        :param root_db_dir: root database directory.
         :param exchange: name of exchange to use.
         :param symbol: symbol to use.
+        :param root_db_dir: root database directory.
         """
 
         if not root_db_dir:
