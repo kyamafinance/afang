@@ -190,7 +190,7 @@ def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
 
 def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
     mocker.patch(
-        "afang.strategies.backtester.Backtester.generate_uuid", side_effect=[1, 2, 3]
+        "afang.strategies.backtester.Backtester.generate_uuid", side_effect=[1, 2, "3"]
     )
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
@@ -204,7 +204,7 @@ def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
         "test_symbol", 890, trade_entry_time, 87, None
     )
 
-    dummy_is_strategy.backtest_positions["test_symbol"][3]["open_position"] = False
+    dummy_is_strategy.close_backtest_position("test_symbol", "3", 50, trade_entry_time)
     open_positions = dummy_is_strategy.fetch_open_backtest_positions("test_symbol")
 
     assert len(open_positions) == 2
