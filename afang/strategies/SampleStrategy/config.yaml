@@ -1,5 +1,13 @@
 name: SampleStrategy
 timeframe: 15m
+parameters:
+  RR: 1.5
+  ema_period: 200
+  macd_signal: 9
+  macd_period_fast: 12
+  macd_period_slow: 26
+  psar_max_val: 0.2
+  psar_increment: 0.02
 watchlist:
   dydx:
     - BTC-USD

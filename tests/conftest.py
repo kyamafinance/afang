@@ -73,7 +73,7 @@ def dummy_is_strategy() -> IsStrategy:
                 "watchlist": {"test_exchange": ["test_symbol"]},
             }
 
-        def generate_features(self, data: pd.DataFrame) -> None:
+        def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
             return super().generate_features(data)
 
         def is_long_trade_signal_present(self, data: Any) -> bool:
