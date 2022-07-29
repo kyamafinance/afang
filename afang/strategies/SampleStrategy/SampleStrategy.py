@@ -21,7 +21,7 @@ class SampleStrategy(IsStrategy):
 
         return dict()
 
-    def generate_features(self, data: pd.DataFrame) -> None:
+    def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate features for the trading strategy.
 
         - To generate features, add columns to the `data` dataframe that can later
@@ -32,7 +32,7 @@ class SampleStrategy(IsStrategy):
         :return: None
         """
 
-        pass
+        return data
 
     def is_long_trade_signal_present(self, data: Any) -> bool:
         """Check if a long trade signal exists.

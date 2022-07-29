@@ -51,10 +51,12 @@ class Backtester(ABC):
         self.allow_multiple_open_positions = True
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
         self.config: Dict = dict()
+        # multiprocessing manager
+        manager = multiprocessing.Manager()
         # backtest data that initially contains OHLCV data.
-        self.backtest_data: Dict = dict()
+        self.backtest_data: Any = manager.dict()
         # backtest positions.
-        self.backtest_positions: Dict = dict()
+        self.backtest_positions: Any = manager.dict()
 
     @staticmethod
     def generate_uuid() -> str:
@@ -103,10 +105,9 @@ class Backtester(ABC):
             "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
         }
 
-        if symbol in self.backtest_positions:
-            self.backtest_positions[symbol][Backtester.generate_uuid()] = new_position
-        else:
-            self.backtest_positions[symbol] = {Backtester.generate_uuid(): new_position}
+        temp_symbol_positions = self.backtest_positions.get(symbol, dict())
+        temp_symbol_positions[Backtester.generate_uuid()] = new_position
+        self.backtest_positions[symbol] = temp_symbol_positions
 
     def open_short_backtest_position(
         self,
@@ -137,10 +138,9 @@ class Backtester(ABC):
             "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
         }
 
-        if symbol in self.backtest_positions:
-            self.backtest_positions[symbol][Backtester.generate_uuid()] = new_position
-        else:
-            self.backtest_positions[symbol] = {Backtester.generate_uuid(): new_position}
+        temp_symbol_positions = self.backtest_positions.get(symbol, dict())
+        temp_symbol_positions[Backtester.generate_uuid()] = new_position
+        self.backtest_positions[symbol] = temp_symbol_positions
 
     def fetch_open_backtest_positions(self, symbol: str) -> List[Dict]:
         """Fetch a list of all open backtest positions for a given symbol.
@@ -168,7 +168,11 @@ class Backtester(ABC):
         :return: None
         """
 
-        position = self.backtest_positions[symbol].get(position_id)
+        position = self.backtest_positions[symbol].get(position_id, None)
+        if not position:
+            raise LookupError(
+                f"Position ID {position_id} does not exist for symbol {symbol}"
+            )
 
         position["exit_time"] = exit_time
         position["close_price"] = close_price
@@ -210,8 +214,12 @@ class Backtester(ABC):
         position["open_position"] = False
         position["final_account_balance"] = self.current_backtest_balance
 
+        temp_symbol_positions = self.backtest_positions[symbol]
+        temp_symbol_positions[position_id] = position
+        self.backtest_positions[symbol] = temp_symbol_positions
+
     @abstractmethod
-    def generate_features(self, data: pd.DataFrame) -> None:
+    def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate features for the trading strategy.
 
         - To generate features, add columns to the `data` dataframe that can later
@@ -222,7 +230,7 @@ class Backtester(ABC):
         :return: None
         """
 
-        pass
+        return data
 
     @abstractmethod
     def is_long_trade_signal_present(self, data: Any) -> bool:
@@ -270,75 +278,68 @@ class Backtester(ABC):
         :return: None
         """
 
-        # Get the IDs of all the open trade positions.
-        open_position_ids = list()
+        # handle each open trade position.
         for (position_id, position) in self.backtest_positions.get(
             symbol, dict()
         ).items():
-            if position.get("open_position"):
-                open_position_ids.append(position_id)
-
-        # handle each open trade position.
-        for open_position_id in open_position_ids:
-            open_position = self.backtest_positions[symbol].get(open_position_id)
 
             # ensure that the trade position is still open.
-            if not open_position.get("open_position"):
+            if not position.get("open_position"):
                 continue
 
             # increment trade holding time by 1.
-            open_position["holding_time"] += 1
+            position["holding_time"] += 1
 
             # check if the lower horizontal barrier has been hit for long positions.
             if (
-                open_position["stop_price"]
-                and data.low <= open_position["stop_price"]
-                and open_position["direction"] == 1
+                position["stop_price"]
+                and data.low <= position["stop_price"]
+                and position["direction"] == 1
             ):
                 self.close_backtest_position(
-                    symbol, open_position_id, open_position["stop_price"], data.Index
+                    symbol, position_id, position["stop_price"], data.Index
                 )
 
             # check if upper horizontal barrier has been hit for long positions.
             elif (
-                open_position["target_price"]
-                and data.high >= open_position["target_price"]
-                and open_position["direction"] == 1
+                position["target_price"]
+                and data.high >= position["target_price"]
+                and position["direction"] == 1
             ):
                 self.close_backtest_position(
-                    symbol, open_position_id, open_position["target_price"], data.Index
+                    symbol, position_id, position["target_price"], data.Index
                 )
 
             # check if upper horizontal barrier has been hit for short positions.
             elif (
-                open_position["stop_price"]
-                and data.high >= open_position["stop_price"]
-                and open_position["direction"] == -1
+                position["stop_price"]
+                and data.high >= position["stop_price"]
+                and position["direction"] == -1
             ):
                 self.close_backtest_position(
-                    symbol, open_position_id, open_position["stop_price"], data.Index
+                    symbol, position_id, position["stop_price"], data.Index
                 )
 
             # check if lower horizontal barrier has been hit for short positions.
             elif (
-                open_position["target_price"]
-                and data.low <= open_position["target_price"]
-                and open_position["direction"] == -1
+                position["target_price"]
+                and data.low <= position["target_price"]
+                and position["direction"] == -1
             ):
                 self.close_backtest_position(
-                    symbol, open_position_id, open_position["target_price"], data.Index
+                    symbol, position_id, position["target_price"], data.Index
                 )
 
             # check if vertical barrier has been hit.
-            elif open_position["holding_time"] >= self.max_holding_candles:
+            elif position["holding_time"] >= self.max_holding_candles:
                 self.close_backtest_position(
-                    symbol, open_position_id, data.close, data.Index
+                    symbol, position_id, data.close, data.Index
                 )
 
             # check if current candle is the last candle in the provided historical price data.
             elif data.Index == self.backtest_data[symbol].index.values[-1]:
                 self.close_backtest_position(
-                    symbol, open_position_id, data.close, data.Index
+                    symbol, position_id, data.close, data.Index
                 )
 
     def run_symbol_backtest(
@@ -373,7 +374,7 @@ class Backtester(ABC):
         self.backtest_data[symbol] = resampled_ohlcv_data
 
         # generate trading features.
-        self.generate_features(self.backtest_data[symbol])
+        self.backtest_data[symbol] = self.generate_features(self.backtest_data[symbol])
 
         # remove unstable indicator values.
         idx = self.unstable_indicator_values
