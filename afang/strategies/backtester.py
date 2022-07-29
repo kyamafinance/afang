@@ -12,7 +12,11 @@ import pandas as pd
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
 from afang.strategies.util import TradeLevels
-from afang.utils.util import resample_timeframe, time_str_to_milliseconds
+from afang.utils.util import (
+    resample_timeframe,
+    time_str_to_milliseconds,
+    trace_unhandled_exceptions,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +50,7 @@ class Backtester(ABC):
         self.percentage_risk_per_trade = 2
         # maximum amount to invest per trade.
         # If `None`, the maximum amount to invest per trade will be the current account balance.
-        self.max_amount_per_trade = None
+        self.max_amount_per_trade: Optional[int] = None
         # Whether to allow for multiple open positions per symbol at a time.
         self.allow_multiple_open_positions = True
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
@@ -342,6 +346,7 @@ class Backtester(ABC):
                     symbol, position_id, data.close, data.Index
                 )
 
+    @trace_unhandled_exceptions
     def run_symbol_backtest(
         self,
         symbol: str,
