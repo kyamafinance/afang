@@ -219,7 +219,7 @@ class Backtester(ABC):
         self.backtest_positions[symbol] = temp_symbol_positions
 
     @abstractmethod
-    def generate_features(self, data: pd.DataFrame) -> None:
+    def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate features for the trading strategy.
 
         - To generate features, add columns to the `data` dataframe that can later
@@ -230,7 +230,7 @@ class Backtester(ABC):
         :return: None
         """
 
-        pass
+        return data
 
     @abstractmethod
     def is_long_trade_signal_present(self, data: Any) -> bool:
@@ -374,7 +374,7 @@ class Backtester(ABC):
         self.backtest_data[symbol] = resampled_ohlcv_data
 
         # generate trading features.
-        self.generate_features(self.backtest_data[symbol])
+        self.backtest_data[symbol] = self.generate_features(self.backtest_data[symbol])
 
         # remove unstable indicator values.
         idx = self.unstable_indicator_values

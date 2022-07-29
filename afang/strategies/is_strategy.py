@@ -68,7 +68,7 @@ class IsStrategy(Backtester):
         return watchlist.get(exchange, [])
 
     @abstractmethod
-    def generate_features(self, data: pd.DataFrame) -> None:
+    def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
         """Generate features for the trading strategy.
 
         - To generate features, add columns to the `data` dataframe that can later
@@ -79,7 +79,7 @@ class IsStrategy(Backtester):
         :return: None
         """
 
-        pass
+        return data
 
     @abstractmethod
     def is_long_trade_signal_present(self, data: Any) -> bool:
