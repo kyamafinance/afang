@@ -473,6 +473,16 @@ class Backtester(ABC):
         if cli_args.to_time:
             backtest_to_time = time_str_to_milliseconds(cli_args.to_time)
 
+        # Update the strategy config with the working parameters.
+        self.config.update(
+            {
+                "timeframe": timeframe,
+                "exchange": exchange,
+                "backtest_from_time": backtest_from_time,
+                "backtest_to_time": backtest_to_time,
+            }
+        )
+
         pool = multiprocessing.Pool(multiprocessing.cpu_count())
         for symbol in symbols:
             if symbol not in exchange.symbols:
