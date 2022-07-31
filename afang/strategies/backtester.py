@@ -163,7 +163,9 @@ class Backtester(ABC):
     def close_backtest_position(
         self, position: dict, close_price: float, exit_time: datetime
     ) -> dict:
-        """Close an open trade position for a given symbol.
+        """Close an open trade position for a given symbol. Note that this
+        function does not update the position in `self.trade_positions`. It is
+        upto the caller to make this update.
 
         :param position: trade position to close.
         :param close_price: price at which the trade exited.
