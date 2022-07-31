@@ -59,8 +59,8 @@ class Backtester(ABC):
         manager = multiprocessing.Manager()
         # backtest data that initially contains OHLCV data.
         self.backtest_data: Any = manager.dict()
-        # backtest positions.
-        self.backtest_positions: Any = manager.dict()
+        # backtest trade positions.
+        self.trade_positions: Any = manager.dict()
 
     @staticmethod
     def generate_uuid() -> str:
@@ -106,12 +106,12 @@ class Backtester(ABC):
             "target_price": target_price,
             "stop_price": stop_price,
             "holding_time": 0,
-            "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
+            "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
         }
 
-        temp_symbol_positions = self.backtest_positions.get(symbol, dict())
+        temp_symbol_positions = self.trade_positions.get(symbol, dict())
         temp_symbol_positions[Backtester.generate_uuid()] = new_position
-        self.backtest_positions[symbol] = temp_symbol_positions
+        self.trade_positions[symbol] = temp_symbol_positions
 
     def open_short_backtest_position(
         self,
@@ -139,12 +139,12 @@ class Backtester(ABC):
             "target_price": target_price,
             "stop_price": stop_price,
             "holding_time": 0,
-            "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
+            "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
         }
 
-        temp_symbol_positions = self.backtest_positions.get(symbol, dict())
+        temp_symbol_positions = self.trade_positions.get(symbol, dict())
         temp_symbol_positions[Backtester.generate_uuid()] = new_position
-        self.backtest_positions[symbol] = temp_symbol_positions
+        self.trade_positions[symbol] = temp_symbol_positions
 
     def fetch_open_backtest_positions(self, symbol: str) -> List[Dict]:
         """Fetch a list of all open backtest positions for a given symbol.
@@ -154,7 +154,7 @@ class Backtester(ABC):
         """
 
         open_positions = list()
-        for (_, position) in self.backtest_positions.get(symbol, dict()).items():
+        for (_, position) in self.trade_positions.get(symbol, dict()).items():
             if position.get("open_position"):
                 open_positions.append(position)
 
@@ -172,7 +172,7 @@ class Backtester(ABC):
         :return: None
         """
 
-        position = self.backtest_positions[symbol].get(position_id, None)
+        position = self.trade_positions[symbol].get(position_id, None)
         if not position:
             raise LookupError(
                 f"Position ID {position_id} does not exist for symbol {symbol}"
@@ -218,9 +218,9 @@ class Backtester(ABC):
         position["open_position"] = False
         position["final_account_balance"] = self.current_backtest_balance
 
-        temp_symbol_positions = self.backtest_positions[symbol]
+        temp_symbol_positions = self.trade_positions[symbol]
         temp_symbol_positions[position_id] = position
-        self.backtest_positions[symbol] = temp_symbol_positions
+        self.trade_positions[symbol] = temp_symbol_positions
 
     @abstractmethod
     def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -283,9 +283,7 @@ class Backtester(ABC):
         """
 
         # handle each open trade position.
-        for (position_id, position) in self.backtest_positions.get(
-            symbol, dict()
-        ).items():
+        for (position_id, position) in self.trade_positions.get(symbol, dict()).items():
 
             # ensure that the trade position is still open.
             if not position.get("open_position"):
