@@ -204,14 +204,7 @@ def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
         "test_symbol", 890, trade_entry_time, 87, None
     )
 
-    closed_position = dummy_is_strategy.close_backtest_position(
-        dummy_is_strategy.trade_positions["test_symbol"]["3"], 50, trade_entry_time
-    )
-
-    # update backtest trade positions.
-    temp_symbol_positions = dummy_is_strategy.trade_positions["test_symbol"]
-    temp_symbol_positions["3"] = closed_position
-    dummy_is_strategy.trade_positions["test_symbol"] = temp_symbol_positions
+    dummy_is_strategy.close_backtest_position("test_symbol", "3", 50, trade_entry_time)
 
     open_positions = dummy_is_strategy.fetch_open_backtest_positions("test_symbol")
 
@@ -232,9 +225,7 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
     dummy_is_strategy.open_long_backtest_position(
         "test_symbol", 100, trade_entry_time, 150, 50
     )
-    closed_position_1 = dummy_is_strategy.close_backtest_position(
-        dummy_is_strategy.trade_positions["test_symbol"]["1"], 150, trade_exit_time
-    )
+    dummy_is_strategy.close_backtest_position("test_symbol", "1", 150, trade_exit_time)
 
     # set a max amount per trade.
     dummy_is_strategy.max_amount_per_trade = 100
@@ -242,9 +233,7 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
     dummy_is_strategy.open_short_backtest_position(
         "test_symbol", 100, trade_entry_time, 50, 150
     )
-    closed_position_2 = dummy_is_strategy.close_backtest_position(
-        dummy_is_strategy.trade_positions["test_symbol"]["2"], 150, trade_exit_time
-    )
+    dummy_is_strategy.close_backtest_position("test_symbol", "2", 150, trade_exit_time)
 
     # set current account balance to <=0.
     dummy_is_strategy.current_backtest_balance = -1
@@ -252,16 +241,7 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
     dummy_is_strategy.open_short_backtest_position(
         "test_symbol", 100, trade_entry_time, 50, 150
     )
-    closed_position_3 = dummy_is_strategy.close_backtest_position(
-        dummy_is_strategy.trade_positions["test_symbol"]["3"], 150, trade_exit_time
-    )
-
-    # update backtest trade positions.
-    temp_symbol_positions = dummy_is_strategy.trade_positions["test_symbol"]
-    temp_symbol_positions["1"] = closed_position_1
-    temp_symbol_positions["2"] = closed_position_2
-    temp_symbol_positions["3"] = closed_position_3
-    dummy_is_strategy.trade_positions["test_symbol"] = temp_symbol_positions
+    dummy_is_strategy.close_backtest_position("test_symbol", "3", 150, trade_exit_time)
 
     assert dummy_is_strategy.trade_positions["test_symbol"]["1"] == {
         "open_position": False,
@@ -375,7 +355,9 @@ def test_handle_open_backtest_positions(
     dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
 
     assert mocked_close_backtest_position.assert_called
-    assert mocked_close_backtest_position.call_args.args[1] == expected_close_price
+    assert mocked_close_backtest_position.call_args.args[0] == "test_symbol"
+    assert mocked_close_backtest_position.call_args.args[1] == "1"
+    assert mocked_close_backtest_position.call_args.args[2] == expected_close_price
 
 
 def test_run_symbol_backtest(

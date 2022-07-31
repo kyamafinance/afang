@@ -161,17 +161,22 @@ class Backtester(ABC):
         return open_positions
 
     def close_backtest_position(
-        self, position: dict, close_price: float, exit_time: datetime
+        self, symbol: str, position_id: str, close_price: float, exit_time: datetime
     ) -> dict:
-        """Close an open trade position for a given symbol. Note that this
-        function does not update the position in `self.trade_positions`. It is
-        upto the caller to make this update.
+        """Close an open trade position for a given symbol.
 
-        :param position: trade position to close.
+        :param symbol: symbol whose position should be closed.
+        :param position_id: ID of the position to close.
         :param close_price: price at which the trade exited.
         :param exit_time: time at which the trade exited.
         :return: dict
         """
+
+        position = self.trade_positions[symbol].get(position_id, None)
+        if not position:
+            raise LookupError(
+                f"Position ID {position_id} does not exist for symbol {symbol}"
+            )
 
         position["exit_time"] = exit_time
         position["close_price"] = close_price
@@ -212,6 +217,11 @@ class Backtester(ABC):
 
         position["open_position"] = False
         position["final_account_balance"] = self.current_backtest_balance
+
+        # update trade position.
+        temp_symbol_positions = self.trade_positions[symbol]
+        temp_symbol_positions[position_id] = position
+        self.trade_positions[symbol] = temp_symbol_positions
 
         return position
 
@@ -292,7 +302,7 @@ class Backtester(ABC):
                 and position["direction"] == 1
             ):
                 position = self.close_backtest_position(
-                    position, position["stop_price"], data.Index
+                    symbol, position_id, position["stop_price"], data.Index
                 )
 
             # check if upper horizontal barrier has been hit for long positions.
@@ -302,7 +312,7 @@ class Backtester(ABC):
                 and position["direction"] == 1
             ):
                 position = self.close_backtest_position(
-                    position, position["target_price"], data.Index
+                    symbol, position_id, position["target_price"], data.Index
                 )
 
             # check if upper horizontal barrier has been hit for short positions.
@@ -312,7 +322,7 @@ class Backtester(ABC):
                 and position["direction"] == -1
             ):
                 position = self.close_backtest_position(
-                    position, position["stop_price"], data.Index
+                    symbol, position_id, position["stop_price"], data.Index
                 )
 
             # check if lower horizontal barrier has been hit for short positions.
@@ -322,19 +332,19 @@ class Backtester(ABC):
                 and position["direction"] == -1
             ):
                 position = self.close_backtest_position(
-                    position, position["target_price"], data.Index
+                    symbol, position_id, position["target_price"], data.Index
                 )
 
             # check if vertical barrier has been hit.
             elif position["holding_time"] >= self.max_holding_candles:
                 position = self.close_backtest_position(
-                    position, data.close, data.Index
+                    symbol, position_id, data.close, data.Index
                 )
 
             # check if current candle is the last candle in the provided historical price data.
             elif data.Index == self.backtest_data[symbol].index.values[-1]:
                 position = self.close_backtest_position(
-                    position, data.close, data.Index
+                    symbol, position_id, data.close, data.Index
                 )
 
             # update trade position.
