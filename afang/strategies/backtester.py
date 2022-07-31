@@ -11,6 +11,7 @@ import pandas as pd
 
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
+from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.util import TradeLevels
 from afang.utils.util import (
     resample_timeframe,
@@ -506,3 +507,7 @@ class Backtester(ABC):
 
         pool.close()
         pool.join()
+
+        # Analyze the trading strategy.
+        strategy_analyzer = StrategyAnalyzer(strategy=self)
+        strategy_analyzer.run_analysis()

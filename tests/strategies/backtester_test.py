@@ -410,11 +410,15 @@ def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
     mock_run_symbol_backtest = mocker.patch(
         "afang.strategies.backtester.Backtester.run_symbol_backtest", return_value=None
     )
+    mock_run_analysis = mocker.patch(
+        "afang.strategies.backtester.StrategyAnalyzer.run_analysis", return_value=None
+    )
 
     cli_args = argparse.Namespace(symbols=[], timeframe="5m", from_time=0, to_time=0)
     dummy_is_strategy.run_backtest(dummy_is_exchange, cli_args)
 
     assert mock_run_symbol_backtest.assert_called
+    assert mock_run_analysis.assert_called
     assert dummy_is_strategy.config["timeframe"] == "5m"
     assert list(dummy_is_strategy.config.keys()) == [
         "name",
