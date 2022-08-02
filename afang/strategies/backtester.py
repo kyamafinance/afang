@@ -11,6 +11,7 @@ import pandas as pd
 
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
+from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.util import TradeLevels
 from afang.utils.util import (
     resample_timeframe,
@@ -59,8 +60,8 @@ class Backtester(ABC):
         manager = multiprocessing.Manager()
         # backtest data that initially contains OHLCV data.
         self.backtest_data: Any = manager.dict()
-        # backtest positions.
-        self.backtest_positions: Any = manager.dict()
+        # backtest trade positions.
+        self.trade_positions: Any = manager.dict()
 
     @staticmethod
     def generate_uuid() -> str:
@@ -106,12 +107,12 @@ class Backtester(ABC):
             "target_price": target_price,
             "stop_price": stop_price,
             "holding_time": 0,
-            "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
+            "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
         }
 
-        temp_symbol_positions = self.backtest_positions.get(symbol, dict())
+        temp_symbol_positions = self.trade_positions.get(symbol, dict())
         temp_symbol_positions[Backtester.generate_uuid()] = new_position
-        self.backtest_positions[symbol] = temp_symbol_positions
+        self.trade_positions[symbol] = temp_symbol_positions
 
     def open_short_backtest_position(
         self,
@@ -139,12 +140,12 @@ class Backtester(ABC):
             "target_price": target_price,
             "stop_price": stop_price,
             "holding_time": 0,
-            "trade_count": len(self.backtest_positions.get(symbol, {})) + 1,
+            "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
         }
 
-        temp_symbol_positions = self.backtest_positions.get(symbol, dict())
+        temp_symbol_positions = self.trade_positions.get(symbol, dict())
         temp_symbol_positions[Backtester.generate_uuid()] = new_position
-        self.backtest_positions[symbol] = temp_symbol_positions
+        self.trade_positions[symbol] = temp_symbol_positions
 
     def fetch_open_backtest_positions(self, symbol: str) -> List[Dict]:
         """Fetch a list of all open backtest positions for a given symbol.
@@ -154,7 +155,7 @@ class Backtester(ABC):
         """
 
         open_positions = list()
-        for (_, position) in self.backtest_positions.get(symbol, dict()).items():
+        for (_, position) in self.trade_positions.get(symbol, dict()).items():
             if position.get("open_position"):
                 open_positions.append(position)
 
@@ -162,17 +163,17 @@ class Backtester(ABC):
 
     def close_backtest_position(
         self, symbol: str, position_id: str, close_price: float, exit_time: datetime
-    ) -> None:
+    ) -> dict:
         """Close an open trade position for a given symbol.
 
         :param symbol: symbol whose position should be closed.
         :param position_id: ID of the position to close.
         :param close_price: price at which the trade exited.
         :param exit_time: time at which the trade exited.
-        :return: None
+        :return: dict
         """
 
-        position = self.backtest_positions[symbol].get(position_id, None)
+        position = self.trade_positions[symbol].get(position_id, None)
         if not position:
             raise LookupError(
                 f"Position ID {position_id} does not exist for symbol {symbol}"
@@ -218,9 +219,12 @@ class Backtester(ABC):
         position["open_position"] = False
         position["final_account_balance"] = self.current_backtest_balance
 
-        temp_symbol_positions = self.backtest_positions[symbol]
+        # update trade position.
+        temp_symbol_positions = self.trade_positions[symbol]
         temp_symbol_positions[position_id] = position
-        self.backtest_positions[symbol] = temp_symbol_positions
+        self.trade_positions[symbol] = temp_symbol_positions
+
+        return position
 
     @abstractmethod
     def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -283,9 +287,7 @@ class Backtester(ABC):
         """
 
         # handle each open trade position.
-        for (position_id, position) in self.backtest_positions.get(
-            symbol, dict()
-        ).items():
+        for (position_id, position) in self.trade_positions.get(symbol, dict()).items():
 
             # ensure that the trade position is still open.
             if not position.get("open_position"):
@@ -300,7 +302,7 @@ class Backtester(ABC):
                 and data.low <= position["stop_price"]
                 and position["direction"] == 1
             ):
-                self.close_backtest_position(
+                position = self.close_backtest_position(
                     symbol, position_id, position["stop_price"], data.Index
                 )
 
@@ -310,7 +312,7 @@ class Backtester(ABC):
                 and data.high >= position["target_price"]
                 and position["direction"] == 1
             ):
-                self.close_backtest_position(
+                position = self.close_backtest_position(
                     symbol, position_id, position["target_price"], data.Index
                 )
 
@@ -320,7 +322,7 @@ class Backtester(ABC):
                 and data.high >= position["stop_price"]
                 and position["direction"] == -1
             ):
-                self.close_backtest_position(
+                position = self.close_backtest_position(
                     symbol, position_id, position["stop_price"], data.Index
                 )
 
@@ -330,21 +332,26 @@ class Backtester(ABC):
                 and data.low <= position["target_price"]
                 and position["direction"] == -1
             ):
-                self.close_backtest_position(
+                position = self.close_backtest_position(
                     symbol, position_id, position["target_price"], data.Index
                 )
 
             # check if vertical barrier has been hit.
             elif position["holding_time"] >= self.max_holding_candles:
-                self.close_backtest_position(
+                position = self.close_backtest_position(
                     symbol, position_id, data.close, data.Index
                 )
 
             # check if current candle is the last candle in the provided historical price data.
             elif data.Index == self.backtest_data[symbol].index.values[-1]:
-                self.close_backtest_position(
+                position = self.close_backtest_position(
                     symbol, position_id, data.close, data.Index
                 )
+
+            # update trade position.
+            temp_symbol_positions = self.trade_positions[symbol]
+            temp_symbol_positions[position_id] = position
+            self.trade_positions[symbol] = temp_symbol_positions
 
     @trace_unhandled_exceptions
     def run_symbol_backtest(
@@ -473,6 +480,16 @@ class Backtester(ABC):
         if cli_args.to_time:
             backtest_to_time = time_str_to_milliseconds(cli_args.to_time)
 
+        # Update the strategy config with the working parameters.
+        self.config.update(
+            {
+                "timeframe": timeframe,
+                "exchange": exchange,
+                "backtest_from_time": backtest_from_time,
+                "backtest_to_time": backtest_to_time,
+            }
+        )
+
         pool = multiprocessing.Pool(multiprocessing.cpu_count())
         for symbol in symbols:
             if symbol not in exchange.symbols:
@@ -490,3 +507,7 @@ class Backtester(ABC):
 
         pool.close()
         pool.join()
+
+        # Analyze the trading strategy.
+        strategy_analyzer = StrategyAnalyzer(strategy=self)
+        strategy_analyzer.run_analysis()

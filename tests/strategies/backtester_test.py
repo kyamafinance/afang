@@ -96,7 +96,7 @@ def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
         "test_symbol_2", 87, trade_entry_time, 890, None
     )
 
-    open_trades = dummy_is_strategy.backtest_positions
+    open_trades = dummy_is_strategy.trade_positions
 
     assert open_trades["test_symbol"] == {
         1: {
@@ -150,7 +150,7 @@ def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
         "test_symbol_2", 890, trade_entry_time, 87, None
     )
 
-    open_trades = dummy_is_strategy.backtest_positions
+    open_trades = dummy_is_strategy.trade_positions
 
     assert open_trades["test_symbol"] == {
         1: {
@@ -205,6 +205,7 @@ def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
     )
 
     dummy_is_strategy.close_backtest_position("test_symbol", "3", 50, trade_entry_time)
+
     open_positions = dummy_is_strategy.fetch_open_backtest_positions("test_symbol")
 
     assert len(open_positions) == 2
@@ -242,7 +243,7 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
     )
     dummy_is_strategy.close_backtest_position("test_symbol", "3", 150, trade_exit_time)
 
-    assert dummy_is_strategy.backtest_positions["test_symbol"]["1"] == {
+    assert dummy_is_strategy.trade_positions["test_symbol"]["1"] == {
         "open_position": False,
         "direction": 1,
         "entry_price": 100,
@@ -263,7 +264,7 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
         "final_account_balance": 10099.7,
     }
 
-    assert dummy_is_strategy.backtest_positions["test_symbol"]["2"] == {
+    assert dummy_is_strategy.trade_positions["test_symbol"]["2"] == {
         "open_position": False,
         "direction": -1,
         "entry_price": 100,
@@ -284,7 +285,7 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
         "final_account_balance": 10049.550000000001,
     }
 
-    assert dummy_is_strategy.backtest_positions["test_symbol"]["3"] == {
+    assert dummy_is_strategy.trade_positions["test_symbol"]["3"] == {
         "open_position": False,
         "direction": -1,
         "entry_price": 100,
@@ -409,8 +410,21 @@ def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
     mock_run_symbol_backtest = mocker.patch(
         "afang.strategies.backtester.Backtester.run_symbol_backtest", return_value=None
     )
+    mock_run_analysis = mocker.patch(
+        "afang.strategies.backtester.StrategyAnalyzer.run_analysis", return_value=None
+    )
 
-    cli_args = argparse.Namespace(symbols=[], timeframe="", from_time=0, to_time=0)
+    cli_args = argparse.Namespace(symbols=[], timeframe="5m", from_time=0, to_time=0)
     dummy_is_strategy.run_backtest(dummy_is_exchange, cli_args)
 
     assert mock_run_symbol_backtest.assert_called
+    assert mock_run_analysis.assert_called
+    assert dummy_is_strategy.config["timeframe"] == "5m"
+    assert list(dummy_is_strategy.config.keys()) == [
+        "name",
+        "timeframe",
+        "watchlist",
+        "exchange",
+        "backtest_from_time",
+        "backtest_to_time",
+    ]
