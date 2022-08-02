@@ -527,7 +527,7 @@ class StrategyAnalyzer:
             )
 
     @function_group.add
-    def compute_average_trade(self) -> None:
+    def compute_average_pnl(self) -> None:
         """Calculate average PnL for all symbols. This function needs to run
         after compute_total_trades. It relies on computing the total number of
         trades.
@@ -564,7 +564,7 @@ class StrategyAnalyzer:
             )
             symbol_backtest.update(
                 {
-                    "average_trade": {
+                    "average_pnl": {
                         "all_trades": average_trade,
                         "long_trades": average_trade_long,
                         "short_trades": average_trade_short,
