@@ -7,7 +7,33 @@ parameters:
   macd_period_fast: 12
   macd_period_slow: 26
   psar_max_val: 0.2
-  psar_increment: 0.02
+  psar_acceleration: 0.02
+optimizer:
+  population_size: 40
+  num_generations: 80
+  parameters:
+    RR:
+      min: 1.0
+      max: 5.0
+      type: float
+      decimals: 1
+    ema_period:
+      min: 100
+      max: 800
+      type: int
+    psar_max_val:
+      min: 0.05
+      max: 0.3
+      type: float
+      decimals: 2
+    psar_acceleration:
+      min: 0.01
+      max: 0.08
+      type: float
+      decimals: 2
+  objectives:
+    - average_pnl
+    - maximum_drawdown
 watchlist:
   dydx:
     - BTC-USD

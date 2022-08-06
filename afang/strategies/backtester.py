@@ -443,12 +443,15 @@ class Backtester(ABC):
             self.strategy_name,
         )
 
-    def run_backtest(self, exchange: IsExchange, cli_args: argparse.Namespace) -> None:
-        """Run trading backtest for multiple symbols at once.
+    def run_backtest(
+        self, exchange: IsExchange, cli_args: argparse.Namespace
+    ) -> Optional[List[Dict]]:
+        """Run trading backtest for multiple symbols at once and return
+        analysis results on the backtest.
 
         :param exchange: exchange to use to run the backtest.
         :param cli_args: command line arguments.
-        :return: None
+        :return: Optional[List[Dict]]
         """
 
         # Get symbols to backtest.
@@ -510,4 +513,6 @@ class Backtester(ABC):
 
         # Analyze the trading strategy.
         strategy_analyzer = StrategyAnalyzer(strategy=self)
-        strategy_analyzer.run_analysis()
+        strategy_analysis = strategy_analyzer.run_analysis()
+
+        return strategy_analysis

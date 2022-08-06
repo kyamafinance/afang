@@ -117,3 +117,17 @@ class IsStrategy(Backtester):
             target_price=None,
             stop_price=None,
         )
+
+    def define_optimization_param_constraints(self, parameters: Dict) -> Dict:
+        """Define constraints that should be applied during backtest parameter
+        generation while optimizing the strategy. Should return a dict that
+        contains possible mutated parameters.
+
+        :param parameters: parameters generated for strategy optimization. These parameters
+        will follow the specification provided in `config.yaml`. This dict will not contain parameters
+        that are not to be optimized.
+
+        :return: Dict
+        """
+
+        pass

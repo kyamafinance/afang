@@ -175,6 +175,7 @@ def test_compute_maximum_drawdown(dummy_strategy_analyzer) -> None:
         "all_trades": -58.33333333333333,
         "long_trades": -16.666666666666664,
         "short_trades": -50.0,
+        "positive_optimization": True,
     }
 
 
@@ -336,6 +337,7 @@ def test_compute_average_pnl(dummy_strategy_analyzer) -> None:
         "all_trades": -2.125,
         "long_trades": 5.25,
         "short_trades": -9.5,
+        "positive_optimization": True,
     }
 
 

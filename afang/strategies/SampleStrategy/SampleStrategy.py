@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
 import pandas as pd
-from finta import TA
+import talib
 
 from afang.strategies.is_strategy import IsStrategy, TradeLevels
 
@@ -43,26 +43,25 @@ class SampleStrategy(IsStrategy):
         params = self.config["parameters"]
 
         # EMA.
-        data["ema"] = TA.EMA(data, params["ema_period"], "close", True)
+        data["ema"] = talib.EMA(data.close, timeperiod=params["ema_period"])
 
         # MACD.
-        macd = TA.MACD(
-            data,
-            params["macd_period_fast"],
-            params["macd_period_slow"],
-            params["macd_signal"],
-            "close",
-            True,
+        data["macd"], data["macd_signal"], _ = talib.MACD(
+            data.close,
+            fastperiod=params["macd_period_fast"],
+            slowperiod=params["macd_period_slow"],
+            signalperiod=params["macd_signal"],
         )
-        data["macd"] = macd["MACD"]
         data["prev_macd"] = data["macd"].shift(1)
-        data["macd_signal"] = macd["SIGNAL"]
         data["prev_macd_signal"] = data["macd_signal"].shift(1)
 
         # PSAR.
-        working_data = data.copy()
-        psar = TA.PSAR(working_data, params["psar_increment"], params["psar_max_val"])
-        data["psar"] = psar["psar"]
+        data["psar"] = talib.SAR(
+            data.high,
+            data.low,
+            acceleration=params["psar_acceleration"],
+            maximum=params["psar_max_val"],
+        )
 
         return data
 
@@ -141,3 +140,28 @@ class SampleStrategy(IsStrategy):
             target_price=target_price if target_price >= 0 else 0,
             stop_price=stop_price,
         )
+
+    def define_optimization_param_constraints(self, parameters: Dict) -> Dict:
+        """Define constraints that should be applied during backtest parameter
+        generation while optimizing the strategy. Should return a dict that
+        contains possible mutated parameters.
+
+        :param parameters: parameters generated for strategy optimization. These parameters
+        will follow the specification provided in `config.yaml`. This dict will not contain parameters
+        that are not to be optimized.
+
+        :return: Dict
+        """
+
+        # ensure that psar acceleration is less than psar max value.
+        # the psar acceleration and the psar max value could end up being the same value.
+        # however, if this were to happen, the optimizer would discard the backtest due to
+        # extremely low backtest performance results.
+        parameters["psar_acceleration"] = min(
+            parameters["psar_acceleration"], parameters["psar_max_val"]
+        )
+        parameters["psar_max_val"] = max(
+            parameters["psar_acceleration"], parameters["psar_max_val"]
+        )
+
+        return parameters

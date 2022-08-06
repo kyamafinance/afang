@@ -22,7 +22,7 @@ def sample_strategy(mocker) -> SampleStrategy:
                 "macd_period_fast": 12,
                 "macd_period_slow": 26,
                 "psar_max_val": 0.2,
-                "psar_increment": 0.02,
+                "psar_acceleration": 0.02,
             },
         },
     )

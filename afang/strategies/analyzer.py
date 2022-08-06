@@ -12,7 +12,7 @@ function_group = FunctionGroup()
 
 
 class StrategyAnalyzer:
-    """Interface to analyze any user defined strategies."""
+    """Interface to analyze user defined strategies."""
 
     def __init__(self, strategy: Any) -> None:
         """Initialize StrategyAnalyzer class.
@@ -266,6 +266,7 @@ class StrategyAnalyzer:
                         "all_trades": max_drawdown,
                         "long_trades": max_drawdown_long,
                         "short_trades": max_drawdown_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -568,6 +569,7 @@ class StrategyAnalyzer:
                         "all_trades": average_trade,
                         "long_trades": average_trade_long,
                         "short_trades": average_trade_short,
+                        "positive_optimization": True,
                     }
                 }
             )
