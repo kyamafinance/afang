@@ -441,11 +441,15 @@ class StrategyOptimizer:
             q_population = self.generate_offspring_population(p_population)
             q_population = self.evaluate_population(q_population)
             r_population = p_population + q_population
+            self.population_backtest_params.clear()
 
             idx = 0
             population: Dict[int, BacktestProfile] = dict()
             for backtest_profile in r_population:
                 backtest_profile.reset()
+                self.population_backtest_params.append(
+                    backtest_profile.backtest_parameters
+                )
                 population[idx] = backtest_profile
                 idx += 1
 
