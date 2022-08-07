@@ -9,8 +9,8 @@ parameters:
   psar_max_val: 0.2
   psar_acceleration: 0.02
 optimizer:
-  population_size: 40
-  num_generations: 80
+  population_size: 8
+  num_generations: 20
   parameters:
     RR:
       min: 1.0
