@@ -217,3 +217,23 @@ def test_generate_trade_levels(
         target_price=expected_target_price,
         stop_price=expected_stop_price,
     )
+
+
+@pytest.mark.parametrize(
+    "input_params, expected_params",
+    [
+        (
+            {"psar_acceleration": 1, "psar_max_val": 2},
+            {"psar_acceleration": 1, "psar_max_val": 2},
+        ),
+        (
+            {"psar_acceleration": 2, "psar_max_val": 1},
+            {"psar_acceleration": 1, "psar_max_val": 2},
+        ),
+    ],
+)
+def test_define_optimization_param_constraints(
+    sample_strategy, input_params, expected_params
+) -> None:
+    result_params = sample_strategy.define_optimization_param_constraints(input_params)
+    assert expected_params == result_params

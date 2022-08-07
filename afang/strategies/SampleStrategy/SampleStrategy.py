@@ -157,11 +157,12 @@ class SampleStrategy(IsStrategy):
         # the psar acceleration and the psar max value could end up being the same value.
         # however, if this were to happen, the optimizer would discard the backtest due to
         # extremely low backtest performance results.
-        parameters["psar_acceleration"] = min(
+        psar_acceleration = min(
             parameters["psar_acceleration"], parameters["psar_max_val"]
         )
-        parameters["psar_max_val"] = max(
-            parameters["psar_acceleration"], parameters["psar_max_val"]
-        )
+        psar_max_val = max(parameters["psar_acceleration"], parameters["psar_max_val"])
+
+        parameters["psar_acceleration"] = psar_acceleration
+        parameters["psar_max_val"] = psar_max_val
 
         return parameters

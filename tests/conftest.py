@@ -90,4 +90,7 @@ def dummy_is_strategy() -> IsStrategy:
         def plot_backtest_indicators(self) -> Dict:
             return super().plot_backtest_indicators()
 
+        def define_optimization_param_constraints(self, parameters: Dict) -> Dict:
+            return super().define_optimization_param_constraints(parameters)
+
     return Dummy(strategy_name="test_strategy")
