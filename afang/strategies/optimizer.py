@@ -155,7 +155,6 @@ class StrategyOptimizer:
         within the population.
 
         :param population: backtest population to evaluate.
-
         :return: List[BacktestProfile]
         """
 

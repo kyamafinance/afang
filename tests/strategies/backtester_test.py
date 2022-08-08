@@ -424,6 +424,8 @@ def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
         "name",
         "timeframe",
         "watchlist",
+        "parameters",
+        "optimizer",
         "exchange",
         "backtest_from_time",
         "backtest_to_time",
