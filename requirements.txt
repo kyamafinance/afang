@@ -9,7 +9,7 @@ exchanges==0.0.1
 filelock==3.7.1
 finta==1.3
 h5py==3.7.0
-identify==2.5.2
+identify==2.5.3
 idna==3.3
 iniconfig==1.1.1
 nodeenv==1.7.0
