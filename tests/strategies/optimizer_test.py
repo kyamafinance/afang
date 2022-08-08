@@ -4,7 +4,7 @@ import pytest
 def test_generate_initial_population(dummy_is_optimizer) -> None:
     initial_population = dummy_is_optimizer.generate_initial_population()
 
-    assert len(initial_population) == 2
+    assert len(initial_population) == 4
     assert len(dummy_is_optimizer.population_backtest_params) == len(initial_population)
 
     for profile in initial_population:
@@ -84,3 +84,71 @@ def test_evaluate_population(
     assert mocked_run_backtest.assert_called
     for profile in evaluated_population:
         assert profile.backtest_analysis == modified_result
+
+
+def test_calculate_crowding_distance_empty_population(dummy_is_optimizer) -> None:
+    result_population = dummy_is_optimizer.calculate_crowding_distance([])
+    assert not result_population
+
+
+def test_calculate_crowding_distance(mocker, dummy_is_optimizer) -> None:
+    mocker.patch(
+        "afang.strategies.backtester.Backtester.run_backtest",
+        side_effect=[
+            [
+                {
+                    "total_trades": {"all_trades": 1},
+                    "average_pnl": {"all_trades": 100, "positive_optimization": True},
+                    "maximum_drawdown": {
+                        "all_trades": 12,
+                        "positive_optimization": False,
+                    },
+                }
+            ],
+            [
+                {
+                    "total_trades": {"all_trades": 1},
+                    "average_pnl": {"all_trades": 90, "positive_optimization": True},
+                    "maximum_drawdown": {
+                        "all_trades": 16,
+                        "positive_optimization": False,
+                    },
+                }
+            ],
+            [
+                {
+                    "total_trades": {"all_trades": 1},
+                    "average_pnl": {"all_trades": 80, "positive_optimization": True},
+                    "maximum_drawdown": {
+                        "all_trades": 20,
+                        "positive_optimization": False,
+                    },
+                }
+            ],
+            [
+                {
+                    "total_trades": {"all_trades": 1},
+                    "average_pnl": {"all_trades": 30, "positive_optimization": True},
+                    "maximum_drawdown": {
+                        "all_trades": 28,
+                        "positive_optimization": False,
+                    },
+                }
+            ],
+        ],
+    )
+
+    initial_population = dummy_is_optimizer.generate_initial_population()
+    evaluated_population = dummy_is_optimizer.evaluate_population(initial_population)
+    result_population = dummy_is_optimizer.calculate_crowding_distance(
+        evaluated_population
+    )
+
+    expected_crowding_distances = [
+        float("inf"),
+        0.7857142857142857,
+        1.6071428571428572,
+        float("inf"),
+    ]
+    for i in range(len(result_population)):
+        assert result_population[i].crowding_distance == expected_crowding_distances[i]

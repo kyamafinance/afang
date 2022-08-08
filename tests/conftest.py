@@ -83,8 +83,8 @@ def dummy_is_strategy_callable() -> Type[IsStrategy]:
                     "psar_acceleration": 0.02,
                 },
                 "optimizer": {
-                    "population_size": 2,
-                    "num_generations": 4,
+                    "population_size": 4,
+                    "num_generations": 5,
                     "objectives": ["average_pnl", "maximum_drawdown"],
                     "parameters": {
                         "RR": {"min": 1.0, "max": 5.0, "type": "float", "decimals": 1},
