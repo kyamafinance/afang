@@ -262,3 +262,30 @@ def test_is_profile_dominant(
     result = dummy_is_optimizer.is_profile_dominant(profile_a, profile_b, objectives)
 
     assert result == expected_result
+
+
+def test_non_dominated_sorting(
+    mocker, dummy_is_optimizer, run_backtest_side_effect
+) -> None:
+    mocker.patch(
+        "afang.strategies.backtester.Backtester.run_backtest",
+        side_effect=run_backtest_side_effect,
+    )
+
+    initial_population = dummy_is_optimizer.generate_initial_population()
+    evaluated_population = dummy_is_optimizer.evaluate_population(initial_population)
+    evaluated_population = dummy_is_optimizer.calculate_crowding_distance(
+        evaluated_population
+    )
+
+    idx = 0
+    population: Dict[int, BacktestProfile] = dict()
+    for backtest_profile in evaluated_population:
+        population[idx] = backtest_profile
+        idx += 1
+
+    fronts = dummy_is_optimizer.non_dominated_sorting(population)
+
+    assert len(fronts) == 4
+    for front in fronts:
+        assert len(front) == 1
