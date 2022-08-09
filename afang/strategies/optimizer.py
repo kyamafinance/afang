@@ -1,9 +1,12 @@
 import argparse
 import builtins
 import copy
+import csv
 import logging
+import pathlib
 import random
-from typing import Any, Callable, Dict, List
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
 
 from afang.exchanges import IsExchange
 
@@ -419,9 +422,53 @@ class StrategyOptimizer:
 
         return new_population
 
-    def optimize(self) -> None:
+    def persist_optimization(
+        self, final_population: List[BacktestProfile], filepath: Optional[str] = None
+    ) -> str:
+        """Persist an optimization run in a csv file within the
+        `data/optimization` directory. Note that the final population to be
+        persisted must have already been evaluated.
+
+        :param final_population: population to persist.
+        :param filepath: directory filepath to store optimization results.
+        :return: str
+        """
+
+        if not filepath:
+            filepath = f"{pathlib.Path(__file__).parents[2]}/data/optimization"
+
+        now = datetime.now()
+        filename = f'{filepath}/optimization_{now.strftime("%m-%d-%Y-%H:%M:%S")}.csv'
+
+        with open(filename, "w") as file:
+            writer = csv.writer(file)
+            for idx, profile in enumerate(final_population):
+                # Write header if needed.
+                if not idx:
+                    header = self.objectives.copy()
+                    header += list(profile.backtest_parameters.keys())
+                    header += ["front", "crowding distance"]
+                    writer.writerow(header)
+
+                row = list()
+                # Add backtest analysis objectives to the row.
+                for objective in self.objectives:
+                    row.append(profile.get_objective_value(objective))
+                # Add backtest params to the row.
+                for param_val in profile.backtest_parameters.values():
+                    row.append(param_val)
+                row.append(profile.front)
+                row.append(profile.crowding_distance)
+                writer.writerow(row)
+
+        logger.info("Persisted optimization run in: %s", filename)
+
+        return filename
+
+    def optimize(self, persist: bool = True) -> None:
         """Optimize the user provided strategy.
 
+        :param persist: whether to persist the optimization run.
         :return: None
         """
 
@@ -459,3 +506,11 @@ class StrategyOptimizer:
             p_population = self.generate_new_population(fronts)
 
             generation_count += 1
+
+        if persist:
+            self.persist_optimization(p_population)
+
+        logger.info(
+            "Completed optimization on the %s strategy",
+            self.strategy_instance.strategy_name,
+        )

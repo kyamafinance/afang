@@ -6,8 +6,14 @@ logs/*
 data/ohlcv/*
 !data/ohlcv/.gitkeep
 
+data/optimization/*
+!data/optimization/.gitkeep
+
 tests/testdata/database/ohlcv/*
 !tests/testdata/database/ohlcv/.gitkeep
+
+tests/testdata/optimization/*
+!tests/testdata/optimization/.gitkeep
 
 venv/
 

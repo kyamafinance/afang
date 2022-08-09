@@ -1,3 +1,4 @@
+import csv
 from typing import Dict, List
 
 import pytest
@@ -390,6 +391,52 @@ def test_generate_new_population(
     assert new_population[3].crowding_distance == float("inf")
 
 
+def test_persist_optimization(optimization_root_dir, dummy_is_optimizer) -> None:
+    backtest_profile = BacktestProfile()
+    backtest_profile.backtest_analysis = [
+        {
+            "total_trades": {"all_trades": 1},
+            "average_pnl": {"all_trades": 100, "positive_optimization": True},
+            "maximum_drawdown": {
+                "all_trades": 50,
+                "positive_optimization": False,
+            },
+        }
+    ]
+    backtest_profile.backtest_parameters = {
+        "RR": 1.5,
+        "ema_period": 250,
+        "psar_max_val": 0.1,
+        "psar_acceleration": 0.02,
+    }
+    backtest_profile.front = 1
+    backtest_profile.crowding_distance = 1.2
+
+    final_population = [backtest_profile]
+    filename = dummy_is_optimizer.persist_optimization(
+        final_population, filepath=optimization_root_dir
+    )
+
+    expected_persisted_optimization_data = [
+        [
+            "average_pnl",
+            "maximum_drawdown",
+            "RR",
+            "ema_period",
+            "psar_max_val",
+            "psar_acceleration",
+            "front",
+            "crowding distance",
+        ],
+        ["100", "50", "1.5", "250", "0.1", "0.02", "1", "1.2"],
+    ]
+
+    with open(filename) as file:
+        reader = csv.reader(file)
+        for idx, row in enumerate(reader):
+            assert row == expected_persisted_optimization_data[idx]
+
+
 def test_optimize(mocker, dummy_is_optimizer) -> None:
     mocked_run_backtest = mocker.patch(
         "afang.strategies.backtester.Backtester.run_backtest",
@@ -414,7 +461,7 @@ def test_optimize(mocker, dummy_is_optimizer) -> None:
         "afang.strategies.optimizer.StrategyOptimizer.generate_new_population"
     )
 
-    dummy_is_optimizer.optimize()
+    dummy_is_optimizer.optimize(persist=False)
 
     assert mocked_run_backtest.assert_called
     assert mocked_generate_initial_population.assert_called

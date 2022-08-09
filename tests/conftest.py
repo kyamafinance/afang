@@ -35,6 +35,26 @@ def delete_ohlcv_databases(ohlcv_root_db_dir) -> Generator:
             shutil.rmtree(file_path)
 
 
+@pytest.fixture()
+def optimization_root_dir() -> str:
+    return f"{pathlib.Path(__file__).parent}/testdata/optimization"
+
+
+@pytest.fixture(autouse=True)
+def delete_optimization_records(optimization_root_dir) -> Generator:
+    yield
+    list_dir = os.listdir(optimization_root_dir)
+    for filename in list_dir:
+        if filename == ".gitkeep":
+            continue
+
+        file_path = os.path.join(optimization_root_dir, filename)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+
+
 @pytest.fixture
 def dummy_is_exchange() -> IsExchange:
     class Dummy(IsExchange):
