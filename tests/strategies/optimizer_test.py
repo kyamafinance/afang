@@ -205,3 +205,60 @@ def test_generate_offspring_population(
         assert 0.05 <= backtest_params["psar_max_val"] <= 0.3
         assert 0.01 <= backtest_params["psar_acceleration"] <= 0.08
         assert backtest_params["psar_max_val"] >= backtest_params["psar_acceleration"]
+
+
+@pytest.mark.parametrize(
+    "profile_a_analysis, profile_b_analysis, expected_result",
+    [
+        (
+            {
+                "total_trades": {"all_trades": 1},
+                "average_pnl": {"all_trades": 100, "positive_optimization": True},
+                "maximum_drawdown": {
+                    "all_trades": 50,
+                    "positive_optimization": False,
+                },
+            },
+            {
+                "total_trades": {"all_trades": 1},
+                "average_pnl": {"all_trades": 90, "positive_optimization": True},
+                "maximum_drawdown": {
+                    "all_trades": 70,
+                    "positive_optimization": False,
+                },
+            },
+            True,
+        ),
+        (
+            {
+                "total_trades": {"all_trades": 1},
+                "average_pnl": {"all_trades": 90, "positive_optimization": True},
+                "maximum_drawdown": {
+                    "all_trades": 70,
+                    "positive_optimization": False,
+                },
+            },
+            {
+                "total_trades": {"all_trades": 1},
+                "average_pnl": {"all_trades": 100, "positive_optimization": True},
+                "maximum_drawdown": {
+                    "all_trades": 50,
+                    "positive_optimization": False,
+                },
+            },
+            False,
+        ),
+    ],
+)
+def test_is_profile_dominant(
+    profile_a_analysis, profile_b_analysis, expected_result, dummy_is_optimizer
+) -> None:
+    profile_a = BacktestProfile()
+    profile_a.backtest_analysis = [profile_a_analysis]
+    profile_b = BacktestProfile()
+    profile_b.backtest_analysis = [profile_b_analysis]
+
+    objectives = ["average_pnl", "maximum_drawdown"]
+    result = dummy_is_optimizer.is_profile_dominant(profile_a, profile_b, objectives)
+
+    assert result == expected_result
