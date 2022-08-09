@@ -51,6 +51,75 @@ def run_backtest_side_effect() -> List[List[Dict]]:
     ]
 
 
+def test_backtest_profile_reset() -> None:
+    backtest_profile = BacktestProfile()
+    backtest_profile.front = 1
+    backtest_profile.domination_count = 2
+    backtest_profile.crowding_distance = 3
+    backtest_profile.dominated_profiles = [12]
+
+    backtest_profile.reset()
+
+    assert backtest_profile.front == 0
+    assert backtest_profile.domination_count == 0
+    assert backtest_profile.crowding_distance == 0.0
+    assert backtest_profile.dominated_profiles == list()
+
+
+def test_backtest_profile_equality() -> None:
+    profile_a = BacktestProfile()
+    profile_a.backtest_parameters["param1"] = 1
+    profile_b = BacktestProfile()
+    profile_b.backtest_parameters["param1"] = 2
+
+    assert profile_a != profile_b
+
+    profile_b.backtest_parameters["param1"] = 1
+
+    assert profile_a == profile_b
+
+
+def test_is_objective_positive_optimization() -> None:
+    profile = BacktestProfile()
+
+    with pytest.raises(
+        ValueError,
+        match="Positive optimization cannot be fetched for an un-analyzed profile",
+    ):
+        profile.is_objective_positive_optimization("param")
+
+    profile.backtest_analysis = [{"param": {"positive_optimization": True}}]
+
+    assert profile.is_objective_positive_optimization("param")
+
+
+def test_get_objective_value() -> None:
+    profile = BacktestProfile()
+
+    with pytest.raises(
+        ValueError, match="Objective value cannot be fetched for an un-analyzed profile"
+    ):
+        profile.get_objective_value("param")
+
+    profile.backtest_analysis = [{"param": {"all_trades": 1}}]
+
+    assert profile.get_objective_value("param") == 1
+
+
+def test_set_objective_value() -> None:
+    profile = BacktestProfile()
+
+    with pytest.raises(
+        ValueError, match="Objective value cannot be set for an un-analyzed profile"
+    ):
+        profile.set_objective_value("param", 2)
+
+    profile.backtest_analysis = [{"param": {"all_trades": 1}}]
+
+    profile.set_objective_value("param", 2)
+    assert profile.get_objective_value("param") == 2
+
+
 def test_generate_initial_population(dummy_is_optimizer) -> None:
     initial_population = dummy_is_optimizer.generate_initial_population()
 
