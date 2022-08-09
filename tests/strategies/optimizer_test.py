@@ -289,3 +289,68 @@ def test_non_dominated_sorting(
     assert len(fronts) == 4
     for front in fronts:
         assert len(front) == 1
+
+
+def test_generate_new_population(
+    mocker, dummy_is_optimizer, run_backtest_side_effect
+) -> None:
+    mocker.patch(
+        "afang.strategies.backtester.Backtester.run_backtest",
+        side_effect=run_backtest_side_effect,
+    )
+
+    initial_population = dummy_is_optimizer.generate_initial_population()
+    evaluated_population = dummy_is_optimizer.evaluate_population(initial_population)
+    evaluated_population = dummy_is_optimizer.calculate_crowding_distance(
+        evaluated_population
+    )
+
+    idx = 0
+    population: Dict[int, BacktestProfile] = dict()
+    for backtest_profile in evaluated_population:
+        population[idx] = backtest_profile
+        idx += 1
+
+    fronts = dummy_is_optimizer.non_dominated_sorting(population)
+    new_population = dummy_is_optimizer.generate_new_population(fronts)
+
+    assert len(new_population) == 4
+    assert new_population[0].crowding_distance == float("inf")
+    assert new_population[1].crowding_distance == 0.7857142857142857
+    assert new_population[2].crowding_distance == 1.6071428571428572
+    assert new_population[3].crowding_distance == float("inf")
+
+
+def test_optimize(mocker, dummy_is_optimizer) -> None:
+    mocked_run_backtest = mocker.patch(
+        "afang.strategies.backtester.Backtester.run_backtest",
+        side_effect=run_backtest_side_effect,
+    )
+    mocked_generate_initial_population = mocker.patch(
+        "afang.strategies.optimizer.StrategyOptimizer.generate_initial_population"
+    )
+    mocked_evaluate_population = mocker.patch(
+        "afang.strategies.optimizer.StrategyOptimizer.evaluate_population"
+    )
+    mocked_calculate_crowding_distance = mocker.patch(
+        "afang.strategies.optimizer.StrategyOptimizer.calculate_crowding_distance"
+    )
+    mocked_generate_offspring_population = mocker.patch(
+        "afang.strategies.optimizer.StrategyOptimizer.generate_offspring_population"
+    )
+    mocked_non_dominated_sorting = mocker.patch(
+        "afang.strategies.optimizer.StrategyOptimizer.non_dominated_sorting"
+    )
+    mocked_generate_new_population = mocker.patch(
+        "afang.strategies.optimizer.StrategyOptimizer.generate_new_population"
+    )
+
+    dummy_is_optimizer.optimize()
+
+    assert mocked_run_backtest.assert_called
+    assert mocked_generate_initial_population.assert_called
+    assert mocked_evaluate_population.assert_called
+    assert mocked_calculate_crowding_distance.assert_called
+    assert mocked_generate_offspring_population.assert_called
+    assert mocked_non_dominated_sorting.assert_called
+    assert mocked_generate_new_population.assert_called
