@@ -10,7 +10,7 @@ parameters:
   psar_acceleration: 0.02
 optimizer:
   population_size: 8
-  num_generations: 10
+  num_generations: 20
   parameters:
     RR:
       min: 1.0
