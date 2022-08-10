@@ -50,6 +50,7 @@ class StrategyAnalyzer:
                         "all_trades": total_net_profit,
                         "long_trades": total_net_profit_long,
                         "short_trades": total_net_profit_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -83,6 +84,7 @@ class StrategyAnalyzer:
                         "all_trades": gross_profit,
                         "long_trades": gross_profit_long,
                         "short_trades": gross_profit_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -216,6 +218,7 @@ class StrategyAnalyzer:
                         "all_trades": profit_factor,
                         "long_trades": profit_factor_long,
                         "short_trades": profit_factor_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -300,6 +303,7 @@ class StrategyAnalyzer:
                         "all_trades": total_trades,
                         "long_trades": total_trades_long,
                         "short_trades": total_trades_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -339,6 +343,7 @@ class StrategyAnalyzer:
                         "all_trades": winning_trades,
                         "long_trades": winning_trades_long,
                         "short_trades": winning_trades_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -474,6 +479,7 @@ class StrategyAnalyzer:
                         "all_trades": percent_profitable,
                         "long_trades": percent_profitable_long,
                         "short_trades": percent_profitable_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -523,6 +529,7 @@ class StrategyAnalyzer:
                         "all_trades": average_roe,
                         "long_trades": average_roe_long,
                         "short_trades": average_roe_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -620,6 +627,7 @@ class StrategyAnalyzer:
                         "all_trades": average_winning_trade,
                         "long_trades": average_winning_trade_long,
                         "short_trades": average_winning_trade_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -709,6 +717,7 @@ class StrategyAnalyzer:
                         "all_trades": take_profit_ratio,
                         "long_trades": take_profit_ratio_long,
                         "short_trades": take_profit_ratio_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -751,6 +760,7 @@ class StrategyAnalyzer:
                         "all_trades": trade_expectancy,
                         "long_trades": trade_expectancy_long,
                         "short_trades": trade_expectancy_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -798,6 +808,7 @@ class StrategyAnalyzer:
                         "all_trades": max_consecutive_winners,
                         "long_trades": max_consecutive_winners_long,
                         "short_trades": max_consecutive_winners_short,
+                        "positive_optimization": True,
                     }
                 }
             )
@@ -1083,6 +1094,7 @@ class StrategyAnalyzer:
                         "all_trades": average_monthly_pnl,
                         "long_trades": average_monthly_pnl_long,
                         "short_trades": average_monthly_pnl_short,
+                        "positive_optimization": True,
                     }
                 }
             )
