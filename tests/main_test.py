@@ -58,3 +58,23 @@ def test_run_backtest(mocker) -> None:
     main(args)
 
     assert mocked_run_backtest.assert_called
+
+
+def test_run_strategy_optimization(mocker) -> None:
+    args = [
+        "-m",
+        "optimize",
+        "-e",
+        "dydx",
+        "--symbols",
+        "BTC-USD",
+        "--strategy",
+        "SampleStrategy",
+    ]
+
+    mocked_strategy_optimize = mocker.patch(
+        "afang.main.StrategyOptimizer.optimize", return_value=None
+    )
+    main(args)
+
+    assert mocked_strategy_optimize.assert_called

@@ -7,6 +7,7 @@ import afang.strategies as strategies
 from afang.cli_handler import parse_args
 from afang.database.backtest_data_collector import fetch_historical_price_data
 from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
+from afang.strategies.optimizer import StrategyOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,11 @@ def main(args):
         # If the mode provided is backtest, run a backtest on the provided strategy
         strategy = get_strategy_instance(parsed_args.strategy)
         strategy().run_backtest(exchange, parsed_args)
+
+    elif parsed_args.mode == "optimize":
+        # Optimize trading strategy parameters.
+        strategy = get_strategy_instance(parsed_args.strategy)
+        StrategyOptimizer(strategy, exchange, parsed_args).optimize()
 
     else:
         logger.warning("Unknown mode provided: %s", parsed_args.mode)

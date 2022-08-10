@@ -41,6 +41,7 @@ def test_compute_total_net_profit(dummy_strategy_analyzer) -> None:
         "all_trades": 32.0,
         "long_trades": 13.0,
         "short_trades": 19.0,
+        "positive_optimization": True,
     }
 
 
@@ -63,6 +64,7 @@ def test_compute_gross_profit(dummy_strategy_analyzer) -> None:
         "all_trades": 13.0,
         "long_trades": 2.5,
         "short_trades": 10.5,
+        "positive_optimization": True,
     }
 
 
@@ -153,6 +155,7 @@ def test_compute_profit_factor(dummy_strategy_analyzer) -> None:
         "all_trades": 0.6842105263157895,
         "long_trades": 0.23809523809523808,
         "short_trades": 1.2352941176470589,
+        "positive_optimization": True,
     }
 
 
@@ -172,9 +175,10 @@ def test_compute_maximum_drawdown(dummy_strategy_analyzer) -> None:
     dummy_strategy_analyzer.compute_maximum_drawdown()
 
     assert dummy_strategy_analyzer.analysis_results[0]["maximum_drawdown"] == {
-        "all_trades": -58.33333333333333,
-        "long_trades": -16.666666666666664,
-        "short_trades": -50.0,
+        "all_trades": 58.33333333333333,
+        "long_trades": 16.666666666666664,
+        "short_trades": 50.0,
+        "positive_optimization": False,
     }
 
 
@@ -198,6 +202,7 @@ def test_compute_total_trades(dummy_strategy_analyzer) -> None:
         "all_trades": 5,
         "long_trades": 2,
         "short_trades": 3,
+        "positive_optimization": True,
     }
 
 
@@ -220,6 +225,7 @@ def test_compute_winning_trades(dummy_strategy_analyzer) -> None:
         "all_trades": 3,
         "long_trades": 2,
         "short_trades": 1,
+        "positive_optimization": True,
     }
 
 
@@ -290,6 +296,7 @@ def test_compute_percent_profitable(dummy_strategy_analyzer) -> None:
         "all_trades": 50.0,
         "long_trades": 100.0,
         "short_trades": 0.0,
+        "positive_optimization": True,
     }
 
 
@@ -313,6 +320,7 @@ def test_compute_average_roe(dummy_strategy_analyzer) -> None:
         "all_trades": -2.125,
         "long_trades": 5.25,
         "short_trades": -9.5,
+        "positive_optimization": True,
     }
 
 
@@ -336,6 +344,7 @@ def test_compute_average_pnl(dummy_strategy_analyzer) -> None:
         "all_trades": -2.125,
         "long_trades": 5.25,
         "short_trades": -9.5,
+        "positive_optimization": True,
     }
 
 
@@ -359,6 +368,7 @@ def test_compute_average_winning_trade(dummy_strategy_analyzer) -> None:
         "all_trades": 7.833333333333333,
         "long_trades": 6.5,
         "short_trades": 10.5,
+        "positive_optimization": True,
     }
 
 
@@ -408,6 +418,7 @@ def test_compute_take_profit_ratio(dummy_strategy_analyzer) -> None:
         "all_trades": -0.9215686274509803,
         "long_trades": 0,
         "short_trades": -1.2352941176470589,
+        "positive_optimization": True,
     }
 
 
@@ -437,6 +448,7 @@ def test_compute_trade_expectancy(dummy_strategy_analyzer) -> None:
         "all_trades": 0.5,
         "long_trades": 10.5,
         "short_trades": -9.5,
+        "positive_optimization": True,
     }
 
 
@@ -459,6 +471,7 @@ def test_compute_max_consecutive_winners(dummy_strategy_analyzer) -> None:
         "all_trades": 1,
         "long_trades": 1,
         "short_trades": 0,
+        "positive_optimization": True,
     }
 
 
@@ -616,6 +629,7 @@ def test_compute_average_monthly_pnl(dummy_strategy_analyzer) -> None:
         "all_trades": -4.25,
         "long_trades": 5.25,
         "short_trades": -9.5,
+        "positive_optimization": True,
     }
 
 

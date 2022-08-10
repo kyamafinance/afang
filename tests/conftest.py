@@ -1,15 +1,17 @@
+import argparse
 import os
 import pathlib
 import shutil
 from abc import ABC
 from collections.abc import Generator
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pandas as pd
 import pytest
 
 from afang.exchanges.is_exchange import IsExchange
 from afang.strategies.is_strategy import IsStrategy
+from afang.strategies.optimizer import StrategyOptimizer
 from afang.strategies.util import TradeLevels
 
 
@@ -27,6 +29,26 @@ def delete_ohlcv_databases(ohlcv_root_db_dir) -> Generator:
             continue
 
         file_path = os.path.join(ohlcv_root_db_dir, filename)
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+
+
+@pytest.fixture()
+def optimization_root_dir() -> str:
+    return f"{pathlib.Path(__file__).parent}/testdata/optimization"
+
+
+@pytest.fixture(autouse=True)
+def delete_optimization_records(optimization_root_dir) -> Generator:
+    yield
+    list_dir = os.listdir(optimization_root_dir)
+    for filename in list_dir:
+        if filename == ".gitkeep":
+            continue
+
+        file_path = os.path.join(optimization_root_dir, filename)
         if os.path.isfile(file_path) or os.path.islink(file_path):
             os.unlink(file_path)
         elif os.path.isdir(file_path):
@@ -61,9 +83,9 @@ def dummy_is_exchange() -> IsExchange:
 
 
 @pytest.fixture
-def dummy_is_strategy() -> IsStrategy:
+def dummy_is_strategy_callable() -> Type[IsStrategy]:
     class Dummy(IsStrategy, ABC):
-        def __init__(self, strategy_name: str) -> None:
+        def __init__(self, strategy_name: Optional[str] = "test_strategy") -> None:
             super().__init__(strategy_name)
 
         def read_strategy_config(self) -> Dict:
@@ -71,6 +93,36 @@ def dummy_is_strategy() -> IsStrategy:
                 "name": "test_strategy",
                 "timeframe": "1h",
                 "watchlist": {"test_exchange": ["test_symbol"]},
+                "parameters": {
+                    "RR": 1.5,
+                    "ema_period": 200,
+                    "macd_signal": 9,
+                    "macd_period_fast": 12,
+                    "macd_period_slow": 24,
+                    "psar_max_val": 0.2,
+                    "psar_acceleration": 0.02,
+                },
+                "optimizer": {
+                    "population_size": 4,
+                    "num_generations": 5,
+                    "objectives": ["average_pnl", "maximum_drawdown"],
+                    "parameters": {
+                        "RR": {"min": 1.0, "max": 5.0, "type": "float", "decimals": 1},
+                        "ema_period": {"min": 100, "max": 800, "type": "int"},
+                        "psar_max_val": {
+                            "min": 0.05,
+                            "max": 0.3,
+                            "type": "float",
+                            "decimals": 2,
+                        },
+                        "psar_acceleration": {
+                            "min": 0.01,
+                            "max": 0.08,
+                            "type": "float",
+                            "decimals": 2,
+                        },
+                    },
+                },
             }
 
         def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -90,4 +142,30 @@ def dummy_is_strategy() -> IsStrategy:
         def plot_backtest_indicators(self) -> Dict:
             return super().plot_backtest_indicators()
 
-    return Dummy(strategy_name="test_strategy")
+        def define_optimization_param_constraints(self, parameters: Dict) -> Dict:
+            psar_acceleration = min(
+                parameters["psar_acceleration"], parameters["psar_max_val"]
+            )
+            psar_max_val = max(
+                parameters["psar_acceleration"], parameters["psar_max_val"]
+            )
+
+            parameters["psar_acceleration"] = psar_acceleration
+            parameters["psar_max_val"] = psar_max_val
+
+            return parameters
+
+    return Dummy
+
+
+@pytest.fixture
+def dummy_is_strategy(dummy_is_strategy_callable) -> IsStrategy:
+    return dummy_is_strategy_callable(strategy_name="test_strategy")
+
+
+@pytest.fixture
+def dummy_is_optimizer(
+    dummy_is_exchange, dummy_is_strategy_callable
+) -> StrategyOptimizer:
+    cli_args = argparse.Namespace()
+    return StrategyOptimizer(dummy_is_strategy_callable, dummy_is_exchange, cli_args)
