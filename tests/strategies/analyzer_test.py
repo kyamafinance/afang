@@ -172,10 +172,10 @@ def test_compute_maximum_drawdown(dummy_strategy_analyzer) -> None:
     dummy_strategy_analyzer.compute_maximum_drawdown()
 
     assert dummy_strategy_analyzer.analysis_results[0]["maximum_drawdown"] == {
-        "all_trades": -58.33333333333333,
-        "long_trades": -16.666666666666664,
-        "short_trades": -50.0,
-        "positive_optimization": True,
+        "all_trades": 58.33333333333333,
+        "long_trades": 16.666666666666664,
+        "short_trades": 50.0,
+        "positive_optimization": False,
     }
 
 

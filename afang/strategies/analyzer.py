@@ -237,7 +237,7 @@ class StrategyAnalyzer:
                 except ZeroDivisionError:
                     return 100.0
 
-            return _max_drawdown * 100.0
+            return -1 * (_max_drawdown * 100.0)
 
         for symbol_backtest in self.analysis_results:
             max_drawdown = get_max_drawdown(
@@ -266,7 +266,7 @@ class StrategyAnalyzer:
                         "all_trades": max_drawdown,
                         "long_trades": max_drawdown_long,
                         "short_trades": max_drawdown_short,
-                        "positive_optimization": True,
+                        "positive_optimization": False,
                     }
                 }
             )
