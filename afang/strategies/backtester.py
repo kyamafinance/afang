@@ -1,8 +1,10 @@
 import argparse
 import logging
+import multiprocessing
 import time
 import uuid
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -34,6 +36,11 @@ class Backtester(ABC):
         self.strategy_name = strategy_name
         self.allow_long_positions = True
         self.allow_short_positions = True
+        self.timeframe: Optional[str] = None
+        self.symbols: Optional[List[str]] = None
+        self.exchange: Optional[IsExchange] = None
+        self.backtest_to_time: Optional[int] = None
+        self.backtest_from_time: Optional[int] = None
         # leverage to use per trade.
         self.leverage = 1
         # exchange order fee as a percentage of the trade principal.
@@ -341,35 +348,26 @@ class Backtester(ABC):
                 )
 
     @trace_unhandled_exceptions
-    def run_symbol_backtest(
-        self,
-        symbol: str,
-        exchange: IsExchange,
-        timeframe: str,
-        backtest_from_time: int,
-        backtest_to_time: int,
-    ) -> None:
+    def run_symbol_backtest(self, symbol: str) -> None:
         """Run trading backtest for a single symbol.
 
         :param symbol: symbol to run backtest for.
-        :param exchange: exchange being used.
-        :param timeframe: backtesting timeframe.
-        :param backtest_from_time: timestamp in ms of backtest begin date.
-        :param backtest_to_time: timestamp in ms of backtest end date.
         :return: None
         """
 
         logger.info(
             "%s %s %s: started backtest on the %s strategy",
             symbol,
-            exchange.name,
-            timeframe,
+            self.exchange.name,
+            self.timeframe,
             self.strategy_name,
         )
 
-        ohlcv_db = OHLCVDatabase(exchange.name, symbol)
-        ohlcv_data = ohlcv_db.get_data(symbol, backtest_from_time, backtest_to_time)
-        resampled_ohlcv_data = resample_timeframe(ohlcv_data, timeframe)
+        ohlcv_db = OHLCVDatabase(self.exchange.name, symbol)
+        ohlcv_data = ohlcv_db.get_data(
+            symbol, self.backtest_from_time, self.backtest_to_time
+        )
+        resampled_ohlcv_data = resample_timeframe(ohlcv_data, self.timeframe)
         self.backtest_data[symbol] = resampled_ohlcv_data
 
         # generate trading features.
@@ -425,8 +423,8 @@ class Backtester(ABC):
         logger.info(
             "%s %s %s: completed backtest on the %s strategy",
             symbol,
-            exchange.name,
-            timeframe,
+            self.exchange.name,
+            self.timeframe,
             self.strategy_name,
         )
 
@@ -442,20 +440,23 @@ class Backtester(ABC):
         """
 
         # Get symbols to backtest.
-        symbols = cli_args.symbols
-        if not symbols:
-            symbols = self.config.get("watchlist", dict()).get(exchange.name, [])
-        if not symbols:
+        self.symbols = cli_args.symbols
+        if not self.symbols:
+            self.symbols = self.config.get("watchlist", dict()).get(exchange.name, [])
+        if not self.symbols:
             logger.warning(
                 "%s: no symbols found to run strategy backtest", self.strategy_name
             )
             return None
 
+        # Record exchange to be used for backtest.
+        self.exchange = exchange
+
         # Get the backtesting timeframe.
-        timeframe = cli_args.timeframe
-        if not timeframe:
-            timeframe = self.config.get("timeframe", None)
-        if not timeframe:
+        self.timeframe = cli_args.timeframe
+        if not self.timeframe:
+            self.timeframe = self.config.get("timeframe", None)
+        if not self.timeframe:
             logger.warning(
                 "%s: timeframe not defined for the strategy backtest",
                 self.strategy_name,
@@ -463,35 +464,34 @@ class Backtester(ABC):
             return None
 
         # Get the backtesting duration.
-        backtest_from_time = 0
+        self.backtest_from_time = 0
         if cli_args.from_time:
-            backtest_from_time = time_str_to_milliseconds(cli_args.from_time)
-        backtest_to_time = int(time.time()) * 1000
+            self.backtest_from_time = time_str_to_milliseconds(cli_args.from_time)
+        self.backtest_to_time = int(time.time()) * 1000
         if cli_args.to_time:
-            backtest_to_time = time_str_to_milliseconds(cli_args.to_time)
+            self.backtest_to_time = time_str_to_milliseconds(cli_args.to_time)
 
         # Update the strategy config with the working parameters.
         self.config.update(
             {
-                "timeframe": timeframe,
-                "exchange": exchange,
-                "backtest_from_time": backtest_from_time,
-                "backtest_to_time": backtest_to_time,
+                "timeframe": self.timeframe,
+                "exchange": self.exchange,
+                "backtest_from_time": self.backtest_from_time,
+                "backtest_to_time": self.backtest_to_time,
             }
         )
 
-        for symbol in symbols:
+        for symbol in self.symbols:
             if symbol not in exchange.symbols:
-                logger.warning(
+                logger.error(
                     "%s %s: provided symbol not present in the exchange",
                     exchange.name,
                     symbol,
                 )
-                continue
+                return None
 
-            self.run_symbol_backtest(
-                symbol, exchange, timeframe, backtest_from_time, backtest_to_time
-            )
+        with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
+            executor.map(self.run_symbol_backtest, self.symbols)
 
         # Analyze the trading strategy.
         strategy_analyzer = StrategyAnalyzer(strategy=self)
