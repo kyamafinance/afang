@@ -358,6 +358,7 @@ def test_handle_open_backtest_positions(
     assert mocked_close_backtest_position.call_args.args[0] == "test_symbol"
     assert mocked_close_backtest_position.call_args.args[1] == "1"
     assert mocked_close_backtest_position.call_args.args[2] == expected_close_price
+    assert dummy_is_strategy.trade_positions["test_symbol"]["1"]["holding_time"] == 1
 
 
 def test_run_symbol_backtest(
