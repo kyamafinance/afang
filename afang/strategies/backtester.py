@@ -14,11 +14,7 @@ from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
 from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.util import TradeLevels
-from afang.utils.util import (
-    resample_timeframe,
-    time_str_to_milliseconds,
-    trace_unhandled_exceptions,
-)
+from afang.utils.util import resample_timeframe, time_str_to_milliseconds
 
 logger = logging.getLogger(__name__)
 
@@ -347,7 +343,6 @@ class Backtester(ABC):
                     symbol, position_id, data.close, data.Index
                 )
 
-    @trace_unhandled_exceptions
     def run_symbol_backtest(self, symbol: str) -> None:
         """Run trading backtest for a single symbol.
 
