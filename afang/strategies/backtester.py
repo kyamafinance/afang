@@ -361,14 +361,13 @@ class Backtester(ABC):
             symbol, self.backtest_from_time, self.backtest_to_time
         )
         resampled_ohlcv_data = resample_timeframe(ohlcv_data, self.timeframe)
-        self.backtest_data[symbol] = resampled_ohlcv_data
 
         # generate trading features.
-        self.backtest_data[symbol] = self.generate_features(self.backtest_data[symbol])
+        populated_ohlcv_data = self.generate_features(resampled_ohlcv_data)
 
         # remove unstable indicator values.
         idx = self.unstable_indicator_values
-        self.backtest_data[symbol] = self.backtest_data[symbol].iloc[idx:]
+        self.backtest_data[symbol] = populated_ohlcv_data.iloc[idx:]
 
         for row in self.backtest_data[symbol].itertuples():
             # open a long position if we get a long trading signal.
