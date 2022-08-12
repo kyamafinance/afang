@@ -1,6 +1,5 @@
 import argparse
 import logging
-import multiprocessing
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -13,11 +12,7 @@ from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
 from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.util import TradeLevels
-from afang.utils.util import (
-    resample_timeframe,
-    time_str_to_milliseconds,
-    trace_unhandled_exceptions,
-)
+from afang.utils.util import resample_timeframe, time_str_to_milliseconds
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +30,11 @@ class Backtester(ABC):
         self.strategy_name = strategy_name
         self.allow_long_positions = True
         self.allow_short_positions = True
+        self.timeframe: Optional[str] = None
+        self.symbols: Optional[List[str]] = None
+        self.exchange: Optional[IsExchange] = None
+        self.backtest_to_time: Optional[int] = None
+        self.backtest_from_time: Optional[int] = None
         # leverage to use per trade.
         self.leverage = 1
         # exchange order fee as a percentage of the trade principal.
@@ -56,12 +56,10 @@ class Backtester(ABC):
         self.allow_multiple_open_positions = True
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
         self.config: Dict = dict()
-        # multiprocessing manager
-        manager = multiprocessing.Manager()
         # backtest data that initially contains OHLCV data.
-        self.backtest_data: Any = manager.dict()
+        self.backtest_data: Dict = dict()
         # backtest trade positions.
-        self.trade_positions: Any = manager.dict()
+        self.trade_positions: Dict = dict()
 
     @staticmethod
     def generate_uuid() -> str:
@@ -110,9 +108,9 @@ class Backtester(ABC):
             "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
         }
 
-        temp_symbol_positions = self.trade_positions.get(symbol, dict())
-        temp_symbol_positions[Backtester.generate_uuid()] = new_position
-        self.trade_positions[symbol] = temp_symbol_positions
+        if not self.trade_positions.get(symbol, dict()):
+            self.trade_positions[symbol] = dict()
+        self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
 
     def open_short_backtest_position(
         self,
@@ -143,9 +141,9 @@ class Backtester(ABC):
             "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
         }
 
-        temp_symbol_positions = self.trade_positions.get(symbol, dict())
-        temp_symbol_positions[Backtester.generate_uuid()] = new_position
-        self.trade_positions[symbol] = temp_symbol_positions
+        if not self.trade_positions.get(symbol, dict()):
+            self.trade_positions[symbol] = dict()
+        self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
 
     def fetch_open_backtest_positions(self, symbol: str) -> List[Dict]:
         """Fetch a list of all open backtest positions for a given symbol.
@@ -218,11 +216,6 @@ class Backtester(ABC):
 
         position["open_position"] = False
         position["final_account_balance"] = self.current_backtest_balance
-
-        # update trade position.
-        temp_symbol_positions = self.trade_positions[symbol]
-        temp_symbol_positions[position_id] = position
-        self.trade_positions[symbol] = temp_symbol_positions
 
         return position
 
@@ -302,7 +295,7 @@ class Backtester(ABC):
                 and data.low <= position["stop_price"]
                 and position["direction"] == 1
             ):
-                position = self.close_backtest_position(
+                self.close_backtest_position(
                     symbol, position_id, position["stop_price"], data.Index
                 )
 
@@ -312,7 +305,7 @@ class Backtester(ABC):
                 and data.high >= position["target_price"]
                 and position["direction"] == 1
             ):
-                position = self.close_backtest_position(
+                self.close_backtest_position(
                     symbol, position_id, position["target_price"], data.Index
                 )
 
@@ -322,7 +315,7 @@ class Backtester(ABC):
                 and data.high >= position["stop_price"]
                 and position["direction"] == -1
             ):
-                position = self.close_backtest_position(
+                self.close_backtest_position(
                     symbol, position_id, position["stop_price"], data.Index
                 )
 
@@ -332,57 +325,42 @@ class Backtester(ABC):
                 and data.low <= position["target_price"]
                 and position["direction"] == -1
             ):
-                position = self.close_backtest_position(
+                self.close_backtest_position(
                     symbol, position_id, position["target_price"], data.Index
                 )
 
             # check if vertical barrier has been hit.
             elif position["holding_time"] >= self.max_holding_candles:
-                position = self.close_backtest_position(
+                self.close_backtest_position(
                     symbol, position_id, data.close, data.Index
                 )
 
             # check if current candle is the last candle in the provided historical price data.
             elif data.Index == self.backtest_data[symbol].index.values[-1]:
-                position = self.close_backtest_position(
+                self.close_backtest_position(
                     symbol, position_id, data.close, data.Index
                 )
 
-            # update trade position.
-            temp_symbol_positions = self.trade_positions[symbol]
-            temp_symbol_positions[position_id] = position
-            self.trade_positions[symbol] = temp_symbol_positions
-
-    @trace_unhandled_exceptions
-    def run_symbol_backtest(
-        self,
-        symbol: str,
-        exchange: IsExchange,
-        timeframe: str,
-        backtest_from_time: int,
-        backtest_to_time: int,
-    ) -> None:
+    def run_symbol_backtest(self, symbol: str) -> None:
         """Run trading backtest for a single symbol.
 
         :param symbol: symbol to run backtest for.
-        :param exchange: exchange being used.
-        :param timeframe: backtesting timeframe.
-        :param backtest_from_time: timestamp in ms of backtest begin date.
-        :param backtest_to_time: timestamp in ms of backtest end date.
         :return: None
         """
 
         logger.info(
             "%s %s %s: started backtest on the %s strategy",
             symbol,
-            exchange.name,
-            timeframe,
+            self.exchange.name,
+            self.timeframe,
             self.strategy_name,
         )
 
-        ohlcv_db = OHLCVDatabase(exchange.name, symbol)
-        ohlcv_data = ohlcv_db.get_data(symbol, backtest_from_time, backtest_to_time)
-        resampled_ohlcv_data = resample_timeframe(ohlcv_data, timeframe)
+        ohlcv_db = OHLCVDatabase(self.exchange.name, symbol)
+        ohlcv_data = ohlcv_db.get_data(
+            symbol, self.backtest_from_time, self.backtest_to_time
+        )
+        resampled_ohlcv_data = resample_timeframe(ohlcv_data, self.timeframe)
         self.backtest_data[symbol] = resampled_ohlcv_data
 
         # generate trading features.
@@ -438,8 +416,8 @@ class Backtester(ABC):
         logger.info(
             "%s %s %s: completed backtest on the %s strategy",
             symbol,
-            exchange.name,
-            timeframe,
+            self.exchange.name,
+            self.timeframe,
             self.strategy_name,
         )
 
@@ -455,20 +433,23 @@ class Backtester(ABC):
         """
 
         # Get symbols to backtest.
-        symbols = cli_args.symbols
-        if not symbols:
-            symbols = self.config.get("watchlist", dict()).get(exchange.name, [])
-        if not symbols:
+        self.symbols = cli_args.symbols
+        if not self.symbols:
+            self.symbols = self.config.get("watchlist", dict()).get(exchange.name, [])
+        if not self.symbols:
             logger.warning(
                 "%s: no symbols found to run strategy backtest", self.strategy_name
             )
             return None
 
+        # Record exchange to be used for backtest.
+        self.exchange = exchange
+
         # Get the backtesting timeframe.
-        timeframe = cli_args.timeframe
-        if not timeframe:
-            timeframe = self.config.get("timeframe", None)
-        if not timeframe:
+        self.timeframe = cli_args.timeframe
+        if not self.timeframe:
+            self.timeframe = self.config.get("timeframe", None)
+        if not self.timeframe:
             logger.warning(
                 "%s: timeframe not defined for the strategy backtest",
                 self.strategy_name,
@@ -476,40 +457,33 @@ class Backtester(ABC):
             return None
 
         # Get the backtesting duration.
-        backtest_from_time = 0
+        self.backtest_from_time = 0
         if cli_args.from_time:
-            backtest_from_time = time_str_to_milliseconds(cli_args.from_time)
-        backtest_to_time = int(time.time()) * 1000
+            self.backtest_from_time = time_str_to_milliseconds(cli_args.from_time)
+        self.backtest_to_time = int(time.time()) * 1000
         if cli_args.to_time:
-            backtest_to_time = time_str_to_milliseconds(cli_args.to_time)
+            self.backtest_to_time = time_str_to_milliseconds(cli_args.to_time)
 
         # Update the strategy config with the working parameters.
         self.config.update(
             {
-                "timeframe": timeframe,
-                "exchange": exchange,
-                "backtest_from_time": backtest_from_time,
-                "backtest_to_time": backtest_to_time,
+                "timeframe": self.timeframe,
+                "exchange": self.exchange,
+                "backtest_from_time": self.backtest_from_time,
+                "backtest_to_time": self.backtest_to_time,
             }
         )
 
-        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-        for symbol in symbols:
+        for symbol in self.symbols:
             if symbol not in exchange.symbols:
-                logger.warning(
+                logger.error(
                     "%s %s: provided symbol not present in the exchange",
                     exchange.name,
                     symbol,
                 )
-                continue
+                return None
 
-            pool.apply_async(
-                self.run_symbol_backtest,
-                (symbol, exchange, timeframe, backtest_from_time, backtest_to_time),
-            )
-
-        pool.close()
-        pool.join()
+            self.run_symbol_backtest(symbol)
 
         # Analyze the trading strategy.
         strategy_analyzer = StrategyAnalyzer(strategy=self)

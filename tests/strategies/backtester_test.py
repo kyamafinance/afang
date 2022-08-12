@@ -358,6 +358,7 @@ def test_handle_open_backtest_positions(
     assert mocked_close_backtest_position.call_args.args[0] == "test_symbol"
     assert mocked_close_backtest_position.call_args.args[1] == "1"
     assert mocked_close_backtest_position.call_args.args[2] == expected_close_price
+    assert dummy_is_strategy.trade_positions["test_symbol"]["1"]["holding_time"] == 1
 
 
 def test_run_symbol_backtest(
@@ -390,10 +391,12 @@ def test_run_symbol_backtest(
         "afang.strategies.backtester.Backtester.handle_open_backtest_positions"
     )
 
+    dummy_is_strategy.exchange = dummy_is_exchange
+    dummy_is_strategy.timeframe = "5m"
+    dummy_is_strategy.backtest_from_time = 0
+    dummy_is_strategy.backtest_to_time = 1000
     dummy_is_strategy.unstable_indicator_values = 1
-    dummy_is_strategy.run_symbol_backtest(
-        "test_symbol", dummy_is_exchange, "5m", 0, 1000
-    )
+    dummy_is_strategy.run_symbol_backtest("test_symbol")
 
     assert mocked_generate_features.assert_called
     assert mocked_is_long_trade_signal_present.assert_called
