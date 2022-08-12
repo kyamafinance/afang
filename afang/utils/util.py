@@ -1,5 +1,8 @@
+import functools
 import logging
+import traceback
 from datetime import datetime, timezone
+from typing import Callable
 
 import pandas as pd
 
@@ -58,3 +61,22 @@ def resample_timeframe(data: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     return data.resample(tf_mapping[timeframe]).agg(
         {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
     )
+
+
+def trace_unhandled_exceptions(func) -> Callable:
+    """Decorator to throw exceptions in a multiprocessing process.
+
+    :param func: function passed in apply_async.
+    :return: None
+    """
+
+    @functools.wraps(func)
+    def wrapped_func(*args, **kwargs):
+        # noinspection PyBroadException
+        try:
+            func(*args, **kwargs)
+        except Exception:
+            logger.error("Exception in %s", func.__name__)
+            traceback.print_exc()
+
+    return wrapped_func
