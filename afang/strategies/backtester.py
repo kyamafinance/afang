@@ -1,10 +1,8 @@
 import argparse
 import logging
-import multiprocessing
 import time
 import uuid
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -485,8 +483,7 @@ class Backtester(ABC):
                 )
                 return None
 
-        with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-            executor.map(self.run_symbol_backtest, self.symbols)
+            self.run_symbol_backtest(symbol)
 
         # Analyze the trading strategy.
         strategy_analyzer = StrategyAnalyzer(strategy=self)
