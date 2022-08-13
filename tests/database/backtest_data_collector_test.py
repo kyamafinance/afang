@@ -169,6 +169,20 @@ def test_fetch_historical_price_data_no_symbols(dummy_is_exchange, caplog) -> No
     assert "No symbols found to fetch historical price data" in caplog.text
 
 
+def test_fetch_historical_price_data_no_symbols_with_strategy(
+    dummy_is_exchange, dummy_is_strategy, caplog
+) -> None:
+    test_args = argparse.Namespace(symbols=[])
+    fetch_historical_price_data(
+        dummy_is_exchange, test_args, strategy=dummy_is_strategy
+    )
+
+    # test to assert that if a strategy with an exchange watchlist is provided,
+    # there will be symbols whose data is to be fetched therefore there will
+    # be no warning/error log.
+    assert not caplog.text
+
+
 def test_fetch_historical_price_data(mocker, dummy_is_exchange) -> None:
     test_args = argparse.Namespace(symbols=["test_symbol"])
     mocked_fetch_symbol_data = mocker.patch(

@@ -7,6 +7,7 @@ from typing import Optional, Tuple, Union
 
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges.is_exchange import IsExchange
+from afang.strategies.is_strategy import IsStrategy
 from afang.utils.util import milliseconds_to_datetime
 
 logger = logging.getLogger(__name__)
@@ -277,17 +278,22 @@ def fetch_symbol_data(
 
 
 def fetch_historical_price_data(
-    exchange: IsExchange, parsed_args: argparse.Namespace
+    exchange: IsExchange,
+    cli_args: argparse.Namespace,
+    strategy: Optional[IsStrategy] = None,
 ) -> None:
     """Fetch historical price data for the parsed symbols.
 
     :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
-    :param parsed_args: arguments parsed from the CLI.
+    :param cli_args: arguments parsed from the CLI.
+    :param strategy: optional strategy instance.
 
     :return: None
     """
 
-    symbols = parsed_args.symbols
+    symbols = cli_args.symbols
+    if not symbols and strategy:
+        symbols = strategy.config.get("watchlist", dict()).get(exchange.name, [])
     if not symbols:
         logger.warning("No symbols found to fetch historical price data")
         return
