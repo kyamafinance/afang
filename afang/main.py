@@ -29,13 +29,16 @@ def get_exchange_client(exchange_name: str) -> Optional[IsExchange]:
     return exchange
 
 
-def get_strategy_instance(strategy_name: str) -> Callable:
+def get_strategy_instance(strategy_name: str) -> Optional[Callable]:
     """Returns a callable strategy instance. If the strategy name does not
     correspond to a properly defined strategy, a ValueError is raised.
 
     :param strategy_name: name of the user defined strategy.
     :return: Callable
     """
+
+    if not strategy_name:
+        return None
 
     try:
         return operator.attrgetter(f"{strategy_name}.{strategy_name}")(strategies)
@@ -60,18 +63,21 @@ def main(args):
         logger.warning("Unknown exchange provided: %s", parsed_args.exchange)
         return
 
+    # Get the strategy instance if one was specified.
+    strategy = get_strategy_instance(parsed_args.strategy)
+
     if parsed_args.mode == "data":
         # If the provided mode is data, collect historical price data.
-        fetch_historical_price_data(exchange, parsed_args)
+        fetch_historical_price_data(
+            exchange, parsed_args, strategy=strategy() if strategy else None
+        )
 
     elif parsed_args.mode == "backtest":
         # If the mode provided is backtest, run a backtest on the provided strategy
-        strategy = get_strategy_instance(parsed_args.strategy)
         strategy().run_backtest(exchange, parsed_args)
 
     elif parsed_args.mode == "optimize":
         # Optimize trading strategy parameters.
-        strategy = get_strategy_instance(parsed_args.strategy)
         StrategyOptimizer(strategy, exchange, parsed_args).optimize()
 
     else:

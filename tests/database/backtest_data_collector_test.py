@@ -152,7 +152,7 @@ def test_fetch_symbol_data(mocker, dummy_is_exchange, ohlcv_root_db_dir):
     )
     mocked_is_dataset_valid.return_value = True
 
-    fetch_symbol_data(dummy_is_exchange, "test_symbol", 1, 1, ohlcv_root_db_dir)
+    fetch_symbol_data(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
 
     assert mocked_get_min_max_timestamp.assert_called
     assert mocked_fetch_initial_data.assert_called
@@ -167,6 +167,38 @@ def test_fetch_historical_price_data_no_symbols(dummy_is_exchange, caplog) -> No
 
     assert caplog.records[0].levelname == "WARNING"
     assert "No symbols found to fetch historical price data" in caplog.text
+
+
+def test_fetch_historical_price_data_no_symbols_with_strategy(
+    mocker, dummy_is_exchange, dummy_is_strategy, caplog
+) -> None:
+    test_args = argparse.Namespace(symbols=[])
+    dummy_is_exchange.symbols = ["test_symbol"]
+    mocked_fetch_symbol_data = mocker.patch(
+        "afang.database.backtest_data_collector.fetch_symbol_data",
+        return_value=True,
+    )
+
+    fetch_historical_price_data(
+        dummy_is_exchange, test_args, strategy=dummy_is_strategy
+    )
+
+    # test to assert that if a strategy with an exchange watchlist is provided,
+    # there will be symbols whose data is to be fetched therefore there will
+    # be no warning/error log.
+    assert mocked_fetch_symbol_data.assert_called
+    assert not caplog.text
+
+
+def test_fetch_historical_price_data_unknown_symbol(dummy_is_exchange, caplog):
+    test_args = argparse.Namespace(symbols=["unknown_symbol"])
+    fetch_historical_price_data(dummy_is_exchange, test_args)
+
+    assert caplog.records[0].levelname == "ERROR"
+    assert (
+        "test_exchange unknown_symbol: provided symbol not present in the exchange"
+        in caplog.text
+    )
 
 
 def test_fetch_historical_price_data(mocker, dummy_is_exchange) -> None:

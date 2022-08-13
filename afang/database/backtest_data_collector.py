@@ -2,11 +2,13 @@ import argparse
 import logging
 import multiprocessing
 import time
+from concurrent.futures import ThreadPoolExecutor
 from operator import itemgetter
 from typing import Optional, Tuple, Union
 
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges.is_exchange import IsExchange
+from afang.strategies.is_strategy import IsStrategy
 from afang.utils.util import milliseconds_to_datetime
 
 logger = logging.getLogger(__name__)
@@ -210,8 +212,6 @@ def fetch_older_data(
 def fetch_symbol_data(
     exchange: IsExchange,
     symbol: str,
-    query_limit: float,
-    write_limit: int,
     root_db_dir: Optional[str] = None,
 ) -> Optional[bool]:
     """Collect all historical price data for a given symbol from a given
@@ -220,8 +220,6 @@ def fetch_symbol_data(
 
     :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
     :param symbol: name of the symbol whose historical price data should be fetched.
-    :param query_limit: rate limit of how long to sleep between HTTP requests.
-    :param write_limit: threshold of how many candles to fetch before saving them to the DB.
     :param root_db_dir: path to the intended root OHLCV database directory.
 
     :return: Optional[bool]
@@ -251,6 +249,12 @@ def fetch_symbol_data(
         if oldest_timestamp is None:
             return None
 
+    client_config = exchange.get_config_params()
+    # Rate limit of how long to sleep between HTTP requests.
+    query_limit = client_config.get("query_limit", 1)
+    # Threshold of how many candles to fetch before saving them to the DB.
+    write_limit = client_config.get("write_limit", 10000)
+
     # Get most recent data.
     most_recent_timestamp = fetch_most_recent_data(
         exchange,
@@ -277,31 +281,38 @@ def fetch_symbol_data(
 
 
 def fetch_historical_price_data(
-    exchange: IsExchange, parsed_args: argparse.Namespace
+    exchange: IsExchange,
+    cli_args: argparse.Namespace,
+    strategy: Optional[IsStrategy] = None,
 ) -> None:
     """Fetch historical price data for the parsed symbols.
 
     :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
-    :param parsed_args: arguments parsed from the CLI.
+    :param cli_args: arguments parsed from the CLI.
+    :param strategy: optional strategy instance.
 
     :return: None
     """
 
-    symbols = parsed_args.symbols
+    symbols = cli_args.symbols
+    if not symbols and strategy:
+        symbols = strategy.config.get("watchlist", dict()).get(exchange.name, [])
     if not symbols:
         logger.warning("No symbols found to fetch historical price data")
         return
 
-    client_config = exchange.get_config_params()
-    query_limit = client_config.get("query_limit")
-    write_limit = client_config.get("write_limit")
-
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
     for symbol in symbols:
-        pool.apply_async(
-            fetch_symbol_data,
-            (exchange, symbol, query_limit, write_limit),
-        )
+        if symbol not in exchange.symbols:
+            logger.error(
+                "%s %s: provided symbol not present in the exchange",
+                exchange.name,
+                symbol,
+            )
+            return None
 
-    pool.close()
-    pool.join()
+    with ThreadPoolExecutor(max_workers=multiprocessing.cpu_count() - 1) as executor:
+        executor.map(
+            fetch_symbol_data,
+            [exchange] * len(symbols),
+            [symbol for symbol in symbols],
+        )
