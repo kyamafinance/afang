@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from afang.database.ohlcv_database import OHLCVDatabase
+from afang.strategies.models import TradePosition
 
 
 @pytest.fixture
@@ -99,38 +100,39 @@ def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
     open_trades = dummy_is_strategy.trade_positions
 
     assert open_trades["test_symbol"] == {
-        1: {
-            "open_position": True,
-            "direction": 1,
-            "entry_price": 10,
-            "entry_time": trade_entry_time,
-            "target_price": 100,
-            "stop_price": 5,
-            "holding_time": 0,
-            "trade_count": 1,
-        },
-        2: {
-            "open_position": True,
-            "direction": 1,
-            "entry_price": 10,
-            "entry_time": trade_entry_time,
-            "target_price": None,
-            "stop_price": None,
-            "holding_time": 0,
-            "trade_count": 2,
-        },
+        1: TradePosition(
+            open_position=True,
+            direction=1,
+            entry_price=10,
+            entry_time=trade_entry_time,
+            target_price=100,
+            stop_price=5,
+            holding_time=0,
+            trade_count=1,
+        ),
+        2: TradePosition(
+            open_position=True,
+            direction=1,
+            entry_price=10,
+            entry_time=trade_entry_time,
+            target_price=None,
+            stop_price=None,
+            holding_time=0,
+            trade_count=2,
+        ),
     }
+
     assert open_trades["test_symbol_2"] == {
-        3: {
-            "open_position": True,
-            "direction": 1,
-            "entry_price": 87,
-            "entry_time": trade_entry_time,
-            "target_price": 890,
-            "stop_price": None,
-            "holding_time": 0,
-            "trade_count": 1,
-        }
+        3: TradePosition(
+            open_position=True,
+            direction=1,
+            entry_price=87,
+            entry_time=trade_entry_time,
+            target_price=890,
+            stop_price=None,
+            holding_time=0,
+            trade_count=1,
+        )
     }
 
 
@@ -153,38 +155,39 @@ def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
     open_trades = dummy_is_strategy.trade_positions
 
     assert open_trades["test_symbol"] == {
-        1: {
-            "open_position": True,
-            "direction": -1,
-            "entry_price": 100,
-            "entry_time": trade_entry_time,
-            "target_price": 10,
-            "stop_price": 1000,
-            "holding_time": 0,
-            "trade_count": 1,
-        },
-        2: {
-            "open_position": True,
-            "direction": -1,
-            "entry_price": 100,
-            "entry_time": trade_entry_time,
-            "target_price": None,
-            "stop_price": None,
-            "holding_time": 0,
-            "trade_count": 2,
-        },
+        1: TradePosition(
+            open_position=True,
+            direction=-1,
+            entry_price=100,
+            entry_time=trade_entry_time,
+            target_price=10,
+            stop_price=1000,
+            holding_time=0,
+            trade_count=1,
+        ),
+        2: TradePosition(
+            open_position=True,
+            direction=-1,
+            entry_price=100,
+            entry_time=trade_entry_time,
+            target_price=None,
+            stop_price=None,
+            holding_time=0,
+            trade_count=2,
+        ),
     }
+
     assert open_trades["test_symbol_2"] == {
-        3: {
-            "open_position": True,
-            "direction": -1,
-            "entry_price": 890,
-            "entry_time": trade_entry_time,
-            "target_price": 87,
-            "stop_price": None,
-            "holding_time": 0,
-            "trade_count": 1,
-        }
+        3: TradePosition(
+            open_position=True,
+            direction=-1,
+            entry_price=890,
+            entry_time=trade_entry_time,
+            target_price=87,
+            stop_price=None,
+            holding_time=0,
+            trade_count=1,
+        )
     }
 
 
@@ -209,8 +212,8 @@ def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
     open_positions = dummy_is_strategy.fetch_open_backtest_positions("test_symbol")
 
     assert len(open_positions) == 2
-    assert open_positions[0]["entry_price"] == 10
-    assert open_positions[1]["entry_price"] == 100
+    assert open_positions[0].entry_price == 10
+    assert open_positions[1].entry_price == 100
 
 
 def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
@@ -243,68 +246,68 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
     )
     dummy_is_strategy.close_backtest_position("test_symbol", "3", 150, trade_exit_time)
 
-    assert dummy_is_strategy.trade_positions["test_symbol"]["1"] == {
-        "open_position": False,
-        "direction": 1,
-        "entry_price": 100,
-        "entry_time": trade_entry_time,
-        "target_price": 150,
-        "stop_price": 50,
-        "holding_time": 0,
-        "trade_count": 1,
-        "exit_time": trade_exit_time,
-        "close_price": 150,
-        "initial_account_balance": 10000,
-        "roe": 50.0,
-        "position_size": 200.0,
-        "cost_adjusted_roe": 49.85,
-        "pnl": 99.7,
-        "commission": 0.2,
-        "slippage": 0.1,
-        "final_account_balance": 10099.7,
-    }
+    assert dummy_is_strategy.trade_positions["test_symbol"]["1"] == TradePosition(
+        open_position=False,
+        direction=1,
+        entry_price=100,
+        entry_time=trade_entry_time,
+        target_price=150,
+        stop_price=50,
+        holding_time=0,
+        trade_count=1,
+        exit_time=trade_exit_time,
+        close_price=150,
+        initial_account_balance=10000,
+        roe=50.0,
+        position_size=200.0,
+        cost_adjusted_roe=49.85,
+        pnl=99.7,
+        commission=0.2,
+        slippage=0.1,
+        final_account_balance=10099.7,
+    )
 
-    assert dummy_is_strategy.trade_positions["test_symbol"]["2"] == {
-        "open_position": False,
-        "direction": -1,
-        "entry_price": 100,
-        "entry_time": trade_entry_time,
-        "target_price": 50,
-        "stop_price": 150,
-        "holding_time": 0,
-        "trade_count": 2,
-        "exit_time": trade_exit_time,
-        "close_price": 150,
-        "initial_account_balance": 10099.7,
-        "roe": -50.0,
-        "position_size": 100,
-        "cost_adjusted_roe": -50.15,
-        "pnl": -50.15,
-        "commission": 0.1,
-        "slippage": 0.05,
-        "final_account_balance": 10049.550000000001,
-    }
+    assert dummy_is_strategy.trade_positions["test_symbol"]["2"] == TradePosition(
+        open_position=False,
+        direction=-1,
+        entry_price=100,
+        entry_time=trade_entry_time,
+        target_price=50,
+        stop_price=150,
+        holding_time=0,
+        trade_count=2,
+        exit_time=trade_exit_time,
+        close_price=150,
+        initial_account_balance=10099.7,
+        roe=-50.0,
+        position_size=100,
+        cost_adjusted_roe=-50.15,
+        pnl=-50.15,
+        commission=0.1,
+        slippage=0.05,
+        final_account_balance=10049.550000000001,
+    )
 
-    assert dummy_is_strategy.trade_positions["test_symbol"]["3"] == {
-        "open_position": False,
-        "direction": -1,
-        "entry_price": 100,
-        "entry_time": trade_entry_time,
-        "target_price": 50,
-        "stop_price": 150,
-        "holding_time": 0,
-        "trade_count": 3,
-        "exit_time": trade_exit_time,
-        "close_price": 150,
-        "initial_account_balance": -1,
-        "roe": 0,
-        "position_size": 0,
-        "cost_adjusted_roe": 0,
-        "pnl": -0.0,
-        "commission": 0.0,
-        "slippage": 0.0,
-        "final_account_balance": -1.0,
-    }
+    assert dummy_is_strategy.trade_positions["test_symbol"]["3"] == TradePosition(
+        open_position=False,
+        direction=-1,
+        entry_price=100,
+        entry_time=trade_entry_time,
+        target_price=50,
+        stop_price=150,
+        holding_time=0,
+        trade_count=3,
+        exit_time=trade_exit_time,
+        close_price=150,
+        initial_account_balance=-1,
+        roe=0,
+        position_size=0,
+        cost_adjusted_roe=0,
+        pnl=-0.0,
+        commission=0.0,
+        slippage=0.0,
+        final_account_balance=-1.0,
+    )
 
 
 @pytest.mark.parametrize(
@@ -358,7 +361,11 @@ def test_handle_open_backtest_positions(
     assert mocked_close_backtest_position.call_args.args[0] == "test_symbol"
     assert mocked_close_backtest_position.call_args.args[1] == "1"
     assert mocked_close_backtest_position.call_args.args[2] == expected_close_price
-    assert dummy_is_strategy.trade_positions["test_symbol"]["1"]["holding_time"] == 1
+
+    test_symbol_position: TradePosition = dummy_is_strategy.trade_positions[
+        "test_symbol"
+    ]["1"]
+    assert test_symbol_position.holding_time == 1
 
 
 def test_run_symbol_backtest(

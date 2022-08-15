@@ -11,7 +11,7 @@ import pandas as pd
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
 from afang.strategies.analyzer import StrategyAnalyzer
-from afang.strategies.models import TradeLevels
+from afang.strategies.models import TradeLevels, TradePosition
 from afang.utils.util import resample_timeframe, time_str_to_milliseconds
 
 logger = logging.getLogger(__name__)
@@ -27,33 +27,33 @@ class Backtester(ABC):
         :param strategy_name: name of the trading strategy.
         """
 
-        self.strategy_name = strategy_name
-        self.allow_long_positions = True
-        self.allow_short_positions = True
+        self.strategy_name: str = strategy_name
+        self.allow_long_positions: bool = True
+        self.allow_short_positions: bool = True
         self.timeframe: Optional[str] = None
         self.symbols: Optional[List[str]] = None
         self.exchange: Optional[IsExchange] = None
         self.backtest_to_time: Optional[int] = None
         self.backtest_from_time: Optional[int] = None
         # leverage to use per trade.
-        self.leverage = 1
+        self.leverage: int = 1
         # exchange order fee as a percentage of the trade principal.
-        self.commission = 0.05
+        self.commission: float = 0.05
         # expected trade slippage as a percentage of the trade principal.
-        self.expected_slippage = 0.05
+        self.expected_slippage: float = 0.05
         # number of indicator values to be discarded due to being potentially unstable.
-        self.unstable_indicator_values = 0
+        self.unstable_indicator_values: int = 0
         # maximum number of candles for a single trade.
-        self.max_holding_candles = 100
+        self.max_holding_candles: int = 100
         # account initial balance - will be constantly updated to match current account balance.
-        self.current_backtest_balance = 10000
+        self.current_backtest_balance: float = 10000
         # percentage of current account balance to risk per trade.
-        self.percentage_risk_per_trade = 2
+        self.percentage_risk_per_trade: float = 2
         # maximum amount to invest per trade.
         # If `None`, the maximum amount to invest per trade will be the current account balance.
         self.max_amount_per_trade: Optional[int] = None
         # Whether to allow for multiple open positions per symbol at a time.
-        self.allow_multiple_open_positions = True
+        self.allow_multiple_open_positions: bool = True
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
         self.config: Dict = dict()
         # backtest data that initially contains OHLCV data.
@@ -97,16 +97,14 @@ class Backtester(ABC):
         :return: None
         """
 
-        new_position = {
-            "open_position": True,
-            "direction": 1,
-            "entry_price": entry_price,
-            "entry_time": entry_time,
-            "target_price": target_price,
-            "stop_price": stop_price,
-            "holding_time": 0,
-            "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
-        }
+        new_position = TradePosition(
+            direction=1,
+            entry_price=entry_price,
+            entry_time=entry_time,
+            trade_count=len(self.trade_positions.get(symbol, {})) + 1,
+            target_price=target_price,
+            stop_price=stop_price,
+        )
 
         if not self.trade_positions.get(symbol, dict()):
             self.trade_positions[symbol] = dict()
@@ -130,92 +128,95 @@ class Backtester(ABC):
         :return: None
         """
 
-        new_position = {
-            "open_position": True,
-            "direction": -1,
-            "entry_price": entry_price,
-            "entry_time": entry_time,
-            "target_price": target_price,
-            "stop_price": stop_price,
-            "holding_time": 0,
-            "trade_count": len(self.trade_positions.get(symbol, {})) + 1,
-        }
+        new_position = TradePosition(
+            direction=-1,
+            entry_price=entry_price,
+            entry_time=entry_time,
+            trade_count=len(self.trade_positions.get(symbol, {})) + 1,
+            target_price=target_price,
+            stop_price=stop_price,
+        )
 
         if not self.trade_positions.get(symbol, dict()):
             self.trade_positions[symbol] = dict()
         self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
 
-    def fetch_open_backtest_positions(self, symbol: str) -> List[Dict]:
+    def fetch_open_backtest_positions(self, symbol: str) -> List[TradePosition]:
         """Fetch a list of all open backtest positions for a given symbol.
 
         :param symbol: symbol to fetch open positions for.
-        :return: List[Dict]
+        :return: List[TradePosition]
         """
 
         open_positions = list()
+        position: TradePosition
         for (_, position) in self.trade_positions.get(symbol, dict()).items():
-            if position.get("open_position"):
+            if position.open_position:
                 open_positions.append(position)
 
         return open_positions
 
     def close_backtest_position(
         self, symbol: str, position_id: str, close_price: float, exit_time: datetime
-    ) -> dict:
+    ) -> TradePosition:
         """Close an open trade position for a given symbol.
 
         :param symbol: symbol whose position should be closed.
         :param position_id: ID of the position to close.
         :param close_price: price at which the trade exited.
         :param exit_time: time at which the trade exited.
-        :return: dict
+        :return: TradePosition
         """
 
-        position = self.trade_positions[symbol].get(position_id, None)
+        position: Optional[TradePosition] = self.trade_positions[symbol].get(
+            position_id, None
+        )
         if not position:
             raise LookupError(
                 f"Position ID {position_id} does not exist for symbol {symbol}"
             )
+        if not position.open_position:
+            raise ValueError(
+                f"Attempting to close closed position {position_id} of symbol {symbol}"
+            )
 
-        position["exit_time"] = exit_time
-        position["close_price"] = close_price
-        position["initial_account_balance"] = self.current_backtest_balance
+        position.exit_time = exit_time
+        position.close_price = close_price
+        position.initial_account_balance = self.current_backtest_balance
 
-        roe = (
-            (close_price / position.get("entry_price") - 1) * position.get("direction")
-        ) * 100.0
-        position["roe"] = round(roe, 4)
+        roe = ((close_price / position.entry_price - 1) * position.direction) * 100.0
+        position.roe = round(roe, 4)
 
-        position["position_size"] = self.leverage * (
+        position.position_size = self.leverage * (
             (self.percentage_risk_per_trade / 100.0) * self.current_backtest_balance
         )
         if (
             self.max_amount_per_trade
-            and position["position_size"] > self.max_amount_per_trade
+            and position.position_size > self.max_amount_per_trade
         ):
-            position["position_size"] = self.max_amount_per_trade
+            position.position_size = self.max_amount_per_trade
 
         cost_adjusted_roe = (
-            position["roe"] - (2 * self.commission) - self.expected_slippage
+            position.roe - (2 * self.commission) - self.expected_slippage
         )
-        position["cost_adjusted_roe"] = round(cost_adjusted_roe, 4)
+        position.cost_adjusted_roe = round(cost_adjusted_roe, 4)
 
         if self.current_backtest_balance <= 0:
-            position["roe"] = 0
-            position["position_size"] = 0
-            position["cost_adjusted_roe"] = 0
+            position.roe = 0
+            position.position_size = 0
+            position.cost_adjusted_roe = 0
 
-        pnl = position["position_size"] * (cost_adjusted_roe / 100.0)
-        position["pnl"] = round(pnl, 4)
-        commission = position["position_size"] * ((2 * self.commission) / 100.0)
-        position["commission"] = round(commission, 4)
-        slippage = position["position_size"] * (self.expected_slippage / 100.0)
-        position["slippage"] = round(slippage, 4)
+        pnl = position.position_size * (cost_adjusted_roe / 100.0)
+        position.pnl = round(pnl, 4)
+        commission = position.position_size * ((2 * self.commission) / 100.0)
+        position.commission = round(commission, 4)
+        slippage = position.position_size * (self.expected_slippage / 100.0)
+        position.slippage = round(slippage, 4)
 
-        self.current_backtest_balance += position["pnl"]
+        self.current_backtest_balance += position.pnl
 
-        position["open_position"] = False
-        position["final_account_balance"] = self.current_backtest_balance
+        position.open_position = False
+        position.final_account_balance = self.current_backtest_balance
 
         return position
 
@@ -280,57 +281,58 @@ class Backtester(ABC):
         """
 
         # handle each open trade position.
+        position: TradePosition
         for (position_id, position) in self.trade_positions.get(symbol, dict()).items():
 
             # ensure that the trade position is still open.
-            if not position.get("open_position"):
+            if not position.open_position:
                 continue
 
             # increment trade holding time by 1.
-            position["holding_time"] += 1
+            position.holding_time += 1
 
             # check if the lower horizontal barrier has been hit for long positions.
             if (
-                position["stop_price"]
-                and data.low <= position["stop_price"]
-                and position["direction"] == 1
+                position.stop_price
+                and data.low <= position.stop_price
+                and position.direction == 1
             ):
                 self.close_backtest_position(
-                    symbol, position_id, position["stop_price"], data.Index
+                    symbol, position_id, position.stop_price, data.Index
                 )
 
             # check if upper horizontal barrier has been hit for long positions.
             elif (
-                position["target_price"]
-                and data.high >= position["target_price"]
-                and position["direction"] == 1
+                position.target_price
+                and data.high >= position.target_price
+                and position.direction == 1
             ):
                 self.close_backtest_position(
-                    symbol, position_id, position["target_price"], data.Index
+                    symbol, position_id, position.target_price, data.Index
                 )
 
             # check if upper horizontal barrier has been hit for short positions.
             elif (
-                position["stop_price"]
-                and data.high >= position["stop_price"]
-                and position["direction"] == -1
+                position.stop_price
+                and data.high >= position.stop_price
+                and position.direction == -1
             ):
                 self.close_backtest_position(
-                    symbol, position_id, position["stop_price"], data.Index
+                    symbol, position_id, position.stop_price, data.Index
                 )
 
             # check if lower horizontal barrier has been hit for short positions.
             elif (
-                position["target_price"]
-                and data.low <= position["target_price"]
-                and position["direction"] == -1
+                position.target_price
+                and data.low <= position.target_price
+                and position.direction == -1
             ):
                 self.close_backtest_position(
-                    symbol, position_id, position["target_price"], data.Index
+                    symbol, position_id, position.target_price, data.Index
                 )
 
             # check if vertical barrier has been hit.
-            elif position["holding_time"] >= self.max_holding_candles:
+            elif position.holding_time >= self.max_holding_candles:
                 self.close_backtest_position(
                     symbol, position_id, data.close, data.Index
                 )
