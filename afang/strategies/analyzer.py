@@ -231,7 +231,7 @@ class StrategyAnalyzer:
         """
 
         def get_max_drawdown(_returns: List) -> float:
-            _max_drawdown = 0
+            _max_drawdown: float = 0
             _temp_max_val = 0
             for i in range(1, len(_returns)):
                 _temp_max_val = max(_temp_max_val, _returns[i - 1])
@@ -240,7 +240,10 @@ class StrategyAnalyzer:
                 except ZeroDivisionError:
                     return 100.0
 
-            return -1 * (_max_drawdown * 100.0)
+            if _max_drawdown:
+                _max_drawdown = -1 * (_max_drawdown * 100.0)
+
+            return _max_drawdown
 
         for symbol_backtest in self.analysis_results:
             max_drawdown = get_max_drawdown(
