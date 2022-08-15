@@ -1120,7 +1120,7 @@ class StrategyAnalyzer:
             list(symbol_trades.values())
             for symbol_trades in list(self.strategy.trade_positions.values())
         ]
-        flattened_trades = reduce(lambda a, b: a + b, trades)
+        flattened_trades = reduce(lambda a, b: a + b, trades) if trades else trades
         sorted_aggregate_trades: List[dict] = sorted(
             flattened_trades, key=operator.itemgetter("exit_time")
         )
