@@ -438,7 +438,7 @@ class StrategyOptimizer:
             filepath = f"{pathlib.Path(__file__).parents[2]}/data/optimization"
 
         now = datetime.now()
-        filename = f'{filepath}/optimization_{now.strftime("%m-%d-%Y-%H:%M:%S")}.csv'
+        filename = f'{filepath}/{self.strategy_instance.strategy_name}_{now.strftime("%m-%d-%Y-%H:%M:%S")}.csv'
 
         with open(filename, "w") as file:
             writer = csv.writer(file)
