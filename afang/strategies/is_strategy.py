@@ -7,7 +7,7 @@ import pandas as pd
 import yaml
 
 from afang.strategies.backtester import Backtester
-from afang.strategies.util import TradeLevels
+from afang.strategies.models import TradeLevels
 
 logger = logging.getLogger(__name__)
 

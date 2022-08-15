@@ -11,7 +11,7 @@ import pandas as pd
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
 from afang.strategies.analyzer import StrategyAnalyzer
-from afang.strategies.util import TradeLevels
+from afang.strategies.models import TradeLevels
 from afang.utils.util import resample_timeframe, time_str_to_milliseconds
 
 logger = logging.getLogger(__name__)

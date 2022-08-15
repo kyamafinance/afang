@@ -11,8 +11,8 @@ import pytest
 
 from afang.exchanges.is_exchange import IsExchange
 from afang.strategies.is_strategy import IsStrategy
+from afang.strategies.models import TradeLevels
 from afang.strategies.optimizer import StrategyOptimizer
-from afang.strategies.util import TradeLevels
 
 
 @pytest.fixture()
