@@ -4,6 +4,7 @@ from functools import reduce
 from statistics import mean
 from typing import Any, Dict, List
 
+from afang.strategies.models import TradePosition
 from afang.utils.function_group import FunctionGroup
 
 logger = logging.getLogger(__name__)
@@ -31,18 +32,14 @@ class StrategyAnalyzer:
         """
 
         for symbol_backtest in self.analysis_results:
-            total_net_profit = sum(
-                trade.get("pnl", 0) for trade in symbol_backtest["trades"]
-            )
+            total_net_profit = sum(trade.pnl for trade in symbol_backtest["trades"])
             total_net_profit_long = sum(
-                trade.get("pnl", 0)
-                for trade in symbol_backtest["trades"]
-                if trade["direction"] == 1
+                trade.pnl for trade in symbol_backtest["trades"] if trade.direction == 1
             )
             total_net_profit_short = sum(
-                trade.get("pnl", 0)
+                trade.pnl
                 for trade in symbol_backtest["trades"]
-                if trade["direction"] == -1
+                if trade.direction == -1
             )
             symbol_backtest.update(
                 {
@@ -64,19 +61,17 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             gross_profit = sum(
-                trade.get("pnl", 0)
-                for trade in symbol_backtest["trades"]
-                if trade.get("pnl", 0) > 0
+                trade.pnl for trade in symbol_backtest["trades"] if trade.pnl > 0
             )
             gross_profit_long = sum(
-                trade.get("pnl", 0)
+                trade.pnl
                 for trade in symbol_backtest["trades"]
-                if trade.get("pnl", 0) > 0 and trade["direction"] == 1
+                if trade.pnl > 0 and trade.direction == 1
             )
             gross_profit_short = sum(
-                trade.get("pnl", 0)
+                trade.pnl
                 for trade in symbol_backtest["trades"]
-                if trade.get("pnl", 0) > 0 and trade["direction"] == -1
+                if trade.pnl > 0 and trade.direction == -1
             )
             symbol_backtest.update(
                 {
@@ -98,19 +93,17 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             gross_loss = sum(
-                trade.get("pnl", 0)
-                for trade in symbol_backtest["trades"]
-                if trade.get("pnl", 0) < 0
+                trade.pnl for trade in symbol_backtest["trades"] if trade.pnl < 0
             )
             gross_loss_long = sum(
-                trade.get("pnl", 0)
+                trade.pnl
                 for trade in symbol_backtest["trades"]
-                if trade.get("pnl", 0) < 0 and trade["direction"] == 1
+                if trade.pnl < 0 and trade.direction == 1
             )
             gross_loss_short = sum(
-                trade.get("pnl", 0)
+                trade.pnl
                 for trade in symbol_backtest["trades"]
-                if trade.get("pnl", 0) < 0 and trade["direction"] == -1
+                if trade.pnl < 0 and trade.direction == -1
             )
             symbol_backtest.update(
                 {
@@ -130,18 +123,16 @@ class StrategyAnalyzer:
         """
 
         for symbol_backtest in self.analysis_results:
-            commission = sum(
-                trade.get("commission", 0) for trade in symbol_backtest["trades"]
-            )
+            commission = sum(trade.commission for trade in symbol_backtest["trades"])
             commission_long = sum(
-                trade.get("commission", 0)
+                trade.commission
                 for trade in symbol_backtest["trades"]
-                if trade["direction"] == 1
+                if trade.direction == 1
             )
             commission_short = sum(
-                trade.get("commission", 0)
+                trade.commission
                 for trade in symbol_backtest["trades"]
-                if trade["direction"] == -1
+                if trade.direction == -1
             )
             symbol_backtest.update(
                 {
@@ -161,18 +152,16 @@ class StrategyAnalyzer:
         """
 
         for symbol_backtest in self.analysis_results:
-            slippage = sum(
-                trade.get("slippage", 0) for trade in symbol_backtest["trades"]
-            )
+            slippage = sum(trade.slippage for trade in symbol_backtest["trades"])
             slippage_long = sum(
-                trade.get("slippage", 0)
+                trade.slippage
                 for trade in symbol_backtest["trades"]
-                if trade["direction"] == 1
+                if trade.direction == 1
             )
             slippage_short = sum(
-                trade.get("slippage", 0)
+                trade.slippage
                 for trade in symbol_backtest["trades"]
-                if trade["direction"] == -1
+                if trade.direction == -1
             )
             symbol_backtest.update(
                 {
@@ -244,23 +233,20 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             max_drawdown = get_max_drawdown(
-                list(
-                    trade["final_account_balance"]
-                    for trade in symbol_backtest["trades"]
-                )
+                list(trade.final_account_balance for trade in symbol_backtest["trades"])
             )
             max_drawdown_long = get_max_drawdown(
                 list(
-                    trade["final_account_balance"]
+                    trade.final_account_balance
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 )
             )
             max_drawdown_short = get_max_drawdown(
                 list(
-                    trade["final_account_balance"]
+                    trade.final_account_balance
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 )
             )
             symbol_backtest.update(
@@ -284,18 +270,10 @@ class StrategyAnalyzer:
         for symbol_backtest in self.analysis_results:
             total_trades = len(symbol_backtest["trades"])
             total_trades_long = len(
-                [
-                    trade
-                    for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
-                ]
+                [trade for trade in symbol_backtest["trades"] if trade.direction == 1]
             )
             total_trades_short = len(
-                [
-                    trade
-                    for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
-                ]
+                [trade for trade in symbol_backtest["trades"] if trade.direction == -1]
             )
             symbol_backtest.update(
                 {
@@ -317,24 +295,20 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             winning_trades = len(
-                [
-                    trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) > 0
-                ]
+                [trade for trade in symbol_backtest["trades"] if trade.pnl > 0]
             )
             winning_trades_long = len(
                 [
                     trade
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) > 0 and trade["direction"] == 1
+                    if trade.pnl > 0 and trade.direction == 1
                 ]
             )
             winning_trades_short = len(
                 [
                     trade
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) > 0 and trade["direction"] == -1
+                    if trade.pnl > 0 and trade.direction == -1
                 ]
             )
             symbol_backtest.update(
@@ -357,24 +331,20 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             losing_trades = len(
-                [
-                    trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) < 0
-                ]
+                [trade for trade in symbol_backtest["trades"] if trade.pnl < 0]
             )
             losing_trades_long = len(
                 [
                     trade
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) < 0 and trade["direction"] == 1
+                    if trade.pnl < 0 and trade.direction == 1
                 ]
             )
             losing_trades_short = len(
                 [
                     trade
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) < 0 and trade["direction"] == -1
+                    if trade.pnl < 0 and trade.direction == -1
                 ]
             )
             symbol_backtest.update(
@@ -396,24 +366,20 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             even_trades = len(
-                [
-                    trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) == 0
-                ]
+                [trade for trade in symbol_backtest["trades"] if trade.pnl == 0]
             )
             even_trades_long = len(
                 [
                     trade
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) == 0 and trade["direction"] == 1
+                    if trade.pnl == 0 and trade.direction == 1
                 ]
             )
             even_trades_short = len(
                 [
                     trade
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) == 0 and trade["direction"] == -1
+                    if trade.pnl == 0 and trade.direction == -1
                 ]
             )
             symbol_backtest.update(
@@ -495,19 +461,16 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             average_roe = (
-                sum(
-                    trade.get("cost_adjusted_roe", 0)
-                    for trade in symbol_backtest["trades"]
-                )
+                sum(trade.cost_adjusted_roe for trade in symbol_backtest["trades"])
                 / symbol_backtest["total_trades"]["all_trades"]
                 if symbol_backtest["total_trades"]["all_trades"]
                 else 0
             )
             average_roe_long = (
                 sum(
-                    trade.get("cost_adjusted_roe", 0)
+                    trade.cost_adjusted_roe
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 )
                 / symbol_backtest["total_trades"]["long_trades"]
                 if symbol_backtest["total_trades"]["long_trades"]
@@ -515,9 +478,9 @@ class StrategyAnalyzer:
             )
             average_roe_short = (
                 sum(
-                    trade.get("cost_adjusted_roe", 0)
+                    trade.cost_adjusted_roe
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 )
                 / symbol_backtest["total_trades"]["short_trades"]
                 if symbol_backtest["total_trades"]["short_trades"]
@@ -545,16 +508,16 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             average_trade = (
-                sum(trade.get("pnl", 0) for trade in symbol_backtest["trades"])
+                sum(trade.pnl for trade in symbol_backtest["trades"])
                 / symbol_backtest["total_trades"]["all_trades"]
                 if symbol_backtest["total_trades"]["all_trades"]
                 else 0
             )
             average_trade_long = (
                 sum(
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 )
                 / symbol_backtest["total_trades"]["long_trades"]
                 if symbol_backtest["total_trades"]["long_trades"]
@@ -562,9 +525,9 @@ class StrategyAnalyzer:
             )
             average_trade_short = (
                 sum(
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 )
                 / symbol_backtest["total_trades"]["short_trades"]
                 if symbol_backtest["total_trades"]["short_trades"]
@@ -592,20 +555,16 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             average_winning_trade = (
-                sum(
-                    trade.get("pnl", 0)
-                    for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) >= 0
-                )
+                sum(trade.pnl for trade in symbol_backtest["trades"] if trade.pnl >= 0)
                 / symbol_backtest["winning_trades"]["all_trades"]
                 if symbol_backtest["winning_trades"]["all_trades"]
                 else 0
             )
             average_winning_trade_long = (
                 sum(
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) >= 0 and trade["direction"] == 1
+                    if trade.pnl >= 0 and trade.direction == 1
                 )
                 / symbol_backtest["winning_trades"]["long_trades"]
                 if symbol_backtest["winning_trades"]["long_trades"]
@@ -613,9 +572,9 @@ class StrategyAnalyzer:
             )
             average_winning_trade_short = (
                 sum(
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) >= 0 and trade["direction"] == -1
+                    if trade.pnl >= 0 and trade.direction == -1
                 )
                 / symbol_backtest["winning_trades"]["short_trades"]
                 if symbol_backtest["winning_trades"]["short_trades"]
@@ -643,20 +602,16 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             average_losing_trade = (
-                sum(
-                    trade.get("pnl", 0)
-                    for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) < 0
-                )
+                sum(trade.pnl for trade in symbol_backtest["trades"] if trade.pnl < 0)
                 / symbol_backtest["losing_trades"]["all_trades"]
                 if symbol_backtest["losing_trades"]["all_trades"]
                 else 0
             )
             average_losing_trade_long = (
                 sum(
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) < 0 and trade["direction"] == 1
+                    if trade.pnl < 0 and trade.direction == 1
                 )
                 / symbol_backtest["losing_trades"]["long_trades"]
                 if symbol_backtest["losing_trades"]["long_trades"]
@@ -664,9 +619,9 @@ class StrategyAnalyzer:
             )
             average_losing_trade_short = (
                 sum(
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade.get("pnl", 0) < 0 and trade["direction"] == -1
+                    if trade.pnl < 0 and trade.direction == -1
                 )
                 / symbol_backtest["losing_trades"]["short_trades"]
                 if symbol_backtest["losing_trades"]["short_trades"]
@@ -786,20 +741,20 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             max_consecutive_winners = get_max_consecutive_winners(
-                [trade.get("pnl", 0) for trade in symbol_backtest["trades"]]
+                [trade.pnl for trade in symbol_backtest["trades"]]
             )
             max_consecutive_winners_long = get_max_consecutive_winners(
                 [
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 ]
             )
             max_consecutive_winners_short = get_max_consecutive_winners(
                 [
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 ]
             )
             symbol_backtest.update(
@@ -834,20 +789,20 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             max_consecutive_losers = get_max_consecutive_losers(
-                [trade.get("pnl", 0) for trade in symbol_backtest["trades"]]
+                [trade.pnl for trade in symbol_backtest["trades"]]
             )
             max_consecutive_losers_long = get_max_consecutive_losers(
                 [
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 ]
             )
             max_consecutive_losers_short = get_max_consecutive_losers(
                 [
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 ]
             )
             symbol_backtest.update(
@@ -869,21 +824,21 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             largest_winning_trade = max(
-                (trade.get("pnl", 0) for trade in symbol_backtest["trades"]), default=0
+                (trade.pnl for trade in symbol_backtest["trades"]), default=0
             )
             largest_winning_trade_long = max(
                 (
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 ),
                 default=0,
             )
             largest_winning_trade_short = max(
                 (
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 ),
                 default=0,
             )
@@ -906,21 +861,21 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             largest_losing_trade = min(
-                (trade.get("pnl", 0) for trade in symbol_backtest["trades"]), default=0
+                (trade.pnl for trade in symbol_backtest["trades"]), default=0
             )
             largest_losing_trade_long = min(
                 (
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 ),
                 default=0,
             )
             largest_losing_trade_short = min(
                 (
-                    trade.get("pnl", 0)
+                    trade.pnl
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 ),
                 default=0,
             )
@@ -945,16 +900,16 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             average_holding_time = (
-                sum(trade.get("holding_time", 0) for trade in symbol_backtest["trades"])
+                sum(trade.holding_time for trade in symbol_backtest["trades"])
                 / symbol_backtest["total_trades"]["all_trades"]
                 if symbol_backtest["total_trades"]["all_trades"]
                 else 0
             )
             average_holding_time_long = (
                 sum(
-                    trade.get("holding_time", 0)
+                    trade.holding_time
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 )
                 / symbol_backtest["total_trades"]["long_trades"]
                 if symbol_backtest["total_trades"]["long_trades"]
@@ -962,9 +917,9 @@ class StrategyAnalyzer:
             )
             average_holding_time_short = (
                 sum(
-                    trade.get("holding_time", 0)
+                    trade.holding_time
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 )
                 / symbol_backtest["total_trades"]["short_trades"]
                 if symbol_backtest["total_trades"]["short_trades"]
@@ -989,22 +944,22 @@ class StrategyAnalyzer:
 
         for symbol_backtest in self.analysis_results:
             maximum_holding_time = max(
-                (trade.get("holding_time", 0) for trade in symbol_backtest["trades"]),
+                (trade.holding_time for trade in symbol_backtest["trades"]),
                 default=0,
             )
             maximum_holding_time_long = max(
                 (
-                    trade.get("holding_time", 0)
+                    trade.holding_time
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
+                    if trade.direction == 1
                 ),
                 default=0,
             )
             maximum_holding_time_short = max(
                 (
-                    trade.get("holding_time", 0)
+                    trade.holding_time
                     for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
+                    if trade.direction == -1
                 ),
                 default=0,
             )
@@ -1025,30 +980,21 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        def get_monthly_pnl(_trades: List[Dict]) -> Dict:
+        def get_monthly_pnl(_trades: List[TradePosition]) -> Dict:
             _monthly_pnl: Dict = dict()
+            trade: TradePosition
             for trade in _trades:
-                trade_month = f"{trade['exit_time'].month}-{trade['exit_time'].year}"
-                _monthly_pnl[trade_month] = (
-                    _monthly_pnl.get(trade_month, 0) + trade["pnl"]
-                )
+                trade_month = f"{trade.exit_time.month}-{trade.exit_time.year}"
+                _monthly_pnl[trade_month] = _monthly_pnl.get(trade_month, 0) + trade.pnl
             return _monthly_pnl
 
         for symbol_backtest in self.analysis_results:
             monthly_pnl = get_monthly_pnl(symbol_backtest["trades"])
             monthly_pnl_long = get_monthly_pnl(
-                [
-                    trade
-                    for trade in symbol_backtest["trades"]
-                    if trade["direction"] == 1
-                ]
+                [trade for trade in symbol_backtest["trades"] if trade.direction == 1]
             )
             monthly_pnl_short = get_monthly_pnl(
-                [
-                    trade
-                    for trade in symbol_backtest["trades"]
-                    if trade["direction"] == -1
-                ]
+                [trade for trade in symbol_backtest["trades"] if trade.direction == -1]
             )
             symbol_backtest.update(
                 {
@@ -1118,32 +1064,27 @@ class StrategyAnalyzer:
             for symbol_trades in list(self.strategy.trade_positions.values())
         ]
         flattened_trades = reduce(lambda a, b: a + b, trades) if trades else trades
-        sorted_aggregate_trades: List[dict] = sorted(
-            flattened_trades, key=operator.itemgetter("exit_time")
+        sorted_aggregate_trades: List[TradePosition] = sorted(
+            flattened_trades, key=operator.attrgetter("exit_time")
         )
 
         # Calculate the initial account balance used when running the strategy.
-        initial_account_balance = 0
+        initial_account_balance: float = 0
         if sorted_aggregate_trades:
             initial_account_balance = mean(
                 [
-                    trade["initial_account_balance"]
+                    trade.initial_account_balance
                     for trade in sorted_aggregate_trades
-                    if trade["trade_count"] == 1
+                    if trade.trade_count == 1
                 ]
             )
 
         # Update the initial and final account values of each trade in the
         # sorted aggregate trades.
         for trade in sorted_aggregate_trades:
-            final_account_balance = initial_account_balance + trade["pnl"]
-            trade.update(
-                {
-                    "initial_account_balance": initial_account_balance,
-                    "final_account_balance": final_account_balance,
-                }
-            )
-            initial_account_balance = final_account_balance
+            trade.initial_account_balance = initial_account_balance
+            trade.final_account_balance = initial_account_balance + trade.pnl
+            initial_account_balance = trade.final_account_balance
 
         # Populate the analysis results dict.
         symbol_trades: dict

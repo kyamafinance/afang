@@ -3,6 +3,49 @@ from datetime import datetime
 import pytest
 
 from afang.strategies.analyzer import StrategyAnalyzer
+from afang.strategies.models import TradePosition
+
+
+def dummy_trade_position(
+    open_position=False,
+    direction=1,
+    entry_price=100,
+    entry_time=datetime(2021, 1, 1),
+    target_price=150,
+    stop_price=50,
+    holding_time=0,
+    trade_count=1,
+    exit_time=datetime(2022, 1, 1),
+    close_price=150,
+    initial_account_balance=10000,
+    roe=50.0,
+    position_size=200.0,
+    cost_adjusted_roe=49.85,
+    pnl=99.7,
+    commission=0.2,
+    slippage=0.1,
+    final_account_balance=10099.7,
+) -> TradePosition:
+    return TradePosition(
+        open_position=open_position,
+        direction=direction,
+        entry_price=entry_price,
+        entry_time=entry_time,
+        target_price=target_price,
+        stop_price=stop_price,
+        holding_time=holding_time,
+        trade_count=trade_count,
+        exit_time=exit_time,
+        close_price=close_price,
+        initial_account_balance=initial_account_balance,
+        roe=roe,
+        position_size=position_size,
+        cost_adjusted_roe=cost_adjusted_roe,
+        pnl=pnl,
+        commission=commission,
+        slippage=slippage,
+        final_account_balance=final_account_balance,
+    )
 
 
 @pytest.fixture
@@ -10,13 +53,7 @@ def dummy_strategy_analyzer(dummy_is_strategy, dummy_is_exchange) -> StrategyAna
     dummy_is_strategy.config["exchange"] = dummy_is_exchange
     dummy_is_strategy.trade_positions = {
         "test_symbol": {
-            "1": {
-                "direction": 1,
-                "pnl": 10.5,
-                "exit_time": datetime(2022, 1, 1),
-                "initial_account_balance": 1000,
-                "trade_count": 1,
-            }
+            "1": dummy_trade_position(),
         }
     }
     return StrategyAnalyzer(dummy_is_strategy)
@@ -27,10 +64,10 @@ def test_compute_total_net_profit(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": 8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -50,10 +87,10 @@ def test_compute_gross_profit(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": -10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=-10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -73,10 +110,10 @@ def test_compute_gross_loss(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": -10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=-10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -95,10 +132,10 @@ def test_compute_commission(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "commission": 1.2},
-                {"direction": -1, "commission": 0.8},
-                {"direction": 1, "commission": 2.5},
-                {"direction": -1, "commission": 3.5},
+                dummy_trade_position(direction=1, commission=1.2),
+                dummy_trade_position(direction=-1, commission=0.8),
+                dummy_trade_position(direction=1, commission=2.5),
+                dummy_trade_position(direction=-1, commission=3.5),
             ],
         }
     ]
@@ -117,10 +154,10 @@ def test_compute_slippage(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "slippage": 1.2},
-                {"direction": -1, "slippage": 0.8},
-                {"direction": 1, "slippage": 2.5},
-                {"direction": -1, "slippage": 3.5},
+                dummy_trade_position(direction=1, slippage=1.2),
+                dummy_trade_position(direction=-1, slippage=0.8),
+                dummy_trade_position(direction=1, slippage=2.5),
+                dummy_trade_position(direction=-1, slippage=3.5),
             ],
         }
     ]
@@ -139,10 +176,10 @@ def test_compute_profit_factor(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": -10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=-10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -164,10 +201,10 @@ def test_compute_maximum_drawdown(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "final_account_balance": 30.0},
-                {"direction": -1, "final_account_balance": 60.0},
-                {"direction": 1, "final_account_balance": 25.0},
-                {"direction": -1, "final_account_balance": 30.0},
+                dummy_trade_position(direction=1, final_account_balance=30.0),
+                dummy_trade_position(direction=-1, final_account_balance=60.0),
+                dummy_trade_position(direction=1, final_account_balance=25.0),
+                dummy_trade_position(direction=-1, final_account_balance=30.0),
             ],
         }
     ]
@@ -187,11 +224,11 @@ def test_compute_total_trades(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1},
-                {"direction": -1},
-                {"direction": 1},
-                {"direction": -1},
-                {"direction": -1},
+                dummy_trade_position(direction=1),
+                dummy_trade_position(direction=-1),
+                dummy_trade_position(direction=1),
+                dummy_trade_position(direction=-1),
+                dummy_trade_position(direction=-1),
             ],
         }
     ]
@@ -211,10 +248,10 @@ def test_compute_winning_trades(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -234,10 +271,10 @@ def test_compute_losing_trades(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -256,10 +293,10 @@ def test_compute_even_trades(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -278,10 +315,10 @@ def test_compute_percent_profitable(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -305,10 +342,10 @@ def test_compute_average_roe(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "cost_adjusted_roe": 10.5},
-                {"direction": -1, "cost_adjusted_roe": -8.5},
-                {"direction": 1, "cost_adjusted_roe": 0},
-                {"direction": -1, "cost_adjusted_roe": -10.5},
+                dummy_trade_position(direction=1, cost_adjusted_roe=10.5),
+                dummy_trade_position(direction=-1, cost_adjusted_roe=-8.5),
+                dummy_trade_position(direction=1, cost_adjusted_roe=0),
+                dummy_trade_position(direction=-1, cost_adjusted_roe=-10.5),
             ],
         }
     ]
@@ -329,10 +366,10 @@ def test_compute_average_pnl(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -353,10 +390,10 @@ def test_compute_average_winning_trade(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -377,10 +414,10 @@ def test_compute_average_losing_trade(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -400,10 +437,10 @@ def test_compute_take_profit_ratio(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 2.5},
-                {"direction": -1, "pnl": 10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=2.5),
+                dummy_trade_position(direction=-1, pnl=10.5),
             ],
         }
     ]
@@ -427,10 +464,10 @@ def test_compute_trade_expectancy(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -457,10 +494,10 @@ def test_compute_max_consecutive_winners(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -480,10 +517,10 @@ def test_compute_max_consecutive_losers(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -502,10 +539,10 @@ def test_compute_largest_winning_trade(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -524,10 +561,10 @@ def test_compute_largest_losing_trade(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5},
-                {"direction": -1, "pnl": -8.5},
-                {"direction": 1, "pnl": 0},
-                {"direction": -1, "pnl": -10.5},
+                dummy_trade_position(direction=1, pnl=10.5),
+                dummy_trade_position(direction=-1, pnl=-8.5),
+                dummy_trade_position(direction=1, pnl=0),
+                dummy_trade_position(direction=-1, pnl=-10.5),
             ],
         }
     ]
@@ -546,10 +583,10 @@ def test_compute_average_holding_time(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "holding_time": 1},
-                {"direction": -1, "holding_time": 2},
-                {"direction": 1, "holding_time": 3},
-                {"direction": -1, "holding_time": 4},
+                dummy_trade_position(direction=1, holding_time=1),
+                dummy_trade_position(direction=-1, holding_time=2),
+                dummy_trade_position(direction=1, holding_time=3),
+                dummy_trade_position(direction=-1, holding_time=4),
             ],
         }
     ]
@@ -569,10 +606,10 @@ def test_compute_maximum_holding_time(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "holding_time": 1},
-                {"direction": -1, "holding_time": 2},
-                {"direction": 1, "holding_time": 3},
-                {"direction": -1, "holding_time": 4},
+                dummy_trade_position(direction=1, holding_time=1),
+                dummy_trade_position(direction=-1, holding_time=2),
+                dummy_trade_position(direction=1, holding_time=3),
+                dummy_trade_position(direction=-1, holding_time=4),
             ],
         }
     ]
@@ -591,10 +628,18 @@ def test_compute_monthly_pnl(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5, "exit_time": datetime(2022, 1, 1)},
-                {"direction": -1, "pnl": -8.5, "exit_time": datetime(2022, 1, 2)},
-                {"direction": 1, "pnl": 0, "exit_time": datetime(2022, 2, 1)},
-                {"direction": -1, "pnl": -10.5, "exit_time": datetime(2022, 2, 1)},
+                dummy_trade_position(
+                    direction=1, pnl=10.5, exit_time=datetime(2022, 1, 1)
+                ),
+                dummy_trade_position(
+                    direction=-1, pnl=-8.5, exit_time=datetime(2022, 1, 2)
+                ),
+                dummy_trade_position(
+                    direction=1, pnl=0, exit_time=datetime(2022, 2, 1)
+                ),
+                dummy_trade_position(
+                    direction=-1, pnl=-10.5, exit_time=datetime(2022, 2, 1)
+                ),
             ],
         }
     ]
@@ -613,10 +658,18 @@ def test_compute_average_monthly_pnl(dummy_strategy_analyzer) -> None:
         {
             "symbol": "test_symbol",
             "trades": [
-                {"direction": 1, "pnl": 10.5, "exit_time": datetime(2022, 1, 1)},
-                {"direction": -1, "pnl": -8.5, "exit_time": datetime(2022, 1, 2)},
-                {"direction": 1, "pnl": 0, "exit_time": datetime(2022, 2, 1)},
-                {"direction": -1, "pnl": -10.5, "exit_time": datetime(2022, 2, 1)},
+                dummy_trade_position(
+                    direction=1, pnl=10.5, exit_time=datetime(2022, 1, 1)
+                ),
+                dummy_trade_position(
+                    direction=-1, pnl=-8.5, exit_time=datetime(2022, 1, 2)
+                ),
+                dummy_trade_position(
+                    direction=1, pnl=0, exit_time=datetime(2022, 2, 1)
+                ),
+                dummy_trade_position(
+                    direction=-1, pnl=-10.5, exit_time=datetime(2022, 2, 1)
+                ),
             ],
         }
     ]
