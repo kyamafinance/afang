@@ -453,12 +453,15 @@ class StrategyOptimizer:
                 row = list()
                 # Add backtest analysis objectives to the row.
                 for objective in self.objectives:
-                    row.append(profile.get_objective_value(objective))
+                    if not profile.get_objective_value("total_trades"):
+                        # Do not persist this profile because no trade was made.
+                        break
+                    row.append(round(profile.get_objective_value(objective), 4))
                 # Add backtest params to the row.
                 for param_val in profile.backtest_parameters.values():
-                    row.append(param_val)
+                    row.append(round(param_val, 4))
                 row.append(profile.front)
-                row.append(profile.crowding_distance)
+                row.append(round(profile.crowding_distance, 4))
                 writer.writerow(row)
 
         logger.info("Persisted optimization run in: %s", filename)

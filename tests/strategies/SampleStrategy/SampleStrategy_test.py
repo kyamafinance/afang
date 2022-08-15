@@ -3,8 +3,8 @@ from collections import namedtuple
 import pandas as pd
 import pytest
 
+from afang.strategies.models import TradeLevels
 from afang.strategies.SampleStrategy.SampleStrategy import SampleStrategy
-from afang.strategies.util import TradeLevels
 
 
 @pytest.fixture

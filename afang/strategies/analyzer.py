@@ -231,7 +231,7 @@ class StrategyAnalyzer:
         """
 
         def get_max_drawdown(_returns: List) -> float:
-            _max_drawdown = 0
+            _max_drawdown: float = 0
             _temp_max_val = 0
             for i in range(1, len(_returns)):
                 _temp_max_val = max(_temp_max_val, _returns[i - 1])
@@ -240,7 +240,7 @@ class StrategyAnalyzer:
                 except ZeroDivisionError:
                     return 100.0
 
-            return -1 * (_max_drawdown * 100.0)
+            return -1 * (_max_drawdown * 100.0) if _max_drawdown else 0.0
 
         for symbol_backtest in self.analysis_results:
             max_drawdown = get_max_drawdown(
@@ -1117,7 +1117,7 @@ class StrategyAnalyzer:
             list(symbol_trades.values())
             for symbol_trades in list(self.strategy.trade_positions.values())
         ]
-        flattened_trades = reduce(lambda a, b: a + b, trades)
+        flattened_trades = reduce(lambda a, b: a + b, trades) if trades else trades
         sorted_aggregate_trades: List[dict] = sorted(
             flattened_trades, key=operator.itemgetter("exit_time")
         )
