@@ -453,6 +453,9 @@ class StrategyOptimizer:
                 row = list()
                 # Add backtest analysis objectives to the row.
                 for objective in self.objectives:
+                    if not profile.get_objective_value("total_trades"):
+                        # Do not persist this profile because no trade was made.
+                        break
                     row.append(profile.get_objective_value(objective))
                 # Add backtest params to the row.
                 for param_val in profile.backtest_parameters.values():

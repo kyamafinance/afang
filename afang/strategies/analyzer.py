@@ -240,10 +240,7 @@ class StrategyAnalyzer:
                 except ZeroDivisionError:
                     return 100.0
 
-            if _max_drawdown:
-                _max_drawdown = -1 * (_max_drawdown * 100.0)
-
-            return _max_drawdown
+            return -1 * (_max_drawdown * 100.0) if _max_drawdown else 0.0
 
         for symbol_backtest in self.analysis_results:
             max_drawdown = get_max_drawdown(
