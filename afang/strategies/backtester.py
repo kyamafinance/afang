@@ -371,7 +371,11 @@ class Backtester(ABC):
 
         for row in self.backtest_data[symbol].itertuples():
             # open a long position if we get a long trading signal.
-            if self.allow_long_positions and self.is_long_trade_signal_present(row):
+            if (
+                self.allow_long_positions
+                and self.is_long_trade_signal_present(row)
+                and row.Index != self.backtest_data[symbol].index.values[-1]
+            ):
                 # only open a position if multiple open positions are allowed or
                 # there is no open position.
                 if not self.allow_multiple_open_positions and len(
@@ -389,7 +393,11 @@ class Backtester(ABC):
                 )
 
             # open a short position if we get a short trading signal.
-            elif self.allow_short_positions and self.is_short_trade_signal_present(row):
+            elif (
+                self.allow_short_positions
+                and self.is_short_trade_signal_present(row)
+                and row.Index != self.backtest_data[symbol].index.values[-1]
+            ):
                 # only open a position if multiple open positions are allowed or
                 # there is no open position.
                 if not self.allow_multiple_open_positions and len(
