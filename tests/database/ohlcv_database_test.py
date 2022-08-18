@@ -1,17 +1,18 @@
 import os
-from typing import List, Tuple
+from typing import List
 
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
 from afang.database.ohlcv_database import OHLCVDatabase
+from afang.exchanges.models import Candle
 
 
 @pytest.fixture
-def ohlcv_write_data() -> List[Tuple[float, float, float, float, float, float]]:
+def ohlcv_write_data() -> List[Candle]:
     return [
-        (
+        Candle(
             1657510380000,
             10.2,
             12.5,
@@ -19,7 +20,7 @@ def ohlcv_write_data() -> List[Tuple[float, float, float, float, float, float]]:
             10.2,
             100.5,
         ),  # Monday, July 11, 2022 3:33:00 AM
-        (
+        Candle(
             1657510320000,
             10.5,
             12.5,
@@ -119,11 +120,15 @@ def test_get_min_max_timestamp_empty_dataset(ohlcv_root_db_dir) -> None:
 @pytest.mark.parametrize(
     "data, min_ts, max_ts",
     [
-        ([(1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5)], 1657510320000, 1657510320000),
+        (
+            [Candle(1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5)],
+            1657510320000,
+            1657510320000,
+        ),
         (
             [
-                (1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5),
-                (1657510380000, 10.2, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510380000, 10.2, 12.5, 9.5, 10.2, 100.5),
             ],
             1657510320000,
             1657510380000,
@@ -152,12 +157,12 @@ def test_get_data_empty_dataset(ohlcv_root_db_dir) -> None:
 
 
 def test_get_data(ohlcv_root_db_dir, caplog) -> None:
-    ohlcv_data: List[Tuple[float, float, float, float, float, float]] = [
-        (5, 40.2, 92.5, 8.5, 12.2, 190.5),
-        (1, 10.2, 12.5, 9.5, 14.2, 120.5),
-        (4, 70.2, 42.5, 1.5, 15.2, 160.5),
-        (2, 30.2, 72.5, 4.5, 16.2, 130.5),
-        (3, 60.2, 62.5, 2.5, 18.2, 150.5),
+    ohlcv_data: List[Candle] = [
+        Candle(5, 40.2, 92.5, 8.5, 12.2, 190.5),
+        Candle(1, 10.2, 12.5, 9.5, 14.2, 120.5),
+        Candle(4, 70.2, 42.5, 1.5, 15.2, 160.5),
+        Candle(2, 30.2, 72.5, 4.5, 16.2, 130.5),
+        Candle(3, 60.2, 62.5, 2.5, 18.2, 150.5),
     ]
 
     ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
@@ -205,19 +210,19 @@ def test_is_data_valid_empty_dataset(ohlcv_root_db_dir) -> None:
     [
         (
             [
-                (1657510560000, 10.5, 12.5, 9.5, 10.2, 100.5),
-                (1657510380000, 10.2, 12.5, 9.5, 10.2, 100.5),
-                (1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5),
-                (1657510500000, 10.5, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510560000, 10.5, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510380000, 10.2, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510500000, 10.5, 12.5, 9.5, 10.2, 100.5),
             ],
             True,
         ),
         (
             [
-                (1657510560000, 10.5, 12.5, 9.5, 10.2, 100.5),
-                (1657510500000, 10.2, 12.5, 9.5, 10.2, 100.5),
-                (1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5),
-                (1657510500000, 10.5, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510560000, 10.5, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510500000, 10.2, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510320000, 10.5, 12.5, 9.5, 10.2, 100.5),
+                Candle(1657510500000, 10.5, 12.5, 9.5, 10.2, 100.5),
             ],
             False,
         ),

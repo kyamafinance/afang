@@ -4,12 +4,13 @@ import pathlib
 import shutil
 from abc import ABC
 from collections.abc import Generator
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Type
 
 import pandas as pd
 import pytest
 
 from afang.exchanges.is_exchange import IsExchange
+from afang.exchanges.models import Candle
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
 from afang.strategies.optimizer import StrategyOptimizer
@@ -76,7 +77,7 @@ def dummy_is_exchange() -> IsExchange:
             symbol: str,
             start_time: Optional[int] = None,
             end_time: Optional[int] = None,
-        ) -> Optional[List[Tuple[float, float, float, float, float, float]]]:
+        ) -> Optional[List[Candle]]:
             return super().get_historical_data(symbol, start_time, end_time)
 
     return Dummy(name="test_exchange", base_url="https://dummy.com")

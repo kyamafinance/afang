@@ -3,7 +3,7 @@ import logging
 import multiprocessing
 import time
 from concurrent.futures import ThreadPoolExecutor
-from operator import itemgetter
+from operator import attrgetter
 from typing import Optional, Tuple, Union
 
 from afang.database.ohlcv_database import OHLCVDatabase
@@ -39,7 +39,7 @@ def fetch_initial_data(
         logger.warning("%s %s: no initial data found", exchange.name, symbol)
         return None, None
 
-    data = sorted(data, key=itemgetter(0))
+    data = sorted(data, key=attrgetter("open_time"))
     data = data[:-1]  # removing the last candle because it is likely unfinished.
 
     logger.info(
@@ -47,11 +47,11 @@ def fetch_initial_data(
         exchange.name,
         symbol,
         len(data),
-        milliseconds_to_datetime(int(data[0][0])),
-        milliseconds_to_datetime(int(data[-1][0])),
+        milliseconds_to_datetime(int(data[0].open_time)),
+        milliseconds_to_datetime(int(data[-1].open_time)),
     )
 
-    oldest_timestamp, most_recent_timestamp = data[0][0], data[-1][0]
+    oldest_timestamp, most_recent_timestamp = data[0].open_time, data[-1].open_time
 
     ohlcv_db.write_data(symbol, data)
 
@@ -86,7 +86,7 @@ def fetch_most_recent_data(
         data = exchange.get_historical_data(
             symbol, start_time=int(_most_recent_timestamp)
         )
-        data = sorted(data, key=itemgetter(0))
+        data = sorted(data, key=attrgetter("open_time"))
 
         if data is None:
             time.sleep(4)  # Pause in the event an error occurs during data collection.
@@ -97,26 +97,26 @@ def fetch_most_recent_data(
 
         data = data[:-1]  # removing the last candle because it is likely unfinished.
 
-        if data[-1][0] <= _most_recent_timestamp:
+        if data[-1].open_time <= _most_recent_timestamp:
             logger.warning(
                 "%s %s: most recent fetched data timestamp(%s) not newer than "
                 "existing most recent timestamp(%s)",
                 exchange.name,
                 symbol,
-                milliseconds_to_datetime(int(data[-1][0])),
+                milliseconds_to_datetime(int(data[-1].open_time)),
                 milliseconds_to_datetime(int(_most_recent_timestamp)),
             )
             return None
 
-        _most_recent_timestamp = data[-1][0]
+        _most_recent_timestamp = data[-1].open_time
 
         logger.info(
             "%s %s: collected %s most recent data candles from %s to %s",
             exchange.name,
             symbol,
             len(data),
-            milliseconds_to_datetime(int(data[0][0])),
-            milliseconds_to_datetime(int(data[-1][0])),
+            milliseconds_to_datetime(int(data[0].open_time)),
+            milliseconds_to_datetime(int(data[-1].open_time)),
         )
 
         data_to_insert += data
@@ -159,7 +159,7 @@ def fetch_older_data(
 
     while True:
         data = exchange.get_historical_data(symbol, end_time=int(_oldest_timestamp))
-        data = sorted(data, key=itemgetter(0))
+        data = sorted(data, key=attrgetter("open_time"))
 
         if data is None:
             time.sleep(4)  # Pause in the event an error occurs during data collection.
@@ -174,25 +174,25 @@ def fetch_older_data(
             )
             break
 
-        if data[0][0] >= _oldest_timestamp:
+        if data[0].open_time >= _oldest_timestamp:
             logger.warning(
                 "%s %s: fetched data oldest timestamp(%s) not older than existing oldest timestamp(%s)",
                 exchange.name,
                 symbol,
-                milliseconds_to_datetime(int(data[0][0])),
+                milliseconds_to_datetime(int(data[0].open_time)),
                 milliseconds_to_datetime(int(_oldest_timestamp)),
             )
             return None
 
-        _oldest_timestamp = data[0][0]
+        _oldest_timestamp = data[0].open_time
 
         logger.info(
             "%s %s: collected %s older data candles from %s to %s",
             exchange.name,
             symbol,
             len(data),
-            milliseconds_to_datetime(int(data[0][0])),
-            milliseconds_to_datetime(int(data[-1][0])),
+            milliseconds_to_datetime(int(data[0].open_time)),
+            milliseconds_to_datetime(int(data[-1].open_time)),
         )
 
         data_to_insert += data
