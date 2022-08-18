@@ -2,11 +2,14 @@ import logging
 import os
 import pathlib
 import time
+from dataclasses import astuple
 from typing import Any, List, Optional, Tuple, Union
 
 import h5py
 import numpy as np
 import pandas as pd
+
+from afang.exchanges.models import Candle
 
 logger = logging.getLogger(__name__)
 
@@ -77,14 +80,12 @@ class OHLCVDatabase:
 
         return min_timestamp, max_timestamp
 
-    def write_data(
-        self, symbol: str, data: List[Tuple[float, float, float, float, float, float]]
-    ) -> None:
+    def write_data(self, symbol: str, data: List[Candle]) -> None:
         """Write OHLCV price data into a symbol's dataset within an exchange's
         HDF5 database.
 
         :param symbol: symbol whose price data is to be stored.
-        :param data: list of OHLCV tuples to be stored into the symbol's dataset.
+        :param data: list of OHLCV candles to be stored into the symbol's dataset.
 
         :return: None
         """
@@ -101,12 +102,12 @@ class OHLCVDatabase:
             min_timestamp = float("inf")
             max_timestamp = 0
 
-        filtered_data = []
+        filtered_data: List[Tuple] = []
         for d in data:
-            if d[0] < min_timestamp:
-                filtered_data.append(d)
-            elif d[0] > max_timestamp:
-                filtered_data.append(d)
+            if d.open_time < min_timestamp:
+                filtered_data.append(astuple(d))
+            elif d.open_time > max_timestamp:
+                filtered_data.append(astuple(d))
 
         if not len(filtered_data):
             logger.warning("%s: no data to insert into database", symbol)

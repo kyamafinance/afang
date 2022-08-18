@@ -1,7 +1,8 @@
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from afang.exchanges.is_exchange import IsExchange
+from afang.exchanges.models import Candle
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class BinanceExchange(IsExchange):
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-    ) -> Optional[List[Tuple[float, float, float, float, float, float]]]:
+    ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the Binance
         exchange. If start_time and end_time are not sent, the most recent
         klines are returned.
@@ -58,7 +59,7 @@ class BinanceExchange(IsExchange):
         :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
 
-        :return: Optional[List[Tuple[float, float, float, float, float, float]]]
+        :return: Optional[List[Candle]]
         """
 
         params: Dict = dict()
@@ -83,16 +84,16 @@ class BinanceExchange(IsExchange):
         if raw_candles is None:
             return None
 
-        candles = []
+        candles: List[Candle] = []
         for candle in raw_candles:
             candles.append(
-                (
-                    float(candle[0]),  # open time
-                    float(candle[1]),  # open
-                    float(candle[2]),  # high
-                    float(candle[3]),  # low
-                    float(candle[4]),  # close
-                    float(candle[7]),  # quote asset volume
+                Candle(
+                    open_time=float(candle[0]),
+                    open=float(candle[1]),
+                    high=float(candle[2]),
+                    low=float(candle[3]),
+                    close=float(candle[4]),
+                    volume=float(candle[7]),
                 )
             )
 

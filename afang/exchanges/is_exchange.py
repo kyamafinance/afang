@@ -1,8 +1,10 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import requests
+
+from afang.exchanges.models import Candle
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,7 @@ class IsExchange(ABC):
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-    ) -> Optional[List[Tuple[float, float, float, float, float, float]]]:
+    ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the exchange. If
         start_time and end_time are not provided, the most recent klines are
         returned.
@@ -80,7 +82,7 @@ class IsExchange(ABC):
         :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
 
-        :return: Optional[List[Tuple[float, float, float, float, float, float]]]
+        :return: Optional[List[Candle]]
         """
 
         return None

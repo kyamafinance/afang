@@ -10,6 +10,7 @@ from afang.database.backtest_data_collector import (
     fetch_symbol_data,
 )
 from afang.database.ohlcv_database import OHLCVDatabase
+from afang.exchanges.models import Candle
 
 
 @pytest.mark.parametrize(
@@ -17,14 +18,14 @@ from afang.database.ohlcv_database import OHLCVDatabase
     [
         (None, (None, None)),
         ([], (None, None)),
-        ([(1, 2, 3, 4, 5, 6)], (None, None)),
-        ([(1, 2, 3, 4, 5, 6), (1, 2, 3, 4, 5, 6)], (1, 1)),
+        ([Candle(1, 2, 3, 4, 5, 6)], (None, None)),
+        ([Candle(1, 2, 3, 4, 5, 6), Candle(1, 2, 3, 4, 5, 6)], (1, 1)),
         (
             [
-                (2, 2, 3, 4, 5, 6),
-                (1, 2, 3, 4, 5, 6),
-                (4, 2, 3, 4, 5, 6),
-                (3, 2, 3, 4, 5, 6),
+                Candle(2, 2, 3, 4, 5, 6),
+                Candle(1, 2, 3, 4, 5, 6),
+                Candle(4, 2, 3, 4, 5, 6),
+                Candle(3, 2, 3, 4, 5, 6),
             ],
             (1, 3),
         ),
@@ -56,9 +57,16 @@ def test_fetch_initial_data(
 @pytest.mark.parametrize(
     "historical_data, expected_return_value",
     [
-        ([(1, 2, 3, 4, 5, 6)], 0),
-        ([(-2, 2, 3, 4, 5, 6), (-1, 2, 3, 4, 5, 6)], None),
-        ([(1, 2, 3, 4, 5, 6), (2, 2, 3, 4, 5, 6), (3, 2, 3, 4, 5, 6)], None),
+        ([Candle(1, 2, 3, 4, 5, 6)], 0),
+        ([Candle(-2, 2, 3, 4, 5, 6), Candle(-1, 2, 3, 4, 5, 6)], None),
+        (
+            [
+                Candle(1, 2, 3, 4, 5, 6),
+                Candle(2, 2, 3, 4, 5, 6),
+                Candle(3, 2, 3, 4, 5, 6),
+            ],
+            None,
+        ),
     ],
 )
 def test_fetch_most_recent_data(
@@ -90,8 +98,15 @@ def test_fetch_most_recent_data(
     "historical_data, expected_return_value",
     [
         ([], 5),
-        ([(10, 2, 3, 4, 5, 6), (11, 2, 3, 4, 5, 6)], None),
-        ([(1, 2, 3, 4, 5, 6), (2, 2, 3, 4, 5, 6), (3, 2, 3, 4, 5, 6)], None),
+        ([Candle(10, 2, 3, 4, 5, 6), Candle(11, 2, 3, 4, 5, 6)], None),
+        (
+            [
+                Candle(1, 2, 3, 4, 5, 6),
+                Candle(2, 2, 3, 4, 5, 6),
+                Candle(3, 2, 3, 4, 5, 6),
+            ],
+            None,
+        ),
     ],
 )
 def test_fetch_older_data(

@@ -3,6 +3,7 @@ from typing import Any, Dict
 import pytest
 
 from afang.exchanges.dydx import DyDxExchange
+from afang.exchanges.models import Candle
 
 
 def test_dydx_exchange_init(mocker) -> None:
@@ -102,8 +103,8 @@ def test_get_symbols(mocker, req_response, expected_symbols) -> None:
                 ]
             },
             [
-                (1578182400000.0, 1.0, 2.0, 3.0, 4.0, 5.0),
-                (1609804800000, 10.0, 11.0, 12.0, 13.0, 14.0),
+                Candle(1578182400000.0, 1.0, 2.0, 3.0, 4.0, 5.0),
+                Candle(1609804800000, 10.0, 11.0, 12.0, 13.0, 14.0),
             ],
         ),
         (None, None),

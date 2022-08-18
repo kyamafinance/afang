@@ -3,6 +3,7 @@ from typing import Any, Dict
 import pytest
 
 from afang.exchanges.binance import BinanceExchange
+from afang.exchanges.models import Candle
 
 
 def test_binance_exchange_init(mocker) -> None:
@@ -98,7 +99,10 @@ def test_get_symbols(mocker, req_response, expected_symbols) -> None:
                     "1.7",
                 ],
             ],
-            [(1, 1.5, 2.5, 3.5, 4.5, 600.4), (9, 4.5, 4.5, 2.5, 6.5, 400.4)],
+            [
+                Candle(1, 1.5, 2.5, 3.5, 4.5, 600.4),
+                Candle(9, 4.5, 4.5, 2.5, 6.5, 400.4),
+            ],
         ),
         (None, None),
     ],

@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import dateutil.parser as dp
 import pytz
 
 from afang.exchanges.is_exchange import IsExchange
+from afang.exchanges.models import Candle
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class DyDxExchange(IsExchange):
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-    ) -> Optional[List[Tuple[float, float, float, float, float, float]]]:
+    ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the DyDx
         exchange. If start_time and end_time are not sent, the most recent
         klines are returned.
@@ -68,7 +69,7 @@ class DyDxExchange(IsExchange):
         :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
 
-        :return: Optional[List[Tuple[float, float, float, float, float, float]]]
+        :return: Optional[List[Candle]]
         """
 
         candle_fetch_limit = 100
@@ -104,18 +105,16 @@ class DyDxExchange(IsExchange):
 
         raw_candles = list(reversed(raw_candles["candles"]))  # reverse candle order
 
-        candles = []
+        candles: List[Candle] = []
         for candle in raw_candles:
             candles.append(
-                (
-                    float(
-                        dp.parse(candle["startedAt"]).timestamp() * 1000
-                    ),  # open time
-                    float(candle["open"]),  # open
-                    float(candle["high"]),  # high
-                    float(candle["low"]),  # low
-                    float(candle["close"]),  # close
-                    float(candle["usdVolume"]),  # volume
+                Candle(
+                    open_time=float(dp.parse(candle["startedAt"]).timestamp() * 1000),
+                    open=float(candle["open"]),
+                    high=float(candle["high"]),
+                    low=float(candle["low"]),
+                    close=float(candle["close"]),
+                    volume=float(candle["usdVolume"]),
                 )
             )
 
