@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from afang.strategies.analyzer import StrategyAnalyzer
+from afang.strategies.analyzer import AGGREGATE_DATA, StrategyAnalyzer
 from afang.strategies.models import TradePosition
 
 
@@ -722,7 +722,7 @@ def test_run_analysis(dummy_strategy_analyzer) -> None:
     analysis_results = dummy_strategy_analyzer.analysis_results
 
     assert len(analysis_results) == 2
-    assert dummy_strategy_analyzer.analysis_results[0]["symbol"] == "AGGREGATE_DATA"
+    assert dummy_strategy_analyzer.analysis_results[0]["symbol"] == AGGREGATE_DATA
     assert dummy_strategy_analyzer.analysis_results[1]["symbol"] == "test_symbol"
     assert (
         list(dummy_strategy_analyzer.analysis_results[0].keys())
