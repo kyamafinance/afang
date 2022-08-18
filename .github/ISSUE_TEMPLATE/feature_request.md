@@ -1,9 +1,8 @@
 ---
 name: 🚧 Feature Request
 about: Suggest a new feature
-title: ""
-labels:
-  - type/enhancement
+title: "[Your feature request title]"
+labels: enhancement
 assignees: ""
 ---
 

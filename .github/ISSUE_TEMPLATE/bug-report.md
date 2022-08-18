@@ -1,9 +1,8 @@
 ---
 name: 🐛 Bug Report
 about: Report an issue
-title: ""
-labels:
-  - type/bug
+title: "[Your bug report title]"
+labels: bug
 assignees: ""
 ---
 
