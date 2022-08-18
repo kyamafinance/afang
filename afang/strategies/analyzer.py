@@ -8,8 +8,11 @@ from afang.strategies.models import TradePosition
 from afang.utils.function_group import FunctionGroup
 
 logger = logging.getLogger(__name__)
-
 function_group = FunctionGroup()
+
+# symbol name given to the first entry of `StrategyAnalyzer.analysis_results`
+# that is derived from a sorted trade sequence of all traded symbols.
+AGGREGATE_DATA = "AGGREGATE_DATA"
 
 
 class StrategyAnalyzer:
@@ -1093,7 +1096,7 @@ class StrategyAnalyzer:
                 {"symbol": symbol, "trades": list(symbol_trades.values())}
             )
         self.analysis_results.insert(
-            0, {"symbol": "AGGREGATE_DATA", "trades": sorted_aggregate_trades}
+            0, {"symbol": AGGREGATE_DATA, "trades": sorted_aggregate_trades}
         )
 
         # Compute strategy performance analysis.
