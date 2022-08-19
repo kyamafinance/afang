@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 
-import dateutil.parser as dp
+import dateutil.parser
 import pytz
 
 from afang.exchanges.is_exchange import IsExchange
@@ -109,7 +109,9 @@ class DyDxExchange(IsExchange):
         for candle in raw_candles:
             candles.append(
                 Candle(
-                    open_time=float(dp.parse(candle["startedAt"]).timestamp() * 1000),
+                    open_time=int(
+                        dateutil.parser.isoparse(candle["startedAt"]).timestamp() * 1000
+                    ),
                     open=float(candle["open"]),
                     high=float(candle["high"]),
                     low=float(candle["low"]),
