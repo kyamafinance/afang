@@ -1,3 +1,4 @@
+import argparse
 import logging
 import operator
 import sys
@@ -12,19 +13,19 @@ from afang.strategies.optimizer import StrategyOptimizer
 logger = logging.getLogger(__name__)
 
 
-def get_exchange_client(exchange_name: str) -> Optional[IsExchange]:
+def get_exchange_client(parsed_args: argparse.Namespace) -> Optional[IsExchange]:
     """Get the proper exchange client given the exchange's name.
 
-    :param exchange_name: name of the exchange client.
+    :param parsed_args: arguments parsed from the CLI.
 
     :return: Optional[IsExchange]
     """
 
     exchange: Optional[IsExchange] = None
-    if exchange_name == "binance":
-        exchange = BinanceExchange()
-    elif exchange_name == "dydx":
-        exchange = DyDxExchange()
+    if parsed_args.exchange == "binance":
+        exchange = BinanceExchange(testnet=parsed_args.testnet)
+    elif parsed_args.exchange == "dydx":
+        exchange = DyDxExchange(testnet=parsed_args.testnet)
 
     return exchange
 
@@ -58,7 +59,7 @@ def main(args):
     parsed_args = parse_args(args)
 
     # Get the exchange client.
-    exchange = get_exchange_client(parsed_args.exchange)
+    exchange = get_exchange_client(parsed_args)
     if not exchange:
         logger.warning("Unknown exchange provided: %s", parsed_args.exchange)
         return

@@ -23,11 +23,17 @@ class TimeframeMapping(Enum):
 class BinanceExchange(IsExchange):
     """Interface to run exchange functions on Binance USDT Futures."""
 
-    def __init__(self) -> None:
+    def __init__(self, testnet: bool = False) -> None:
+        """
+        :param testnet: whether to use the testnet version of the exchange.
+        """
+
         name = "binance"
         base_url = "https://fapi.binance.com"
+        if testnet:
+            base_url = "https://testnet.binancefuture.com"
 
-        super().__init__(name, base_url)
+        super().__init__(name, testnet, base_url)
 
     @classmethod
     def get_config_params(cls) -> Dict:

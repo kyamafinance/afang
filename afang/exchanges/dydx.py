@@ -26,13 +26,17 @@ class TimeframeMapping(Enum):
 class DyDxExchange(IsExchange):
     """Interface to run exchange functions on DyDx Futures."""
 
-    def __init__(self) -> None:
-        """Initialize DyDxClient class."""
+    def __init__(self, testnet: bool = False) -> None:
+        """
+        :param testnet: whether to use the testnet version of the exchange.
+        """
 
         name = "dydx"
         base_url = "https://api.dydx.exchange"
+        if testnet:
+            base_url = "https://api.stage.dydx.exchange"
 
-        super().__init__(name, base_url)
+        super().__init__(name, testnet, base_url)
 
     @classmethod
     def get_config_params(cls) -> Dict:
