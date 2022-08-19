@@ -135,4 +135,6 @@ def test_get_historical_data(mocker, req_response, expected_candles) -> None:
     )
 
     dydx_exchange = DyDxExchange()
-    assert dydx_exchange.get_historical_data("test_symbol", 2, 100) == expected_candles
+    assert (
+        dydx_exchange.get_historical_candles("test_symbol", 2, 100) == expected_candles
+    )

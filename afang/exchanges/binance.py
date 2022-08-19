@@ -45,7 +45,7 @@ class BinanceExchange(IsExchange):
 
         return symbols
 
-    def get_historical_data(
+    def get_historical_candles(
         self,
         symbol: str,
         start_time: Optional[int] = None,
