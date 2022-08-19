@@ -109,7 +109,7 @@ def test_get_symbols(mocker, req_response, expected_symbols) -> None:
         (None, None),
     ],
 )
-def test_get_historical_data(mocker, req_response, expected_candles) -> None:
+def test_get_historical_candles(mocker, req_response, expected_candles) -> None:
     # mock the return value of the _get_symbols function.
     def mock_get_symbols(_self):
         return ["test_symbol"]
