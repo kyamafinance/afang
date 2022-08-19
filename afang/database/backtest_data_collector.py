@@ -233,7 +233,7 @@ def fetch_symbol_data(
         )
         return None
 
-    ohlcv_db = OHLCVDatabase(exchange.name, symbol, root_db_dir)
+    ohlcv_db = OHLCVDatabase(exchange, symbol, root_db_dir)
     ohlcv_db.create_dataset(symbol)
 
     oldest_timestamp, most_recent_timestamp = ohlcv_db.get_min_max_timestamp(symbol)

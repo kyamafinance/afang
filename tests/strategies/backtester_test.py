@@ -44,7 +44,7 @@ def ohlcv_df() -> pd.DataFrame:
 
 
 @pytest.fixture
-def ohlcv_db(ohlcv_root_db_dir, ohlcv_df) -> OHLCVDatabase:
+def ohlcv_db(ohlcv_root_db_dir, dummy_is_exchange, ohlcv_df) -> OHLCVDatabase:
     class DummyOHLCVDatabase(OHLCVDatabase):
         def get_data(
             self, symbol: str, from_time: int, to_time: int
@@ -73,7 +73,7 @@ def ohlcv_db(ohlcv_root_db_dir, ohlcv_df) -> OHLCVDatabase:
                 ],
             )
 
-    return DummyOHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+    return DummyOHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
 
 
 def test_generate_uuid(dummy_is_strategy) -> None:
