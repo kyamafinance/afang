@@ -81,7 +81,7 @@ class BinanceExchange(IsExchange):
             tf_interval: str = TimeframeMapping[timeframe.name].value
         except KeyError:
             logger.error(
-                "%s cannot fetch historical candles in %s intervals. Please use another timeframe.",
+                "%s cannot fetch historical candles in %s intervals. Please use another timeframe",
                 self.name,
                 timeframe.value,
             )

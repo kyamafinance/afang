@@ -4,6 +4,7 @@ import pytest
 
 from afang.exchanges.dydx import DyDxExchange
 from afang.exchanges.models import Candle, HTTPMethod
+from afang.models import Timeframe
 
 
 def test_dydx_exchange_init(mocker) -> None:
@@ -137,4 +138,24 @@ def test_get_historical_candles(mocker, req_response, expected_candles) -> None:
     dydx_exchange = DyDxExchange()
     assert (
         dydx_exchange.get_historical_candles("test_symbol", 2, 100) == expected_candles
+    )
+
+
+def test_get_historical_candles_unknown_timeframe(mocker, caplog) -> None:
+    # mock the return value of the _get_symbols function.
+    def mock_get_symbols(_self):
+        return ["test_symbol"]
+
+    mocker.patch(
+        "afang.exchanges.binance.BinanceExchange._get_symbols",
+        mock_get_symbols,
+    )
+
+    binance_exchange = DyDxExchange()
+    binance_exchange.get_historical_candles("test_symbol", 2, 100, Timeframe.M3)
+
+    assert caplog.records[0].levelname == "ERROR"
+    assert (
+        "dydx cannot fetch historical candles in 3m intervals. Please use another timeframe"
+        in caplog.text
     )
