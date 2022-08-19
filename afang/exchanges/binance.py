@@ -88,7 +88,7 @@ class BinanceExchange(IsExchange):
         for candle in raw_candles:
             candles.append(
                 Candle(
-                    open_time=float(candle[0]),
+                    open_time=int(candle[0]),
                     open=float(candle[1]),
                     high=float(candle[2]),
                     low=float(candle[3]),

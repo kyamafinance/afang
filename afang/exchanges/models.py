@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Candle:
-    open_time: float
+    open_time: int
     open: float
     high: float
     low: float
