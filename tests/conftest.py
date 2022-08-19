@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle
+from afang.exchanges.models import Candle, HTTPMethod
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
 from afang.strategies.optimizer import StrategyOptimizer
@@ -69,8 +69,10 @@ def dummy_is_exchange() -> IsExchange:
         def _get_symbols(self) -> List[str]:
             return super()._get_symbols()
 
-        def _make_request(self, endpoint: str, query_parameters: Dict) -> Any:
-            return super()._make_request(endpoint, query_parameters)
+        def _make_request(
+            self, method: HTTPMethod, endpoint: str, query_parameters: Dict
+        ) -> Any:
+            return super()._make_request(method, endpoint, query_parameters)
 
         def get_historical_data(
             self,

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from afang.exchanges.models import Candle
+from afang.exchanges.models import Candle, HTTPMethod
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,14 @@ class IsExchange(ABC):
 
         return list()
 
-    def _make_request(self, endpoint: str, query_parameters: Dict) -> Any:
+    def _make_request(
+        self, method: HTTPMethod, endpoint: str, query_parameters: Dict
+    ) -> Any:
         """Make an unauthenticated GET request to the exchange. If the request
         is successful, a JSON object instance will be returned. If the request
         in unsuccessful, None will be returned.
 
+        :param method: HTTP method to be used to make the request.
         :param endpoint: the URL path of the associated GET request.
         :param query_parameters: a dictionary of parameters to pass within the query.
 
@@ -51,9 +54,32 @@ class IsExchange(ABC):
         """
 
         try:
-            response = requests.get(self._base_url + endpoint, params=query_parameters)
+            if method == HTTPMethod.GET:
+                response = requests.get(
+                    self._base_url + endpoint, params=query_parameters
+                )
+            elif method == HTTPMethod.POST:
+                response = requests.post(
+                    self._base_url + endpoint, params=query_parameters
+                )
+            elif method == HTTPMethod.DELETE:
+                response = requests.delete(
+                    self._base_url + endpoint, params=query_parameters
+                )
+            else:
+                logger.error(
+                    "Unknown HTTP method %s provided while making request to %s",
+                    method.name,
+                    endpoint,
+                )
+                return None
         except Exception as e:
-            logger.error("Connection error while making request to %s: %s", endpoint, e)
+            logger.error(
+                "Connection error while making %s request to %s: %s",
+                method.name,
+                endpoint,
+                e,
+            )
             return None
 
         if response.status_code == 200:

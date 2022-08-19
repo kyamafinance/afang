@@ -6,7 +6,7 @@ import dateutil.parser
 import pytz
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle
+from afang.exchanges.models import Candle, HTTPMethod
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class DyDxExchange(IsExchange):
         params: Dict = dict()
         endpoint = "/v3/markets"
 
-        data = self._make_request(endpoint, params)
+        data = self._make_request(HTTPMethod.GET, endpoint, params)
         if data is None:
             return symbols
 
@@ -96,7 +96,7 @@ class DyDxExchange(IsExchange):
 
         endpoint = f"/v3/candles/{symbol}"
 
-        raw_candles = self._make_request(endpoint, params)
+        raw_candles = self._make_request(HTTPMethod.GET, endpoint, params)
         if raw_candles is None:
             return None
 

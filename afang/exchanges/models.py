@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 
 
 @dataclass
@@ -9,3 +10,9 @@ class Candle:
     low: float
     close: float
     volume: float
+
+
+class HTTPMethod(Enum):
+    GET = "GET"
+    POST = "POST"
+    DELETE = "DELETE"

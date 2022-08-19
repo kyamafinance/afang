@@ -3,7 +3,7 @@ from typing import Any, Dict
 import pytest
 
 from afang.exchanges.dydx import DyDxExchange
-from afang.exchanges.models import Candle
+from afang.exchanges.models import Candle, HTTPMethod
 
 
 def test_dydx_exchange_init(mocker) -> None:
@@ -54,7 +54,9 @@ def test_dydx_exchange_init(mocker) -> None:
 )
 def test_get_symbols(mocker, req_response, expected_symbols) -> None:
     # mock the return value of the _make_request function.
-    def mock_make_request(_self, _endpoint: str, _query_parameters: Dict) -> Any:
+    def mock_make_request(
+        _self, _method: HTTPMethod, _endpoint: str, _query_parameters: Dict
+    ) -> Any:
         return req_response
 
     mocker.patch(
@@ -122,7 +124,9 @@ def test_get_historical_data(mocker, req_response, expected_candles) -> None:
     )
 
     # mock the return value of the _make_request function.
-    def mock_make_request(_self, _endpoint: str, _query_parameters: Dict) -> Any:
+    def mock_make_request(
+        _self, _method: HTTPMethod, _endpoint: str, _query_parameters: Dict
+    ) -> Any:
         return req_response
 
     mocker.patch(
