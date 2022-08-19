@@ -27,7 +27,7 @@ def fetch_initial_data(
     :return: Union[Tuple[None, None], Tuple[float, float]]
     """
 
-    data = exchange.get_historical_data(symbol, end_time=int(time.time() * 1000))
+    data = exchange.get_historical_candles(symbol, end_time=int(time.time() * 1000))
 
     if data is None:
         logger.warning(
@@ -83,7 +83,7 @@ def fetch_most_recent_data(
     _most_recent_timestamp = most_recent_timestamp
 
     while True:
-        data = exchange.get_historical_data(
+        data = exchange.get_historical_candles(
             symbol, start_time=int(_most_recent_timestamp)
         )
         data = sorted(data, key=attrgetter("open_time"))
@@ -158,7 +158,7 @@ def fetch_older_data(
     _oldest_timestamp = oldest_timestamp
 
     while True:
-        data = exchange.get_historical_data(symbol, end_time=int(_oldest_timestamp))
+        data = exchange.get_historical_candles(symbol, end_time=int(_oldest_timestamp))
         data = sorted(data, key=attrgetter("open_time"))
 
         if data is None:

@@ -11,6 +11,7 @@ import pytest
 
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Candle, HTTPMethod
+from afang.models import Timeframe
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
 from afang.strategies.optimizer import StrategyOptimizer
@@ -74,13 +75,16 @@ def dummy_is_exchange() -> IsExchange:
         ) -> Any:
             return super()._make_request(method, endpoint, query_parameters)
 
-        def get_historical_data(
+        def get_historical_candles(
             self,
             symbol: str,
             start_time: Optional[int] = None,
             end_time: Optional[int] = None,
+            timeframe: Optional[Timeframe] = Timeframe.M1,
         ) -> Optional[List[Candle]]:
-            return super().get_historical_data(symbol, start_time, end_time)
+            return super().get_historical_candles(
+                symbol, start_time, end_time, timeframe
+            )
 
     return Dummy(name="test_exchange", base_url="https://dummy.com")
 

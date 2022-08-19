@@ -34,9 +34,9 @@ from afang.exchanges.models import Candle
 def test_fetch_initial_data(
     mocker, dummy_is_exchange, ohlcv_root_db_dir, historical_data, expected_return_value
 ) -> None:
-    # mock the get_historical_data function
+    # mock the get_historical_candles function
     mocked_get_historical_data = mocker.patch(
-        "afang.database.backtest_data_collector.IsExchange.get_historical_data"
+        "afang.database.backtest_data_collector.IsExchange.get_historical_candles"
     )
     mocked_get_historical_data.return_value = historical_data
 
@@ -72,9 +72,9 @@ def test_fetch_initial_data(
 def test_fetch_most_recent_data(
     mocker, dummy_is_exchange, ohlcv_root_db_dir, historical_data, expected_return_value
 ) -> None:
-    # mock the get_historical_data function
+    # mock the get_historical_candles function
     mocked_get_historical_data = mocker.patch(
-        "afang.database.backtest_data_collector.IsExchange.get_historical_data"
+        "afang.database.backtest_data_collector.IsExchange.get_historical_candles"
     )
     mocked_get_historical_data.return_value = historical_data
 
@@ -112,9 +112,9 @@ def test_fetch_most_recent_data(
 def test_fetch_older_data(
     mocker, dummy_is_exchange, ohlcv_root_db_dir, historical_data, expected_return_value
 ) -> None:
-    # mock the get_historical_data function
+    # mock the get_historical_candles function
     mocked_get_historical_data = mocker.patch(
-        "afang.database.backtest_data_collector.IsExchange.get_historical_data"
+        "afang.database.backtest_data_collector.IsExchange.get_historical_candles"
     )
     mocked_get_historical_data.return_value = historical_data
 

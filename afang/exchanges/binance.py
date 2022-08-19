@@ -1,10 +1,23 @@
 import logging
+from enum import Enum
 from typing import Dict, List, Optional
 
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Candle, HTTPMethod
+from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
+
+
+class TimeframeMapping(Enum):
+    M1 = "1m"
+    M5 = "5m"
+    M15 = "15m"
+    M30 = "30m"
+    H1 = "1h"
+    H4 = "4h"
+    H12 = "12h"
+    D1 = "1d"
 
 
 class BinanceExchange(IsExchange):
@@ -45,11 +58,12 @@ class BinanceExchange(IsExchange):
 
         return symbols
 
-    def get_historical_data(
+    def get_historical_candles(
         self,
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
+        timeframe: Optional[Timeframe] = Timeframe.M1,
     ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the Binance
         exchange. If start_time and end_time are not sent, the most recent
@@ -58,13 +72,24 @@ class BinanceExchange(IsExchange):
         :param symbol: symbol to fetch historical candlestick bars for.
         :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param timeframe: optional. timeframe to download historical candles.
 
         :return: Optional[List[Candle]]
         """
 
+        try:
+            tf_interval: str = TimeframeMapping[timeframe.name].value
+        except KeyError:
+            logger.error(
+                "%s cannot fetch historical candles in %s intervals. Please use another timeframe",
+                self.name,
+                timeframe.value,
+            )
+            return None
+
         params: Dict = dict()
         params["symbol"] = symbol
-        params["interval"] = "1m"
+        params["interval"] = tf_interval
         params["limit"] = "1500"
 
         if start_time:

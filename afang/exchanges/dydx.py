@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from enum import Enum
 from typing import Dict, List, Optional
 
 import dateutil.parser
@@ -7,8 +8,19 @@ import pytz
 
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Candle, HTTPMethod
+from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
+
+
+class TimeframeMapping(Enum):
+    M1 = "1MIN"
+    M5 = "5MINS"
+    M15 = "15MINS"
+    M30 = "30MINS"
+    H1 = "1HOUR"
+    H4 = "4HOURS"
+    D1 = "1DAY"
 
 
 class DyDxExchange(IsExchange):
@@ -55,11 +67,12 @@ class DyDxExchange(IsExchange):
 
         return symbols
 
-    def get_historical_data(
+    def get_historical_candles(
         self,
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
+        timeframe: Optional[Timeframe] = Timeframe.M1,
     ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the DyDx
         exchange. If start_time and end_time are not sent, the most recent
@@ -68,14 +81,25 @@ class DyDxExchange(IsExchange):
         :param symbol: symbol to fetch historical candlestick bars for.
         :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param timeframe: optional. timeframe to download historical candles.
 
         :return: Optional[List[Candle]]
         """
 
+        try:
+            tf_interval: str = TimeframeMapping[timeframe.name].value
+        except KeyError:
+            logger.error(
+                "%s cannot fetch historical candles in %s intervals. Please use another timeframe",
+                self.name,
+                timeframe.value,
+            )
+            return None
+
         candle_fetch_limit = 100
 
         params = dict()
-        params["resolution"] = "1MIN"
+        params["resolution"] = tf_interval
         params["limit"] = str(candle_fetch_limit)
 
         timezone = pytz.UTC

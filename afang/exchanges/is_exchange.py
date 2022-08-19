@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from afang.exchanges.models import Candle, HTTPMethod
+from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
 
@@ -94,11 +95,12 @@ class IsExchange(ABC):
         return None
 
     @abstractmethod
-    def get_historical_data(
+    def get_historical_candles(
         self,
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
+        timeframe: Optional[Timeframe] = Timeframe.M1,
     ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the exchange. If
         start_time and end_time are not provided, the most recent klines are
@@ -107,6 +109,7 @@ class IsExchange(ABC):
         :param symbol: symbol to fetch historical candlestick bars for.
         :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param timeframe: optional. timeframe to download historical candles.
 
         :return: Optional[List[Candle]]
         """
