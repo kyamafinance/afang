@@ -2,7 +2,7 @@ import logging
 from typing import Dict, List, Optional
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle
+from afang.exchanges.models import Candle, HTTPMethod
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class BinanceExchange(IsExchange):
         params: Dict = dict()
         endpoint = "/fapi/v1/exchangeInfo"
 
-        data = self._make_request(endpoint, params)
+        data = self._make_request(HTTPMethod.GET, endpoint, params)
         if data is None:
             return symbols
 
@@ -80,7 +80,7 @@ class BinanceExchange(IsExchange):
 
         endpoint = "/fapi/v1/klines"
 
-        raw_candles = self._make_request(endpoint, params)
+        raw_candles = self._make_request(HTTPMethod.GET, endpoint, params)
         if raw_candles is None:
             return None
 

@@ -1,6 +1,8 @@
 import pytest
 import requests
 
+from afang.exchanges.models import HTTPMethod
+
 
 def test_is_exchange_initialization(dummy_is_exchange) -> None:
     assert dummy_is_exchange.name == "test_exchange"
@@ -36,7 +38,7 @@ def test_is_exchange_make_request(
             exc=exception,
         )
     response = dummy_is_exchange._make_request(
-        "/endpoint", query_parameters={"query": "bull", "limit": "dog"}
+        HTTPMethod.GET, "/endpoint", query_parameters={"query": "bull", "limit": "dog"}
     )
 
     assert response == expected_response
