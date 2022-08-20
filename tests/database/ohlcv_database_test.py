@@ -45,6 +45,25 @@ def test_symbol_database_creation(ohlcv_root_db_dir, dummy_is_exchange) -> None:
         is True
     )
 
+    # test that a testnet database can be created if it doesn't exist yet.
+    dummy_is_exchange.testnet = True
+    OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
+    assert os.path.exists(f"{ohlcv_root_db_dir}/test_exchange-testnet") is True
+    assert (
+        os.path.exists(f"{ohlcv_root_db_dir}/test_exchange-testnet/test_symbol.h5")
+        is True
+    )
+
+    # test that a new symbol database can be created under the same testnet exchange.
+    OHLCVDatabase(dummy_is_exchange, "another_test_symbol", ohlcv_root_db_dir)
+    assert os.path.exists(f"{ohlcv_root_db_dir}/test_exchange-testnet") is True
+    assert (
+        os.path.exists(
+            f"{ohlcv_root_db_dir}/test_exchange-testnet/another_test_symbol.h5"
+        )
+        is True
+    )
+
 
 def test_symbol_dataset_creation(ohlcv_root_db_dir, dummy_is_exchange) -> None:
     ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)

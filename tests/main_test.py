@@ -1,6 +1,9 @@
+import argparse
+
 import pytest
 
-from afang.main import get_strategy_instance, main
+from afang.exchanges import BinanceExchange, DyDxExchange
+from afang.main import get_exchange_client, get_strategy_instance, main
 from afang.strategies.SampleStrategy.SampleStrategy import SampleStrategy
 
 
@@ -34,6 +37,46 @@ def test_get_strategy_instance_undefined_strategy() -> None:
         ValueError, match=f"Unknown strategy name provided: {undefined_strategy}"
     ):
         get_strategy_instance(undefined_strategy)
+
+
+@pytest.mark.parametrize(
+    "parsed_args, expected_exchange_client",
+    [
+        (argparse.Namespace(exchange="binance", testnet=False), BinanceExchange()),
+        (
+            argparse.Namespace(exchange="binance", testnet=True),
+            BinanceExchange(testnet=True),
+        ),
+        (argparse.Namespace(exchange="dydx", testnet=False), DyDxExchange()),
+        (argparse.Namespace(exchange="dydx", testnet=True), DyDxExchange(testnet=True)),
+        (argparse.Namespace(exchange="unknown", testnet=False), None),
+        (argparse.Namespace(exchange="unknown", testnet=True), None),
+    ],
+)
+def test_get_exchange_client(mocker, parsed_args, expected_exchange_client) -> None:
+    # mock the return value of the _get_symbols function.
+    def mock_get_symbols(_self):
+        return ["BTCUSDT", "ETHUSDT"]
+
+    mocker.patch(
+        "afang.exchanges.binance.BinanceExchange._get_symbols",
+        mock_get_symbols,
+    )
+
+    mocker.patch(
+        "afang.exchanges.dydx.DyDxExchange._get_symbols",
+        mock_get_symbols,
+    )
+
+    exchange_client = get_exchange_client(parsed_args)
+
+    if not expected_exchange_client:
+        assert expected_exchange_client is None
+        return
+
+    assert exchange_client.name == expected_exchange_client.name
+    assert exchange_client.testnet == expected_exchange_client.testnet
+    assert exchange_client._base_url == expected_exchange_client._base_url
 
 
 def test_get_strategy_instance() -> None:
