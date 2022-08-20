@@ -101,7 +101,7 @@ class IsExchange(ABC):
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-        timeframe: Optional[Timeframe] = Timeframe.M1,
+        timeframe: Timeframe = Timeframe.M1,
     ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the exchange. If
         start_time and end_time are not provided, the most recent klines are

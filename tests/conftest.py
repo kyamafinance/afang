@@ -80,7 +80,7 @@ def dummy_is_exchange() -> IsExchange:
             symbol: str,
             start_time: Optional[int] = None,
             end_time: Optional[int] = None,
-            timeframe: Optional[Timeframe] = Timeframe.M1,
+            timeframe: Timeframe = Timeframe.M1,
         ) -> Optional[List[Candle]]:
             return super().get_historical_candles(
                 symbol, start_time, end_time, timeframe
