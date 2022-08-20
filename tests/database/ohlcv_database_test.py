@@ -31,31 +31,52 @@ def ohlcv_write_data() -> List[Candle]:
     ]
 
 
-def test_symbol_database_creation(ohlcv_root_db_dir) -> None:
+def test_symbol_database_creation(ohlcv_root_db_dir, dummy_is_exchange) -> None:
     # test that database is created if it doesn't yet exist.
-    OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+    OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     assert os.path.exists(f"{ohlcv_root_db_dir}/test_exchange") is True
     assert os.path.exists(f"{ohlcv_root_db_dir}/test_exchange/test_symbol.h5") is True
 
     # test that a new symbol database can be created under the same exchange.
-    OHLCVDatabase("test_exchange", "another_test_symbol", ohlcv_root_db_dir)
+    OHLCVDatabase(dummy_is_exchange, "another_test_symbol", ohlcv_root_db_dir)
     assert os.path.exists(f"{ohlcv_root_db_dir}/test_exchange") is True
     assert (
         os.path.exists(f"{ohlcv_root_db_dir}/test_exchange/another_test_symbol.h5")
         is True
     )
 
+    # test that a testnet database can be created if it doesn't exist yet.
+    dummy_is_exchange.testnet = True
+    OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
+    assert os.path.exists(f"{ohlcv_root_db_dir}/test_exchange-testnet") is True
+    assert (
+        os.path.exists(f"{ohlcv_root_db_dir}/test_exchange-testnet/test_symbol.h5")
+        is True
+    )
 
-def test_symbol_dataset_creation(ohlcv_root_db_dir) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+    # test that a new symbol database can be created under the same testnet exchange.
+    OHLCVDatabase(dummy_is_exchange, "another_test_symbol", ohlcv_root_db_dir)
+    assert os.path.exists(f"{ohlcv_root_db_dir}/test_exchange-testnet") is True
+    assert (
+        os.path.exists(
+            f"{ohlcv_root_db_dir}/test_exchange-testnet/another_test_symbol.h5"
+        )
+        is True
+    )
+
+
+def test_symbol_dataset_creation(ohlcv_root_db_dir, dummy_is_exchange) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     assert "test_symbol" not in ohlcv_db.hf.keys()
 
     ohlcv_db.create_dataset("test_symbol")
     assert "test_symbol" in ohlcv_db.hf.keys()
 
 
-def test_write_to_non_existent_dataset(ohlcv_root_db_dir, caplog) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_write_to_non_existent_dataset(
+    ohlcv_root_db_dir, dummy_is_exchange, caplog
+) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.write_data("non_existent_symbol", [])
 
     assert caplog.records[0].levelname == "WARNING"
@@ -75,6 +96,7 @@ def test_write_to_non_existent_dataset(ohlcv_root_db_dir, caplog) -> None:
 def test_write_to_dataset(
     mocker,
     ohlcv_root_db_dir,
+    dummy_is_exchange,
     caplog,
     ohlcv_write_data,
     min_ts,
@@ -84,7 +106,7 @@ def test_write_to_dataset(
     expected_data_len,
 ) -> None:
     # set up dataset for a symbol and write initial data into the dataset.
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.create_dataset("test_symbol")
     ohlcv_db.write_data("test_symbol", ohlcv_write_data)
 
@@ -106,13 +128,15 @@ def test_write_to_dataset(
         assert expected_log_text in caplog.text
 
 
-def test_get_min_max_timestamp_no_dataset(ohlcv_root_db_dir) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_get_min_max_timestamp_no_dataset(ohlcv_root_db_dir, dummy_is_exchange) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     assert ohlcv_db.get_min_max_timestamp("test_symbol") == (None, None)
 
 
-def test_get_min_max_timestamp_empty_dataset(ohlcv_root_db_dir) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_get_min_max_timestamp_empty_dataset(
+    ohlcv_root_db_dir, dummy_is_exchange
+) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.create_dataset("test_symbol")
     assert ohlcv_db.get_min_max_timestamp("test_symbol") == (None, None)
 
@@ -135,28 +159,30 @@ def test_get_min_max_timestamp_empty_dataset(ohlcv_root_db_dir) -> None:
         ),
     ],
 )
-def test_get_min_max_timestamp(ohlcv_root_db_dir, data, min_ts, max_ts) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_get_min_max_timestamp(
+    ohlcv_root_db_dir, dummy_is_exchange, data, min_ts, max_ts
+) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.create_dataset("test_symbol")
     ohlcv_db.write_data("test_symbol", data)
 
     assert ohlcv_db.get_min_max_timestamp("test_symbol") == (min_ts, max_ts)
 
 
-def test_get_data_no_dataset(ohlcv_root_db_dir) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_get_data_no_dataset(ohlcv_root_db_dir, dummy_is_exchange) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     data = ohlcv_db.get_data("test_symbol", 0, 100)
     assert data is None
 
 
-def test_get_data_empty_dataset(ohlcv_root_db_dir) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_get_data_empty_dataset(ohlcv_root_db_dir, dummy_is_exchange) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.create_dataset("test_symbol")
     data = ohlcv_db.get_data("test_symbol", 0, 100)
     assert data is None
 
 
-def test_get_data(ohlcv_root_db_dir, caplog) -> None:
+def test_get_data(ohlcv_root_db_dir, dummy_is_exchange, caplog) -> None:
     ohlcv_data: List[Candle] = [
         Candle(5, 40.2, 92.5, 8.5, 12.2, 190.5),
         Candle(1, 10.2, 12.5, 9.5, 14.2, 120.5),
@@ -165,7 +191,7 @@ def test_get_data(ohlcv_root_db_dir, caplog) -> None:
         Candle(3, 60.2, 62.5, 2.5, 18.2, 150.5),
     ]
 
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.create_dataset("test_symbol")
     ohlcv_db.write_data("test_symbol", ohlcv_data)
     data = ohlcv_db.get_data("test_symbol", 2, 4)
@@ -189,16 +215,16 @@ def test_get_data(ohlcv_root_db_dir, caplog) -> None:
     assert_frame_equal(data, expected_data_df, check_dtype=True)
 
 
-def test_is_data_valid_no_dataset(ohlcv_root_db_dir, caplog) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_is_data_valid_no_dataset(ohlcv_root_db_dir, dummy_is_exchange, caplog) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     is_valid = ohlcv_db.is_dataset_valid("test_symbol")
 
     assert "no dataset exists for symbol in database" in caplog.text
     assert not is_valid
 
 
-def test_is_data_valid_empty_dataset(ohlcv_root_db_dir) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_is_data_valid_empty_dataset(ohlcv_root_db_dir, dummy_is_exchange) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.create_dataset("test_symbol")
     is_valid = ohlcv_db.is_dataset_valid("test_symbol")
 
@@ -228,8 +254,10 @@ def test_is_data_valid_empty_dataset(ohlcv_root_db_dir) -> None:
         ),
     ],
 )
-def test_is_data_valid(ohlcv_root_db_dir, caplog, data, expect_is_valid) -> None:
-    ohlcv_db = OHLCVDatabase("test_exchange", "test_symbol", ohlcv_root_db_dir)
+def test_is_data_valid(
+    ohlcv_root_db_dir, dummy_is_exchange, caplog, data, expect_is_valid
+) -> None:
+    ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.create_dataset("test_symbol")
     ohlcv_db.write_data("test_symbol", data)
     is_valid = ohlcv_db.is_dataset_valid("test_symbol")

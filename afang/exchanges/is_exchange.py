@@ -14,8 +14,9 @@ class IsExchange(ABC):
     """Base interface for any supported exchange."""
 
     @abstractmethod
-    def __init__(self, name: str, base_url: str) -> None:
+    def __init__(self, name: str, testnet: bool, base_url: str) -> None:
         self.name = name
+        self.testnet = testnet
         self._base_url = base_url
         self.symbols = self._get_symbols()
 
@@ -100,7 +101,7 @@ class IsExchange(ABC):
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-        timeframe: Optional[Timeframe] = Timeframe.M1,
+        timeframe: Timeframe = Timeframe.M1,
     ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the exchange. If
         start_time and end_time are not provided, the most recent klines are

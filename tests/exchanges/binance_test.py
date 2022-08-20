@@ -19,12 +19,17 @@ def test_binance_exchange_init(mocker) -> None:
 
     binance_exchange = BinanceExchange()
     assert binance_exchange.name == "binance"
+    assert binance_exchange.testnet is False
     assert binance_exchange._base_url == "https://fapi.binance.com"
     assert binance_exchange.symbols == ["BTCUSDT", "ETHUSDT"]
     assert binance_exchange.get_config_params() == {
         "query_limit": 1.1,
         "write_limit": 10000,
     }
+
+    binance_exchange_testnet = BinanceExchange(testnet=True)
+    assert binance_exchange_testnet.testnet is True
+    assert binance_exchange_testnet._base_url == "https://testnet.binancefuture.com"
 
 
 @pytest.mark.parametrize(

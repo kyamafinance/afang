@@ -23,11 +23,17 @@ class TimeframeMapping(Enum):
 class BinanceExchange(IsExchange):
     """Interface to run exchange functions on Binance USDT Futures."""
 
-    def __init__(self) -> None:
+    def __init__(self, testnet: bool = False) -> None:
+        """
+        :param testnet: whether to use the testnet version of the exchange.
+        """
+
         name = "binance"
         base_url = "https://fapi.binance.com"
+        if testnet:
+            base_url = "https://testnet.binancefuture.com"
 
-        super().__init__(name, base_url)
+        super().__init__(name, testnet, base_url)
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -63,7 +69,7 @@ class BinanceExchange(IsExchange):
         symbol: str,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,
-        timeframe: Optional[Timeframe] = Timeframe.M1,
+        timeframe: Timeframe = Timeframe.M1,
     ) -> Optional[List[Candle]]:
         """Fetch candlestick bars for a particular symbol from the Binance
         exchange. If start_time and end_time are not sent, the most recent

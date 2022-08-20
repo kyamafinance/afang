@@ -28,6 +28,13 @@ def parse_args(args) -> argparse.Namespace:
         required=True,
     )
     parser.add_argument(
+        "--testnet",
+        type=bool,
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="whether to use the testnet version of the exchange",
+    )
+    parser.add_argument(
         "--symbols",
         type=str,
         nargs="+",

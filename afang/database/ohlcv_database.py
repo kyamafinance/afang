@@ -9,6 +9,7 @@ import h5py
 import numpy as np
 import pandas as pd
 
+from afang.exchanges import IsExchange
 from afang.exchanges.models import Candle
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ class OHLCVDatabase:
     database."""
 
     def __init__(
-        self, exchange: str, symbol: str, root_db_dir: Optional[str] = None
+        self, exchange: IsExchange, symbol: str, root_db_dir: Optional[str] = None
     ) -> None:
         """Initialize the OHLCVDatabase class.
 
@@ -32,7 +33,10 @@ class OHLCVDatabase:
             root_db_dir = f"{pathlib.Path(__file__).parents[2]}/data/ohlcv"
 
         # Create exchange database directory if it does not exist.
-        exchange_db_dir = f"{root_db_dir}/{exchange}"
+        exchange_db_dir = f"{root_db_dir}/{exchange.name}"
+        if exchange.testnet:
+            exchange_db_dir += "-testnet"
+
         if not os.path.exists(exchange_db_dir):
             os.mkdir(exchange_db_dir)
 

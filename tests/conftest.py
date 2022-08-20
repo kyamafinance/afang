@@ -61,7 +61,7 @@ def delete_optimization_records(optimization_root_dir) -> Generator:
 def dummy_is_exchange() -> IsExchange:
     class Dummy(IsExchange):
         def __init__(self, name: str, base_url: str) -> None:
-            super().__init__(name, base_url)
+            super().__init__(name, False, base_url)
 
         @classmethod
         def get_config_params(cls) -> Dict:
@@ -80,7 +80,7 @@ def dummy_is_exchange() -> IsExchange:
             symbol: str,
             start_time: Optional[int] = None,
             end_time: Optional[int] = None,
-            timeframe: Optional[Timeframe] = Timeframe.M1,
+            timeframe: Timeframe = Timeframe.M1,
         ) -> Optional[List[Candle]]:
             return super().get_historical_candles(
                 symbol, start_time, end_time, timeframe
