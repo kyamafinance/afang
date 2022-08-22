@@ -67,7 +67,7 @@ def get_float_precision(input_float: float) -> int:
     :return: int
     """
 
-    input_float_str = f"{input_float:.8f}"
+    input_float_str = f"{float(input_float):.8f}"
     while input_float_str[-1] == "0":
         input_float_str = input_float_str[:-1]
 

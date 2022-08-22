@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class IsExchange(ABC):
         self.name = name
         self.testnet = testnet
         self._base_url = base_url
-        self.symbols = self._get_symbols()
+        self.symbols: Dict[str, Symbol] = self._get_symbols()
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -33,13 +33,13 @@ class IsExchange(ABC):
         return {"query_limit": 1, "write_limit": 50000}
 
     @abstractmethod
-    def _get_symbols(self) -> List[str]:
+    def _get_symbols(self) -> Dict[str, Symbol]:
         """Fetch all the available symbols on the exchange.
 
-        :return: List[str]
+        :return: Dict[str, Symbol]
         """
 
-        return list()
+        return dict()
 
     def _make_request(
         self, method: HTTPMethod, endpoint: str, query_parameters: Dict

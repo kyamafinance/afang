@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
@@ -67,7 +67,7 @@ def dummy_is_exchange() -> IsExchange:
         def get_config_params(cls) -> Dict:
             return super().get_config_params()
 
-        def _get_symbols(self) -> List[str]:
+        def _get_symbols(self) -> Dict[str, Symbol]:
             return super()._get_symbols()
 
         def _make_request(

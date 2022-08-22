@@ -7,8 +7,9 @@ import dateutil.parser
 import pytz
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
+from afang.utils.util import get_float_precision
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +48,13 @@ class DyDxExchange(IsExchange):
 
         return {"query_limit": 0.2, "write_limit": 20000}
 
-    def _get_symbols(self) -> List[str]:
+    def _get_symbols(self) -> Dict[str, Symbol]:
         """Fetch all DyDx Futures symbols.
 
         :return: List[str]
         """
 
-        symbols: List[str] = []
+        symbols: Dict[str, Symbol] = dict()
         params: Dict = dict()
         endpoint = "/v3/markets"
 
@@ -67,7 +68,15 @@ class DyDxExchange(IsExchange):
         for symbol_name in data.get("markets"):
             symbol = data.get("markets").get(symbol_name)
             if symbol.get("type") == "PERPETUAL":
-                symbols.append(symbol_name)
+                symbols[symbol_name] = Symbol(
+                    name=symbol_name,
+                    base_asset=symbol.get("baseAsset"),
+                    quote_asset=symbol.get("quoteAsset"),
+                    price_decimals=get_float_precision(symbol.get("tickSize")),
+                    quantity_decimals=get_float_precision(symbol.get("stepSize")),
+                    tick_size=float(symbol.get("tickSize")),
+                    step_size=float(symbol.get("stepSize")),
+                )
 
         return symbols
 

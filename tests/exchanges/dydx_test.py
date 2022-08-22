@@ -3,7 +3,7 @@ from typing import Any, Dict
 import pytest
 
 from afang.exchanges.dydx import DyDxExchange
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
 
 
@@ -39,23 +39,50 @@ def test_dydx_exchange_init(mocker) -> None:
             {
                 "markets": {
                     "BTC-USD": {
-                        "market": "LINK-USD",
+                        "market": "BTC-USD",
                         "type": "PERPETUAL",
+                        "baseAsset": "BTC",
+                        "quoteAsset": "USD",
+                        "stepSize": "0.1",
+                        "tickSize": "0.01",
                     },
                     "LINK-USD": {
                         "market": "LINK-USD",
                         "type": "NOT_PERPETUAL",
                     },
                     "LTC-USD": {
-                        "market": "LINK-USD",
+                        "market": "LTC-USD",
                         "type": "PERPETUAL",
+                        "baseAsset": "LTC",
+                        "quoteAsset": "USD",
+                        "stepSize": "0.1",
+                        "tickSize": "0.01",
                     },
                 },
             },
-            ["BTC-USD", "LTC-USD"],
+            {
+                "BTC-USD": Symbol(
+                    name="BTC-USD",
+                    base_asset="BTC",
+                    quote_asset="USD",
+                    price_decimals=2,
+                    quantity_decimals=1,
+                    tick_size=0.01,
+                    step_size=0.1,
+                ),
+                "LTC-USD": Symbol(
+                    name="LTC-USD",
+                    base_asset="LTC",
+                    quote_asset="USD",
+                    price_decimals=2,
+                    quantity_decimals=1,
+                    tick_size=0.01,
+                    step_size=0.1,
+                ),
+            },
         ),
-        ({}, []),
-        (None, []),
+        ({}, dict()),
+        (None, dict()),
     ],
 )
 def test_get_symbols(mocker, req_response, expected_symbols) -> None:

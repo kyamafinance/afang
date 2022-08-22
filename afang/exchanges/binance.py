@@ -3,8 +3,9 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
+from afang.utils.util import get_float_precision
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +45,13 @@ class BinanceExchange(IsExchange):
 
         return {"query_limit": 1.1, "write_limit": 10000}
 
-    def _get_symbols(self) -> List[str]:
+    def _get_symbols(self) -> Dict[str, Symbol]:
         """Fetch all Binance USDT Futures symbols.
 
-        :return: List[str]
+        :return: Dict[str, Symbol]
         """
 
-        symbols: List[str] = []
+        symbols: Dict[str, Symbol] = dict()
         params: Dict = dict()
         endpoint = "/fapi/v1/exchangeInfo"
 
@@ -60,7 +61,25 @@ class BinanceExchange(IsExchange):
 
         for symbol in data.get("symbols"):
             if symbol.get("contractType") == "PERPETUAL":
-                symbols.append(symbol.get("symbol"))
+                symbol_name = symbol.get("symbol")
+                tick_size: float = 0
+                step_size: float = 0
+
+                for symbol_filter in symbol.get("filters"):
+                    if symbol_filter.get("filterType") == "PRICE_FILTER":
+                        tick_size = symbol_filter.get("tickSize")
+                    if symbol_filter.get("filterType") == "LOT_SIZE":
+                        step_size = symbol_filter.get("stepSize")
+
+                symbols[symbol_name] = Symbol(
+                    name=symbol_name,
+                    base_asset=symbol.get("baseAsset"),
+                    quote_asset=symbol.get("quoteAsset"),
+                    price_decimals=get_float_precision(tick_size),
+                    quantity_decimals=get_float_precision(step_size),
+                    tick_size=float(tick_size),
+                    step_size=float(step_size),
+                )
 
         return symbols
 

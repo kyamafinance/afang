@@ -3,7 +3,7 @@ from typing import Any, Dict
 import pytest
 
 from afang.exchanges.binance import BinanceExchange
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
 
 
@@ -41,6 +41,12 @@ def test_binance_exchange_init(mocker) -> None:
                     {
                         "symbol": "BTCUSDT",
                         "contractType": "PERPETUAL",
+                        "baseAsset": "BTC",
+                        "quoteAsset": "USDT",
+                        "filters": [
+                            {"filterType": "PRICE_FILTER", "tickSize": "0.0001"},
+                            {"filterType": "LOT_SIZE", "stepSize": "1"},
+                        ],
                     },
                     {
                         "symbol": "LINKBTC",
@@ -49,12 +55,37 @@ def test_binance_exchange_init(mocker) -> None:
                     {
                         "symbol": "LTCUSDT",
                         "contractType": "PERPETUAL",
+                        "baseAsset": "LTC",
+                        "quoteAsset": "USDT",
+                        "filters": [
+                            {"filterType": "PRICE_FILTER", "tickSize": "0.0001"},
+                            {"filterType": "LOT_SIZE", "stepSize": "1"},
+                        ],
                     },
                 ]
             },
-            ["BTCUSDT", "LTCUSDT"],
+            {
+                "BTCUSDT": Symbol(
+                    name="BTCUSDT",
+                    base_asset="BTC",
+                    quote_asset="USDT",
+                    price_decimals=4,
+                    quantity_decimals=0,
+                    tick_size=0.0001,
+                    step_size=1,
+                ),
+                "LTCUSDT": Symbol(
+                    name="LTCUSDT",
+                    base_asset="LTC",
+                    quote_asset="USDT",
+                    price_decimals=4,
+                    quantity_decimals=0,
+                    tick_size=0.0001,
+                    step_size=1,
+                ),
+            },
         ),
-        (None, []),
+        (None, dict()),
     ],
 )
 def test_get_symbols(mocker, req_response, expected_symbols) -> None:
