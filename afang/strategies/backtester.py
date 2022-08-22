@@ -353,7 +353,7 @@ class Backtester(ABC):
         logger.info(
             "%s %s %s: started backtest on the %s strategy",
             symbol,
-            self.exchange.name,
+            self.exchange.display_name,
             self.timeframe,
             self.strategy_name,
         )
@@ -362,6 +362,16 @@ class Backtester(ABC):
         ohlcv_data = ohlcv_db.get_data(
             symbol, self.backtest_from_time, self.backtest_to_time
         )
+        if ohlcv_data is None:
+            logger.warning(
+                "%s %s %s: unable to get price data for the %s strategy",
+                symbol,
+                self.exchange.display_name,
+                self.timeframe,
+                self.strategy_name,
+            )
+            return None
+
         resampled_ohlcv_data = resample_timeframe(ohlcv_data, self.timeframe)
 
         # generate trading features.
@@ -425,7 +435,7 @@ class Backtester(ABC):
         logger.info(
             "%s %s %s: completed backtest on the %s strategy",
             symbol,
-            self.exchange.name,
+            self.exchange.display_name,
             self.timeframe,
             self.strategy_name,
         )

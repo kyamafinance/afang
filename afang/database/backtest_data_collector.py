@@ -31,12 +31,12 @@ def fetch_initial_data(
 
     if data is None:
         logger.warning(
-            "%s %s: fetch initial data request failed", exchange.name, symbol
+            "%s %s: fetch initial data request failed", exchange.display_name, symbol
         )
         return None, None
 
     if len(data) < 2:
-        logger.warning("%s %s: no initial data found", exchange.name, symbol)
+        logger.warning("%s %s: no initial data found", exchange.display_name, symbol)
         return None, None
 
     data = sorted(data, key=attrgetter("open_time"))
@@ -44,7 +44,7 @@ def fetch_initial_data(
 
     logger.info(
         "%s %s: collected %s initial data candles from %s to %s",
-        exchange.name,
+        exchange.display_name,
         symbol,
         len(data),
         milliseconds_to_datetime(int(data[0].open_time)),
@@ -101,7 +101,7 @@ def fetch_most_recent_data(
             logger.warning(
                 "%s %s: most recent fetched data timestamp(%s) not newer than "
                 "existing most recent timestamp(%s)",
-                exchange.name,
+                exchange.display_name,
                 symbol,
                 milliseconds_to_datetime(int(data[-1].open_time)),
                 milliseconds_to_datetime(int(_most_recent_timestamp)),
@@ -112,7 +112,7 @@ def fetch_most_recent_data(
 
         logger.info(
             "%s %s: collected %s most recent data candles from %s to %s",
-            exchange.name,
+            exchange.display_name,
             symbol,
             len(data),
             milliseconds_to_datetime(int(data[0].open_time)),
@@ -168,7 +168,7 @@ def fetch_older_data(
         if not len(data):
             logger.info(
                 "%s %s: older data collection stopped because no data before %s was found",
-                exchange.name,
+                exchange.display_name,
                 symbol,
                 milliseconds_to_datetime(int(_oldest_timestamp)),
             )
@@ -177,7 +177,7 @@ def fetch_older_data(
         if data[0].open_time >= _oldest_timestamp:
             logger.warning(
                 "%s %s: fetched data oldest timestamp(%s) not older than existing oldest timestamp(%s)",
-                exchange.name,
+                exchange.display_name,
                 symbol,
                 milliseconds_to_datetime(int(data[0].open_time)),
                 milliseconds_to_datetime(int(_oldest_timestamp)),
@@ -188,7 +188,7 @@ def fetch_older_data(
 
         logger.info(
             "%s %s: collected %s older data candles from %s to %s",
-            exchange.name,
+            exchange.display_name,
             symbol,
             len(data),
             milliseconds_to_datetime(int(data[0].open_time)),

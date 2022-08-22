@@ -16,6 +16,7 @@ class IsExchange(ABC):
     @abstractmethod
     def __init__(self, name: str, testnet: bool, base_url: str, wss_url: str) -> None:
         self.name = name
+        self.display_name = name + "-testnet" if testnet else name
         self.testnet = testnet
         self._base_url = base_url
         self._wss_url = wss_url

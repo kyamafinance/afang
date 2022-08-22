@@ -1056,7 +1056,7 @@ class StrategyAnalyzer:
 
         logger.info(
             "%s %s: started analysis on the %s strategy",
-            self.strategy.config["exchange"].name,
+            self.strategy.config["exchange"].display_name,
             self.strategy.config["timeframe"],
             self.strategy.strategy_name,
         )
@@ -1104,7 +1104,7 @@ class StrategyAnalyzer:
 
         logger.info(
             "%s %s: completed analysis on the %s strategy",
-            self.strategy.config["exchange"].name,
+            self.strategy.config["exchange"].display_name,
             self.strategy.config["timeframe"],
             self.strategy.strategy_name,
         )

@@ -33,9 +33,7 @@ class OHLCVDatabase:
             root_db_dir = f"{pathlib.Path(__file__).parents[2]}/data/ohlcv"
 
         # Create exchange database directory if it does not exist.
-        exchange_db_dir = f"{root_db_dir}/{exchange.name}"
-        if exchange.testnet:
-            exchange_db_dir += "-testnet"
+        exchange_db_dir = f"{root_db_dir}/{exchange.display_name}"
 
         if not os.path.exists(exchange_db_dir):
             os.mkdir(exchange_db_dir)

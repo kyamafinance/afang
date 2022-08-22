@@ -19,6 +19,7 @@ def test_binance_exchange_init(mocker) -> None:
 
     binance_exchange = BinanceExchange()
     assert binance_exchange.name == "binance"
+    assert binance_exchange.display_name == "binance"
     assert binance_exchange.testnet is False
     assert binance_exchange._base_url == "https://fapi.binance.com"
     assert binance_exchange._wss_url == "wss://fstream.binance.com/ws"
@@ -29,6 +30,7 @@ def test_binance_exchange_init(mocker) -> None:
     }
 
     binance_exchange_testnet = BinanceExchange(testnet=True)
+    assert binance_exchange_testnet.display_name == "binance-testnet"
     assert binance_exchange_testnet.testnet is True
     assert binance_exchange_testnet._base_url == "https://testnet.binancefuture.com"
     assert binance_exchange_testnet._wss_url == "wss://stream.binancefuture.com/ws"

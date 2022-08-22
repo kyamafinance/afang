@@ -19,6 +19,7 @@ def test_dydx_exchange_init(mocker) -> None:
 
     dydx_exchange = DyDxExchange()
     assert dydx_exchange.name == "dydx"
+    assert dydx_exchange.display_name == "dydx"
     assert dydx_exchange.testnet is False
     assert dydx_exchange._base_url == "https://api.dydx.exchange"
     assert dydx_exchange._wss_url == "wss://api.dydx.exchange/v3/ws"
@@ -29,6 +30,7 @@ def test_dydx_exchange_init(mocker) -> None:
     }
 
     dydx_exchange_testnet = DyDxExchange(testnet=True)
+    assert dydx_exchange_testnet.display_name == "dydx-testnet"
     assert dydx_exchange_testnet.testnet is True
     assert dydx_exchange_testnet._base_url == "https://api.stage.dydx.exchange"
     assert dydx_exchange_testnet._wss_url == "wss://api.stage.dydx.exchange/v3/ws"
