@@ -58,3 +58,22 @@ def resample_timeframe(data: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     return data.resample(tf_mapping[timeframe]).agg(
         {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
     )
+
+
+def get_float_precision(input_float: float) -> int:
+    """Get the precision of a floating point number.
+
+    :param input_float: float.
+    :return: int
+    """
+
+    input_float_str = f"{input_float:.8f}"
+    while input_float_str[-1] == "0":
+        input_float_str = input_float_str[:-1]
+
+    split_input_float = input_float_str.split(".")
+
+    if len(split_input_float) > 1:
+        return len(split_input_float[1])
+
+    return 0

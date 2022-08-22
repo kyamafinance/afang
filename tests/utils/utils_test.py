@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from afang.utils.util import (
+    get_float_precision,
     milliseconds_to_datetime,
     resample_timeframe,
     time_str_to_milliseconds,
@@ -60,3 +61,11 @@ def test_resample_timeframe() -> None:
     )
 
     assert resample_timeframe(test_df, "5m").equals(expected_df)
+
+
+@pytest.mark.parametrize(
+    "input_float, expected_precision", [(20, 0), (0, 0), (20.32, 2), (43.53255, 5)]
+)
+def test_get_float_precision(input_float, expected_precision) -> None:
+    precision = get_float_precision(input_float)
+    assert precision == expected_precision
