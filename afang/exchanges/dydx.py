@@ -1,16 +1,19 @@
 import logging
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
 import dateutil.parser
 import pytz
+from dotenv import load_dotenv
 
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
 from afang.utils.util import get_float_precision
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 
@@ -34,10 +37,21 @@ class DyDxExchange(IsExchange):
 
         name = "dydx"
         base_url = "https://api.dydx.exchange"
+        wss_url = "wss://api.dydx.exchange/v3/ws"
         if testnet:
             base_url = "https://api.stage.dydx.exchange"
+            wss_url = "wss://api.stage.dydx.exchange/v3/ws"
 
-        super().__init__(name, testnet, base_url)
+        super().__init__(name, testnet, base_url, wss_url)
+
+        self._DYDX_API_KEY = os.environ.get("DYDX_API_KEY")
+        self._DYDX_API_SECRET = os.environ.get("DYDX_API_SECRET")
+        self._DYDX_API_PASSPHRASE = os.environ.get("DYDX_API_PASSPHRASE")
+        self._DYDX_STARK_PRIVATE_KEY = os.environ.get("DYDX_STARK_PRIVATE_KEY")
+        self._DYDX_DEFAULT_ETHEREUM_ADDRESS = os.environ.get(
+            "DYDX_DEFAULT_ETHEREUM_ADDRESS"
+        )
+        self.DYDX_CLIENT_API_HOST = os.environ.get("DYDX_CLIENT_API_HOST")
 
     @classmethod
     def get_config_params(cls) -> Dict:

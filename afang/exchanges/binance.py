@@ -1,12 +1,16 @@
 import logging
+import os
 from enum import Enum
 from typing import Dict, List, Optional
+
+from dotenv import load_dotenv
 
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
 from afang.utils.util import get_float_precision
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 
@@ -31,10 +35,15 @@ class BinanceExchange(IsExchange):
 
         name = "binance"
         base_url = "https://fapi.binance.com"
+        wss_url = "wss://fstream.binance.com/ws"
         if testnet:
             base_url = "https://testnet.binancefuture.com"
+            wss_url = "wss://stream.binancefuture.com/ws"
 
-        super().__init__(name, testnet, base_url)
+        super().__init__(name, testnet, base_url, wss_url)
+
+        self._API_KEY = os.environ.get("BINANCE_API_KEY")
+        self._SECRET_KEY = os.environ.get("BINANCE_SECRET_KEY")
 
     @classmethod
     def get_config_params(cls) -> Dict:

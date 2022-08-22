@@ -9,6 +9,7 @@ from afang.exchanges.models import HTTPMethod
 def test_is_exchange_initialization(dummy_is_exchange) -> None:
     assert dummy_is_exchange.name == "test_exchange"
     assert dummy_is_exchange._base_url == "https://dummy.com"
+    assert dummy_is_exchange._wss_url == "wss://dummy.com/ws"
     assert dummy_is_exchange.symbols == dict()
     assert dummy_is_exchange.get_historical_candles("test_symbol", 0, 100) is None
     assert dummy_is_exchange.get_config_params() == {

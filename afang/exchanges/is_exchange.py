@@ -14,10 +14,11 @@ class IsExchange(ABC):
     """Base interface for any supported exchange."""
 
     @abstractmethod
-    def __init__(self, name: str, testnet: bool, base_url: str) -> None:
+    def __init__(self, name: str, testnet: bool, base_url: str, wss_url: str) -> None:
         self.name = name
         self.testnet = testnet
         self._base_url = base_url
+        self._wss_url = wss_url
         self.symbols: Dict[str, Symbol] = self._get_symbols()
 
     @classmethod
