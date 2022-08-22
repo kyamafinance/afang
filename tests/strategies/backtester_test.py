@@ -44,6 +44,17 @@ def ohlcv_df() -> pd.DataFrame:
 
 
 @pytest.fixture
+def ohlcv_db_no_data(ohlcv_root_db_dir, dummy_is_exchange, ohlcv_df) -> OHLCVDatabase:
+    class DummyOHLCVDatabase(OHLCVDatabase):
+        def get_data(
+            self, symbol: str, from_time: int, to_time: int
+        ) -> Optional[pd.DataFrame]:
+            return None
+
+    return DummyOHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
+
+
+@pytest.fixture
 def ohlcv_db(ohlcv_root_db_dir, dummy_is_exchange, ohlcv_df) -> OHLCVDatabase:
     class DummyOHLCVDatabase(OHLCVDatabase):
         def get_data(
@@ -414,6 +425,24 @@ def test_run_symbol_backtest(
     assert mocked_open_short_backtest_position.assert_called
     assert mocked_handle_open_backtest_positions.assert_called
     assert len(dummy_is_strategy.backtest_data["test_symbol"].index) == 2
+
+
+def test_run_symbol_backtest_no_ohlcv_data(
+    mocker, caplog, dummy_is_strategy, dummy_is_exchange, ohlcv_db_no_data
+) -> None:
+    mocker.patch(
+        "afang.strategies.backtester.OHLCVDatabase", return_value=ohlcv_db_no_data
+    )
+
+    dummy_is_strategy.timeframe = "5m"
+    dummy_is_strategy.exchange = dummy_is_exchange
+    dummy_is_strategy.run_symbol_backtest("test_symbol")
+
+    assert caplog.records[-1].levelname == "WARNING"
+    assert (
+        "test_symbol test_exchange 5m: unable to get price data for the test_strategy strategy"
+        in caplog.text
+    )
 
 
 def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
