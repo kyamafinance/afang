@@ -4,3 +4,5 @@
 
 Afang - Kyama Finance Trader
 =================
+
+*NOTE:* **WIP**
