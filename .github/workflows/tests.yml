@@ -29,10 +29,8 @@ jobs:
           make
           sudo make install
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install --no-deps -r requirements-no-deps.txt
+        run: make setup
       - name: Run tests and collect coverage
-        run: python3 -m pytest --cov=afang/ tests/
+        run: make test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
