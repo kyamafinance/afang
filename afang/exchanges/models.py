@@ -8,6 +8,18 @@ class HTTPMethod(Enum):
     DELETE = "DELETE"
 
 
+class OrderSide(Enum):
+    BUY = "BUY"
+    SELL = "SELL"
+    UNKNOWN = "UNKNOWN"
+
+
+class OrderType(Enum):
+    LIMIT = "LIMIT"
+    MARKET = "MARKET"
+    UNKNOWN = "UNKNOWN"
+
+
 @dataclass
 class Candle:
     open_time: int
@@ -27,3 +39,18 @@ class Symbol:
     quantity_decimals: int
     tick_size: float
     step_size: float
+
+
+@dataclass
+class Order:
+    symbol: str
+    order_id: str
+    side: OrderSide
+    price: float
+    average_price: float
+    quantity: float
+    executed_quantity: float
+    remaining_quantity: float
+    order_type: OrderType
+    order_status: str
+    time_in_force: str

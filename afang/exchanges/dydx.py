@@ -1,15 +1,26 @@
 import logging
 import os
+import time
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
 import dateutil.parser
+import dydx3
 import pytz
 from dotenv import load_dotenv
+from dydx3 import Client
+from dydx3.errors import DydxApiError
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod, Symbol
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
 from afang.utils.util import get_float_precision
 
@@ -44,14 +55,16 @@ class DyDxExchange(IsExchange):
 
         super().__init__(name, testnet, base_url, wss_url)
 
+        # dYdX exchange environment variables.
         self._DYDX_API_KEY = os.environ.get("DYDX_API_KEY")
         self._DYDX_API_SECRET = os.environ.get("DYDX_API_SECRET")
         self._DYDX_API_PASSPHRASE = os.environ.get("DYDX_API_PASSPHRASE")
         self._DYDX_STARK_PRIVATE_KEY = os.environ.get("DYDX_STARK_PRIVATE_KEY")
-        self._DYDX_DEFAULT_ETHEREUM_ADDRESS = os.environ.get(
-            "DYDX_DEFAULT_ETHEREUM_ADDRESS"
-        )
-        self.DYDX_CLIENT_API_HOST = os.environ.get("DYDX_CLIENT_API_HOST")
+        self._DYDX_ETHEREUM_ADDRESS = os.environ.get("DYDX_ETHEREUM_ADDRESS")
+
+        # dYdX API client.
+        self._account_position_id: Optional[str] = None
+        self._api_client: dydx3.Client = self.get_api_client()
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -172,3 +185,189 @@ class DyDxExchange(IsExchange):
             )
 
         return candles
+
+    def get_api_client(self) -> dydx3.Client:
+        """Get a dYdX API client instance and account position ID.
+
+        :return: dydx3.Client
+        """
+
+        # Get API client instance.
+        api_client = Client(
+            host=self._base_url,
+            network_id=3 if self.testnet else 1,
+            api_key_credentials={
+                "key": self._DYDX_API_KEY,
+                "secret": self._DYDX_API_SECRET,
+                "passphrase": self._DYDX_API_PASSPHRASE,
+            },
+            stark_private_key=self._DYDX_STARK_PRIVATE_KEY,
+            default_ethereum_address=self._DYDX_ETHEREUM_ADDRESS,
+        )
+
+        # Get account position ID.
+        try:
+            account_response = api_client.private.get_account()
+            self._account_position_id = account_response.data["account"]["positionId"]
+            return api_client
+        except DydxApiError as dydx_api_err:
+            logger.error(
+                "DydxApiError raised when attempting to get account position ID: %s",
+                dydx_api_err,
+            )
+            raise
+
+    def place_order(
+        self,
+        symbol_name: str,
+        side: str,
+        quantity: float,
+        order_type: str,
+        price: Optional[float] = None,
+        time_in_force: Optional[str] = None,
+        **_kwargs,
+    ) -> bool:
+        """Place a new order for a specified symbol on the exchange. Returns a
+        bool on whether order placement was successful.
+
+        :param symbol_name: name of symbol.
+        :param side: order side.
+        :param quantity: order quantity.
+        :param order_type: order type.
+        :param price: optional. order price.
+        :param time_in_force: optional. time in force.
+        :param _kwargs:
+            post_only bool: order will only be allowed if it will enter the order book.
+            dydx_limit_fee: float: highest accepted fee for the trade.
+        :return: bool
+        """
+
+        order_params: Dict = dict()
+        order_params["position_id"] = self._account_position_id
+        order_params["market"] = symbol_name
+        order_params["side"] = side
+        order_params["order_type"] = order_type
+        order_params["size"] = str(quantity)
+        # TODO: If no price was provided and market order, default to current market price + 100.
+        order_params["price"] = str(price)
+        order_params["expiration_epoch_seconds"] = time.time() + 604800  # 1W
+        order_params["post_only"] = _kwargs.get("post_only", False)
+        order_params["limit_fee"] = _kwargs.get("dydx_limit_fee", 0.0005)
+
+        time_in_force = time_in_force or "GTT"
+        time_in_force = time_in_force if order_type != "MARKET" else "FOK"
+        order_params["time_in_force"] = time_in_force
+
+        try:
+            self._api_client.private.create_order(**order_params)
+            return True
+        except DydxApiError as dydx_api_err:
+            logger.error(
+                "DydxApiError raised when attempting to place new %s order: %s",
+                symbol_name,
+                dydx_api_err,
+            )
+        except Exception as e:
+            logger.error(
+                "Unknown exception raised when attempting to place new %s order: %s",
+                symbol_name,
+                e,
+            )
+
+        return False
+
+    def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
+        """Query an order by ID.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to query.
+        :return: Optional[Order]
+        """
+
+        try:
+            order_res = self._api_client.private.get_order_by_id(order_id)
+            fills_res = self._api_client.private.get_fills(symbol_name, order_id, 100)
+            order = order_res.data["order"]
+            fills = fills_res.data["fills"]
+
+            average_price: float = 0.0
+            total_filled_quantity = sum(float(fill["size"]) for fill in fills)
+            for fill in fills:
+                average_price += (float(fill["size"]) / total_filled_quantity) * float(
+                    fill["price"]
+                )
+
+            order_quantity = float(order["size"])
+            remaining_quantity = float(order["remainingSize"])
+            executed_quantity = order_quantity - remaining_quantity
+
+            order_side = OrderSide.UNKNOWN
+            if order["side"] == "BUY":
+                order_side = OrderSide.BUY
+            elif order["side"] == "SELL":
+                order_side = OrderSide.SELL
+
+            order_type = OrderType.UNKNOWN
+            if order["type"] == "LIMIT":
+                order_type = OrderType.LIMIT
+            elif order["type"] == "MARKET":
+                order_type = OrderType.MARKET
+
+            return Order(
+                symbol=symbol_name,
+                order_id=order_id,
+                side=order_side,
+                price=float(order["price"]),
+                average_price=average_price,
+                quantity=order_quantity,
+                executed_quantity=executed_quantity,
+                remaining_quantity=remaining_quantity,
+                order_type=order_type,
+                order_status=order["status"],
+                time_in_force=order["timeInForce"],
+            )
+        except DydxApiError as dydx_api_err:
+            logger.error(
+                "DydxApiError raised when attempting to get %s order status with ID %s: %s",
+                symbol_name,
+                order_id,
+                dydx_api_err,
+            )
+        except Exception as e:
+            logger.error(
+                "Unknown exception raised when attempting to get %s order status with ID %s: %s",
+                symbol_name,
+                order_id,
+                e,
+            )
+
+        return None
+
+    def cancel_order(self, symbol_name: str, order_id: str) -> bool:
+        """Cancel an active order on the exchange. Returns a bool on whether
+        order cancellation was successful.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to cancel.
+        :return: bool
+        """
+
+        try:
+            self._api_client.private.cancel_order(order_id=order_id)
+            return True
+        except DydxApiError as dydx_api_err:
+            logger.error(
+                "DydxApiError raised when attempting to cancel %s order with ID %s: %s",
+                symbol_name,
+                order_id,
+                dydx_api_err,
+            )
+        except Exception as e:
+            logger.error(
+                "Unknown exception raised when attempting to cancel %s order with ID %s: %s",
+                symbol_name,
+                order_id,
+                e,
+            )
+
+        return False

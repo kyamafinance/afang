@@ -1,12 +1,23 @@
+import hashlib
+import hmac
 import logging
 import os
+import time
 from enum import Enum
 from typing import Dict, List, Optional
+from urllib.parse import urlencode
 
 from dotenv import load_dotenv
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod, Symbol
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
 from afang.utils.util import get_float_precision
 
@@ -42,8 +53,12 @@ class BinanceExchange(IsExchange):
 
         super().__init__(name, testnet, base_url, wss_url)
 
+        # Binance exchange environment variables.
         self._API_KEY = os.environ.get("BINANCE_API_KEY")
         self._SECRET_KEY = os.environ.get("BINANCE_SECRET_KEY")
+
+        # Headers to be applied to authenticated requests.
+        self._headers = {"X-MBX-APIKEY": self._API_KEY}
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -157,3 +172,143 @@ class BinanceExchange(IsExchange):
             )
 
         return candles
+
+    def _generate_authed_request_signature(self, req_params: Dict) -> str:
+        """Generate a signature to be used to authenticate private HTTP
+        endpoints.
+
+        :param req_params: request query string parameters.
+        :return: str
+        """
+
+        return hmac.new(
+            self._SECRET_KEY.encode(), urlencode(req_params).encode(), hashlib.sha256
+        ).hexdigest()
+
+    def place_order(
+        self,
+        symbol_name: str,
+        side: str,
+        quantity: float,
+        order_type: str,
+        price: Optional[float] = None,
+        time_in_force: Optional[str] = None,
+        **_kwargs
+    ) -> bool:
+        """Place a new order for a specified symbol on the exchange. Returns a
+        bool on whether order placement was successful.
+
+        :param symbol_name: name of symbol.
+        :param side: order side.
+        :param quantity: order quantity.
+        :param order_type: order type.
+        :param price: optional. order price.
+        :param time_in_force: optional. time in force.
+        :param _kwargs:
+            post_only bool: order will only be allowed if it will enter the order book.
+                            NOTE: post_only orders will override the time in force if specified.
+        :return: bool
+        """
+
+        params: Dict = dict()
+        params["symbol"] = symbol_name
+        params["side"] = side
+        params["quantity"] = str(quantity)
+        params["type"] = order_type
+
+        if price and order_type != "MARKET":
+            params["price"] = str(price)
+        if order_type != "MARKET":
+            time_in_force = time_in_force or "GTC"
+            time_in_force = "GTX" if _kwargs.get("post_only", False) else time_in_force
+            params["timeInForce"] = time_in_force
+
+        params["timestamp"] = int(time.time() * 1000)
+        params["signature"] = self._generate_authed_request_signature(params)
+
+        endpoint = "/fapi/v1/order"
+        response = self._make_request(
+            HTTPMethod.POST, endpoint, params, headers=self._headers
+        )
+        if response:
+            return True
+
+        return False
+
+    def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
+        """Query an order by ID.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to query.
+        :return: Optional[Order]
+        """
+
+        params: Dict = dict()
+        params["symbol"] = symbol_name
+        params["orderId"] = order_id
+        params["timestamp"] = int(time.time() * 1000)
+        params["signature"] = self._generate_authed_request_signature(params)
+
+        endpoint = "/fapi/v1/order"
+        response = self._make_request(
+            HTTPMethod.GET, endpoint, params, headers=self._headers
+        )
+        if not response:
+            logger.error(
+                "Error while fetching %s order info by ID %s", symbol_name, order_id
+            )
+            return None
+
+        order_quantity = float(response["origQty"])
+        executed_quantity = float(response["executedQty"])
+        remaining_quantity = order_quantity - executed_quantity
+
+        order_side = OrderSide.UNKNOWN
+        if response["side"] == "BUY":
+            order_side = OrderSide.BUY
+        elif response["side"] == "SELL":
+            order_side = OrderSide.SELL
+
+        order_type = OrderType.UNKNOWN
+        if response["type"] == "LIMIT":
+            order_type = OrderType.LIMIT
+        elif response["type"] == "MARKET":
+            order_type = OrderType.MARKET
+
+        return Order(
+            symbol=symbol_name,
+            order_id=order_id,
+            side=order_side,
+            price=float(response["price"]),
+            average_price=float(response["avgPrice"]),
+            quantity=order_quantity,
+            executed_quantity=executed_quantity,
+            remaining_quantity=remaining_quantity,
+            order_type=order_type,
+            order_status=response["status"],
+            time_in_force=response["timeInForce"],
+        )
+
+    def cancel_order(self, symbol_name: str, order_id: str) -> bool:
+        """Cancel an active order on the exchange. Returns a bool on whether
+        order cancellation was successful.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to cancel.
+        :return: bool
+        """
+
+        params: Dict = dict()
+        params["symbol"] = symbol_name
+        params["orderId"] = order_id
+        params["timestamp"] = int(time.time() * 1000)
+        params["signature"] = self._generate_authed_request_signature(params)
+
+        endpoint = "/fapi/v1/order"
+        response = self._make_request(
+            HTTPMethod.DELETE, endpoint, params, headers=self._headers
+        )
+        if response:
+            return True
+
+        return False

@@ -7,6 +7,11 @@ from afang.main import get_exchange_client, get_strategy_instance, main
 from afang.strategies.SampleStrategy.SampleStrategy import SampleStrategy
 
 
+@pytest.fixture(autouse=True)
+def mock_dydx_get_api_client(mocker):
+    mocker.patch("afang.main.DyDxExchange.get_api_client")
+
+
 @pytest.mark.parametrize(
     "args, expected_log",
     [
@@ -42,13 +47,13 @@ def test_get_strategy_instance_undefined_strategy() -> None:
 @pytest.mark.parametrize(
     "parsed_args, expected_exchange_client",
     [
-        (argparse.Namespace(exchange="binance", testnet=False), BinanceExchange()),
+        (argparse.Namespace(exchange="binance", testnet=False), "binance"),
         (
             argparse.Namespace(exchange="binance", testnet=True),
-            BinanceExchange(testnet=True),
+            "binance-testnet",
         ),
-        (argparse.Namespace(exchange="dydx", testnet=False), DyDxExchange()),
-        (argparse.Namespace(exchange="dydx", testnet=True), DyDxExchange(testnet=True)),
+        (argparse.Namespace(exchange="dydx", testnet=False), "dydx"),
+        (argparse.Namespace(exchange="dydx", testnet=True), "dydx-testnet"),
         (argparse.Namespace(exchange="unknown", testnet=False), None),
         (argparse.Namespace(exchange="unknown", testnet=True), None),
     ],
@@ -67,6 +72,15 @@ def test_get_exchange_client(mocker, parsed_args, expected_exchange_client) -> N
         "afang.exchanges.dydx.DyDxExchange._get_symbols",
         mock_get_symbols,
     )
+
+    if expected_exchange_client == "binance":
+        expected_exchange_client = BinanceExchange()
+    elif expected_exchange_client == "binance-testnet":
+        expected_exchange_client = BinanceExchange(testnet=True)
+    elif expected_exchange_client == "dydx":
+        expected_exchange_client = DyDxExchange()
+    elif expected_exchange_client == "dydx-testnet":
+        expected_exchange_client = DyDxExchange(testnet=True)
 
     exchange_client = get_exchange_client(parsed_args)
 

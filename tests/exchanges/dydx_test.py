@@ -7,6 +7,11 @@ from afang.exchanges.models import Candle, HTTPMethod, Symbol
 from afang.models import Timeframe
 
 
+@pytest.fixture(autouse=True)
+def mock_dydx_get_api_client(mocker):
+    mocker.patch("afang.exchanges.dydx.DyDxExchange.get_api_client")
+
+
 def test_dydx_exchange_init(mocker) -> None:
     # mock the return value of the _get_symbols function.
     def mock_get_symbols(_self):

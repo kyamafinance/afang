@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod, Symbol
+from afang.exchanges.models import Candle, HTTPMethod, Order, Symbol
 from afang.models import Timeframe
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
@@ -71,9 +71,13 @@ def dummy_is_exchange() -> IsExchange:
             return super()._get_symbols()
 
         def _make_request(
-            self, method: HTTPMethod, endpoint: str, query_parameters: Dict
+            self,
+            method: HTTPMethod,
+            endpoint: str,
+            query_parameters: Dict,
+            headers: Optional[Dict] = None,
         ) -> Any:
-            return super()._make_request(method, endpoint, query_parameters)
+            return super()._make_request(method, endpoint, query_parameters, headers)
 
         def get_historical_candles(
             self,
@@ -85,6 +89,26 @@ def dummy_is_exchange() -> IsExchange:
             return super().get_historical_candles(
                 symbol, start_time, end_time, timeframe
             )
+
+        def place_order(
+            self,
+            symbol_name: str,
+            side: str,
+            quantity: float,
+            order_type: str,
+            price: Optional[float] = None,
+            time_in_force: Optional[str] = None,
+            **_kwargs,
+        ) -> bool:
+            return super().place_order(
+                symbol_name, side, quantity, order_type, price, time_in_force, **_kwargs
+            )
+
+        def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
+            return super().get_order_by_id(symbol_name, order_id)
+
+        def cancel_order(self, symbol_name: str, order_id: str) -> bool:
+            return super().cancel_order(symbol_name, order_id)
 
     return Dummy(
         name="test_exchange", base_url="https://dummy.com", wss_url="wss://dummy.com/ws"

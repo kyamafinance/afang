@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from afang.exchanges.models import Candle, HTTPMethod, Symbol
+from afang.exchanges.models import Candle, HTTPMethod, Order, Symbol
 from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,11 @@ class IsExchange(ABC):
         return dict()
 
     def _make_request(
-        self, method: HTTPMethod, endpoint: str, query_parameters: Dict
+        self,
+        method: HTTPMethod,
+        endpoint: str,
+        query_parameters: Dict,
+        headers: Optional[Dict] = None,
     ) -> Any:
         """Make an unauthenticated GET request to the exchange. If the request
         is successful, a JSON object instance will be returned. If the request
@@ -53,6 +57,7 @@ class IsExchange(ABC):
         :param method: HTTP method to be used to make the request.
         :param endpoint: the URL path of the associated GET request.
         :param query_parameters: a dictionary of parameters to pass within the query.
+        :param headers: optional headers to send with the request.
 
         :return: Any
         """
@@ -60,15 +65,15 @@ class IsExchange(ABC):
         try:
             if method == HTTPMethod.GET:
                 response = requests.get(
-                    self._base_url + endpoint, params=query_parameters
+                    self._base_url + endpoint, params=query_parameters, headers=headers
                 )
             elif method == HTTPMethod.POST:
                 response = requests.post(
-                    self._base_url + endpoint, params=query_parameters
+                    self._base_url + endpoint, params=query_parameters, headers=headers
                 )
             elif method == HTTPMethod.DELETE:
                 response = requests.delete(
-                    self._base_url + endpoint, params=query_parameters
+                    self._base_url + endpoint, params=query_parameters, headers=headers
                 )
             else:
                 logger.error(
@@ -118,3 +123,54 @@ class IsExchange(ABC):
         """
 
         return None
+
+    @abstractmethod
+    def place_order(
+        self,
+        symbol_name: str,
+        side: str,
+        quantity: float,
+        order_type: str,
+        price: Optional[float] = None,
+        time_in_force: Optional[str] = None,
+        **_kwargs
+    ) -> bool:
+        """Place a new order for a specified symbol on the exchange. Returns a
+        bool on whether order placement was successful.
+
+        :param symbol_name: name of symbol.
+        :param side: order side.
+        :param quantity: order quantity.
+        :param order_type: order type.
+        :param price: optional. order price.
+        :param time_in_force: optional. time in force.
+        :param _kwargs:
+            post_only bool: order will only be allowed if it will enter the order book.
+                            NOTE: post_only orders will override the time in force if specified.
+        :return: bool
+        """
+
+        return False
+
+    @abstractmethod
+    def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
+        """Query an order by ID.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to query.
+        :return: Optional[Order]
+        """
+
+        return None
+
+    @abstractmethod
+    def cancel_order(self, symbol_name: str, order_id: str) -> bool:
+        """Cancel an active order on the exchange. Returns a bool on whether
+        order cancellation was successful.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to cancel.
+        :return: bool
+        """
+
+        return False
