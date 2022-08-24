@@ -29,7 +29,7 @@ jobs:
           make
           sudo make install
       - name: Install dependencies
-        run: pip install -r --no-deps requirements.txt
+        run: pip install --no-deps -r requirements.txt
       - name: Run tests and collect coverage
         run: pytest --cov=afang tests
       - name: Upload coverage to Codecov
