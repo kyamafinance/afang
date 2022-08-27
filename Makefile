@@ -2,6 +2,8 @@ VENV := venv
 PIP = $(VENV)/bin/pip
 PYTHON := $(VENV)/bin/python3
 
+ARGS ?=
+
 all: $(VENV)/bin/activate
 
 $(VENV)/bin/activate: requirements.txt requirements-no-deps.txt
@@ -13,6 +15,9 @@ $(VENV)/bin/activate: requirements.txt requirements-no-deps.txt
 	./$(PIP) install --no-deps -r requirements-no-deps.txt
 
 setup: $(VENV)/bin/activate
+
+run: $(VENV)/bin/activate
+	./$(PYTHON) -m afang $(ARGS)
 
 test: $(VENV)/bin/activate
 	./$(PYTHON) -m pytest --cov=afang/ tests/
