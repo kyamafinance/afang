@@ -26,4 +26,4 @@ clean:
 	rm -rf $(VENV)/
 	find . -type f -name '*.pyc' -delete
 
-.PHONY: all setup test clean
+.PHONY: all setup run test clean
