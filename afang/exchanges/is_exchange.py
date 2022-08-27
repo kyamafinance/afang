@@ -4,7 +4,14 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
@@ -14,11 +21,13 @@ class IsExchange(ABC):
     """Base interface for any supported exchange."""
 
     @abstractmethod
-    def __init__(self, name: str, testnet: bool, base_url: str) -> None:
+    def __init__(self, name: str, testnet: bool, base_url: str, wss_url: str) -> None:
         self.name = name
+        self.display_name = name + "-testnet" if testnet else name
         self.testnet = testnet
         self._base_url = base_url
-        self.symbols = self._get_symbols()
+        self._wss_url = wss_url
+        self.symbols: Dict[str, Symbol] = self._get_symbols()
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -33,16 +42,20 @@ class IsExchange(ABC):
         return {"query_limit": 1, "write_limit": 50000}
 
     @abstractmethod
-    def _get_symbols(self) -> List[str]:
+    def _get_symbols(self) -> Dict[str, Symbol]:
         """Fetch all the available symbols on the exchange.
 
-        :return: List[str]
+        :return: Dict[str, Symbol]
         """
 
-        return list()
+        return dict()
 
     def _make_request(
-        self, method: HTTPMethod, endpoint: str, query_parameters: Dict
+        self,
+        method: HTTPMethod,
+        endpoint: str,
+        query_parameters: Dict,
+        headers: Optional[Dict] = None,
     ) -> Any:
         """Make an unauthenticated GET request to the exchange. If the request
         is successful, a JSON object instance will be returned. If the request
@@ -51,6 +64,7 @@ class IsExchange(ABC):
         :param method: HTTP method to be used to make the request.
         :param endpoint: the URL path of the associated GET request.
         :param query_parameters: a dictionary of parameters to pass within the query.
+        :param headers: optional headers to send with the request.
 
         :return: Any
         """
@@ -58,15 +72,15 @@ class IsExchange(ABC):
         try:
             if method == HTTPMethod.GET:
                 response = requests.get(
-                    self._base_url + endpoint, params=query_parameters
+                    self._base_url + endpoint, params=query_parameters, headers=headers
                 )
             elif method == HTTPMethod.POST:
                 response = requests.post(
-                    self._base_url + endpoint, params=query_parameters
+                    self._base_url + endpoint, params=query_parameters, headers=headers
                 )
             elif method == HTTPMethod.DELETE:
                 response = requests.delete(
-                    self._base_url + endpoint, params=query_parameters
+                    self._base_url + endpoint, params=query_parameters, headers=headers
                 )
             else:
                 logger.error(
@@ -88,7 +102,8 @@ class IsExchange(ABC):
             return response.json()
 
         logger.error(
-            "Error while making request to %s: %s (status code: %s)",
+            "Error while making %s request to %s: %s (status code: %s)",
+            method.name,
             endpoint,
             response.json(),
             response.status_code,
@@ -116,3 +131,53 @@ class IsExchange(ABC):
         """
 
         return None
+
+    @abstractmethod
+    def place_order(
+        self,
+        symbol_name: str,
+        side: OrderSide,
+        quantity: float,
+        order_type: OrderType,
+        price: Optional[float] = None,
+        **_kwargs
+    ) -> Optional[str]:
+        """Place a new order for a specified symbol on the exchange. Returns
+        the order ID if order placement was successful.
+
+        :param symbol_name: name of symbol.
+        :param side: order side.
+        :param quantity: order quantity.
+        :param order_type: order type.
+        :param price: optional. order price.
+        :param _kwargs:
+            post_only bool: order will only be allowed if it will enter the order book.
+                            NOTE: post_only orders may override the time in force if specified.
+            dydx_limit_fee: float: highest accepted fee for the trade on the dYdX exchange.
+        :return: Optional[str]
+        """
+
+        return None
+
+    @abstractmethod
+    def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
+        """Query an order by ID.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to query.
+        :return: Optional[Order]
+        """
+
+        return None
+
+    @abstractmethod
+    def cancel_order(self, symbol_name: str, order_id: str) -> bool:
+        """Cancel an active order on the exchange. Returns a bool on whether
+        order cancellation was successful.
+
+        :param symbol_name: name of symbol.
+        :param order_id: ID of the order to cancel.
+        :return: bool
+        """
+
+        return False

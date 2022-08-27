@@ -10,7 +10,14 @@ import pandas as pd
 import pytest
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
@@ -60,20 +67,24 @@ def delete_optimization_records(optimization_root_dir) -> Generator:
 @pytest.fixture
 def dummy_is_exchange() -> IsExchange:
     class Dummy(IsExchange):
-        def __init__(self, name: str, base_url: str) -> None:
-            super().__init__(name, False, base_url)
+        def __init__(self, name: str, base_url: str, wss_url: str) -> None:
+            super().__init__(name, False, base_url, wss_url)
 
         @classmethod
         def get_config_params(cls) -> Dict:
             return super().get_config_params()
 
-        def _get_symbols(self) -> List[str]:
+        def _get_symbols(self) -> Dict[str, Symbol]:
             return super()._get_symbols()
 
         def _make_request(
-            self, method: HTTPMethod, endpoint: str, query_parameters: Dict
+            self,
+            method: HTTPMethod,
+            endpoint: str,
+            query_parameters: Dict,
+            headers: Optional[Dict] = None,
         ) -> Any:
-            return super()._make_request(method, endpoint, query_parameters)
+            return super()._make_request(method, endpoint, query_parameters, headers)
 
         def get_historical_candles(
             self,
@@ -86,7 +97,28 @@ def dummy_is_exchange() -> IsExchange:
                 symbol, start_time, end_time, timeframe
             )
 
-    return Dummy(name="test_exchange", base_url="https://dummy.com")
+        def place_order(
+            self,
+            symbol_name: str,
+            side: OrderSide,
+            quantity: float,
+            order_type: OrderType,
+            price: Optional[float] = None,
+            **_kwargs,
+        ) -> Optional[str]:
+            return super().place_order(
+                symbol_name, side, quantity, order_type, price, **_kwargs
+            )
+
+        def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
+            return super().get_order_by_id(symbol_name, order_id)
+
+        def cancel_order(self, symbol_name: str, order_id: str) -> bool:
+            return super().cancel_order(symbol_name, order_id)
+
+    return Dummy(
+        name="test_exchange", base_url="https://dummy.com", wss_url="wss://dummy.com/ws"
+    )
 
 
 @pytest.fixture
