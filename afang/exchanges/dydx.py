@@ -218,11 +218,13 @@ class DyDxExchange(IsExchange):
             self._account_position_id = account_response.data["account"]["positionId"]
             return api_client
         except DydxApiError as dydx_api_err:
-            logger.error(
-                "DydxApiError raised when attempting to get account position ID: %s",
-                dydx_api_err,
+            logger.warning(
+                "DydxApiError raised when attempting to get account position ID: %s "
+                "Ignore for unauthenticated operations.",
+                dydx_api_err.msg,
             )
-            raise
+
+        return None
 
     def place_order(
         self,
