@@ -452,7 +452,9 @@ def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
         "afang.strategies.backtester.StrategyAnalyzer.run_analysis", return_value=None
     )
 
-    dummy_is_strategy.run_backtest(dummy_is_exchange, [], "5m", None, None)
+    dummy_is_strategy.run_backtest(
+        dummy_is_exchange, [], "5m", "2021-01-01", "2022-02-02"
+    )
 
     assert mock_run_symbol_backtest.assert_called
     assert mock_run_analysis.assert_called
