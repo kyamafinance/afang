@@ -188,52 +188,47 @@ class BinanceExchange(IsExchange):
     def place_order(
         self,
         symbol_name: str,
-        side: str,
+        side: OrderSide,
         quantity: float,
-        order_type: str,
+        order_type: OrderType,
         price: Optional[float] = None,
-        time_in_force: Optional[str] = None,
         **_kwargs
-    ) -> bool:
-        """Place a new order for a specified symbol on the exchange. Returns a
-        bool on whether order placement was successful.
+    ) -> Optional[str]:
+        """Place a new order for a specified symbol on the exchange. Returns
+        the order ID if order placement was successful.
 
         :param symbol_name: name of symbol.
         :param side: order side.
         :param quantity: order quantity.
         :param order_type: order type.
         :param price: optional. order price.
-        :param time_in_force: optional. time in force.
         :param _kwargs:
             post_only bool: order will only be allowed if it will enter the order book.
                             NOTE: post_only orders will override the time in force if specified.
-        :return: bool
+        :return: Optional[str]
         """
 
         params: Dict = dict()
         params["symbol"] = symbol_name
-        params["side"] = side
+        params["side"] = side.value
         params["quantity"] = str(quantity)
-        params["type"] = order_type
+        params["type"] = order_type.value
 
         if price and order_type != "MARKET":
             params["price"] = str(price)
-        if order_type != "MARKET":
-            time_in_force = time_in_force or "GTC"
-            time_in_force = "GTX" if _kwargs.get("post_only", False) else time_in_force
+        if order_type.value != "MARKET":
+            time_in_force = "GTX" if _kwargs.get("post_only", False) else "GTC"
             params["timeInForce"] = time_in_force
 
         params["timestamp"] = int(time.time() * 1000)
         params["signature"] = self._generate_authed_request_signature(params)
 
         endpoint = "/fapi/v1/order"
-        response = self._make_request(
-            HTTPMethod.POST, endpoint, params, headers=self._headers
-        )
-        if response:
-            return True
+        response = self._make_request(HTTPMethod.POST, endpoint, params, self._headers)
+        if not response:
+            return None
 
-        return False
+        return response["orderId"]
 
     def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
         """Query an order by ID.

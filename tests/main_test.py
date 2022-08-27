@@ -9,7 +9,7 @@ from afang.strategies.SampleStrategy.SampleStrategy import SampleStrategy
 
 @pytest.fixture(autouse=True)
 def mock_dydx_get_api_client(mocker):
-    mocker.patch("afang.main.DyDxExchange.get_api_client")
+    mocker.patch("afang.main.DyDxExchange._get_api_client")
 
 
 @pytest.mark.parametrize(
@@ -22,7 +22,7 @@ def mock_dydx_get_api_client(mocker):
 def test_unknown_inputs(args, expected_log, caplog) -> None:
     main(args)
 
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[-1].levelname == "WARNING"
     assert expected_log in caplog.text
 
 

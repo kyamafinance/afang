@@ -64,7 +64,7 @@ class DyDxExchange(IsExchange):
 
         # dYdX API client.
         self._account_position_id: Optional[str] = None
-        self._api_client: dydx3.Client = self.get_api_client()
+        self._api_client: Optional[dydx3.Client] = self._get_api_client()
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -186,24 +186,31 @@ class DyDxExchange(IsExchange):
 
         return candles
 
-    def get_api_client(self) -> dydx3.Client:
+    def _get_api_client(self) -> Optional[dydx3.Client]:
         """Get a dYdX API client instance and account position ID.
 
-        :return: dydx3.Client
+        :return: Optional[dydx3.Client]
         """
 
         # Get API client instance.
-        api_client = Client(
-            host=self._base_url,
-            network_id=3 if self.testnet else 1,
-            api_key_credentials={
-                "key": self._DYDX_API_KEY,
-                "secret": self._DYDX_API_SECRET,
-                "passphrase": self._DYDX_API_PASSPHRASE,
-            },
-            stark_private_key=self._DYDX_STARK_PRIVATE_KEY,
-            default_ethereum_address=self._DYDX_ETHEREUM_ADDRESS,
-        )
+        try:
+            api_client = Client(
+                host=self._base_url,
+                network_id=3 if self.testnet else 1,
+                api_key_credentials={
+                    "key": self._DYDX_API_KEY,
+                    "secret": self._DYDX_API_SECRET,
+                    "passphrase": self._DYDX_API_PASSPHRASE,
+                },
+                stark_private_key=self._DYDX_STARK_PRIVATE_KEY,
+                default_ethereum_address=self._DYDX_ETHEREUM_ADDRESS,
+            )
+        except ValueError:
+            logger.warning(
+                "dYdX API client could not be set up probably due to a lack of exchange credentials. "
+                "Ignore for unauthenticated operations."
+            )
+            return None
 
         # Get account position ID.
         try:
@@ -220,33 +227,31 @@ class DyDxExchange(IsExchange):
     def place_order(
         self,
         symbol_name: str,
-        side: str,
+        side: OrderSide,
         quantity: float,
-        order_type: str,
+        order_type: OrderType,
         price: Optional[float] = None,
-        time_in_force: Optional[str] = None,
         **_kwargs,
-    ) -> bool:
-        """Place a new order for a specified symbol on the exchange. Returns a
-        bool on whether order placement was successful.
+    ) -> Optional[str]:
+        """Place a new order for a specified symbol on the exchange. Returns
+        the order ID if order placement was successful.
 
         :param symbol_name: name of symbol.
         :param side: order side.
         :param quantity: order quantity.
         :param order_type: order type.
         :param price: optional. order price.
-        :param time_in_force: optional. time in force.
         :param _kwargs:
             post_only bool: order will only be allowed if it will enter the order book.
             dydx_limit_fee: float: highest accepted fee for the trade.
-        :return: bool
+        :return: Optional[str]
         """
 
         order_params: Dict = dict()
         order_params["position_id"] = self._account_position_id
         order_params["market"] = symbol_name
-        order_params["side"] = side
-        order_params["order_type"] = order_type
+        order_params["side"] = side.value
+        order_params["order_type"] = order_type.value
         order_params["size"] = str(quantity)
         # TODO: If no price was provided and market order, default to current market price + 100.
         order_params["price"] = str(price)
@@ -254,27 +259,20 @@ class DyDxExchange(IsExchange):
         order_params["post_only"] = _kwargs.get("post_only", False)
         order_params["limit_fee"] = _kwargs.get("dydx_limit_fee", 0.0005)
 
-        time_in_force = time_in_force or "GTT"
-        time_in_force = time_in_force if order_type != "MARKET" else "FOK"
+        time_in_force = "GTT" if order_type.value != "MARKET" else "FOK"
         order_params["time_in_force"] = time_in_force
 
         try:
-            self._api_client.private.create_order(**order_params)
-            return True
+            order = self._api_client.private.create_order(**order_params)
+            return order.data["order"]["id"]
         except DydxApiError as dydx_api_err:
             logger.error(
                 "DydxApiError raised when attempting to place new %s order: %s",
                 symbol_name,
                 dydx_api_err,
             )
-        except Exception as e:
-            logger.error(
-                "Unknown exception raised when attempting to place new %s order: %s",
-                symbol_name,
-                e,
-            )
 
-        return False
+        return None
 
     def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
         """Query an order by ID.
@@ -333,13 +331,6 @@ class DyDxExchange(IsExchange):
                 order_id,
                 dydx_api_err,
             )
-        except Exception as e:
-            logger.error(
-                "Unknown exception raised when attempting to get %s order status with ID %s: %s",
-                symbol_name,
-                order_id,
-                e,
-            )
 
         return None
 
@@ -353,7 +344,7 @@ class DyDxExchange(IsExchange):
         """
 
         try:
-            self._api_client.private.cancel_order(order_id=order_id)
+            self._api_client.private.cancel_order(order_id)
             return True
         except DydxApiError as dydx_api_err:
             logger.error(
@@ -361,13 +352,6 @@ class DyDxExchange(IsExchange):
                 symbol_name,
                 order_id,
                 dydx_api_err,
-            )
-        except Exception as e:
-            logger.error(
-                "Unknown exception raised when attempting to cancel %s order with ID %s: %s",
-                symbol_name,
-                order_id,
-                e,
             )
 
         return False

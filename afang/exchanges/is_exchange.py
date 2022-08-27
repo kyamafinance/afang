@@ -4,7 +4,14 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from afang.exchanges.models import Candle, HTTPMethod, Order, Symbol
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
@@ -95,7 +102,8 @@ class IsExchange(ABC):
             return response.json()
 
         logger.error(
-            "Error while making request to %s: %s (status code: %s)",
+            "Error while making %s request to %s: %s (status code: %s)",
+            method.name,
             endpoint,
             response.json(),
             response.status_code,
@@ -128,29 +136,28 @@ class IsExchange(ABC):
     def place_order(
         self,
         symbol_name: str,
-        side: str,
+        side: OrderSide,
         quantity: float,
-        order_type: str,
+        order_type: OrderType,
         price: Optional[float] = None,
-        time_in_force: Optional[str] = None,
         **_kwargs
-    ) -> bool:
-        """Place a new order for a specified symbol on the exchange. Returns a
-        bool on whether order placement was successful.
+    ) -> Optional[str]:
+        """Place a new order for a specified symbol on the exchange. Returns
+        the order ID if order placement was successful.
 
         :param symbol_name: name of symbol.
         :param side: order side.
         :param quantity: order quantity.
         :param order_type: order type.
         :param price: optional. order price.
-        :param time_in_force: optional. time in force.
         :param _kwargs:
             post_only bool: order will only be allowed if it will enter the order book.
-                            NOTE: post_only orders will override the time in force if specified.
-        :return: bool
+                            NOTE: post_only orders may override the time in force if specified.
+            dydx_limit_fee: float: highest accepted fee for the trade on the dYdX exchange.
+        :return: Optional[str]
         """
 
-        return False
+        return None
 
     @abstractmethod
     def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:

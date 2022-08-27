@@ -1,15 +1,87 @@
+from types import SimpleNamespace
 from typing import Any, Dict
 
 import pytest
+from dydx3 import DydxApiError
 
 from afang.exchanges.dydx import DyDxExchange
-from afang.exchanges.models import Candle, HTTPMethod, Symbol
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
 
 
 @pytest.fixture(autouse=True)
 def mock_dydx_get_api_client(mocker):
-    mocker.patch("afang.exchanges.dydx.DyDxExchange.get_api_client")
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_api_client")
+
+
+@pytest.fixture
+def mock_dydx_api_client():
+    class DydxApiErrorResponse:
+        def __init__(self):
+            self.status_code = 400
+            self.text = "DydxApiErrorResponse"
+
+        @classmethod
+        def json(cls):
+            return {}
+
+    class Private:
+        def __init__(self, should_raise_exception):
+            self.should_raise_exception = should_raise_exception
+
+        def create_order(self, **_kwargs):
+            if self.should_raise_exception:
+                raise DydxApiError(response=DydxApiErrorResponse())
+
+            order = {"order": {"id": "12345"}}
+            data = dict(data=order)
+            return SimpleNamespace(**data)
+
+        @classmethod
+        def get_fills(cls, _market, _order_id, _limit):
+            fills = {
+                "fills": [{"size": "10", "price": "11"}, {"size": "12", "price": "13"}]
+            }
+            data = dict(data=fills)
+            return SimpleNamespace(**data)
+
+        def get_order_by_id(self, _order_id):
+            if self.should_raise_exception:
+                raise DydxApiError(response=DydxApiErrorResponse())
+
+            order = {
+                "order": {
+                    "size": "12",
+                    "remainingSize": "10",
+                    "side": "BUY",
+                    "type": "MARKET",
+                    "price": "102",
+                    "status": "OPEN",
+                    "timeInForce": "GTT",
+                }
+            }
+            data = dict(data=order)
+            return SimpleNamespace(**data)
+
+        def cancel_order(self, _order_id):
+            if self.should_raise_exception:
+                raise DydxApiError(response=DydxApiErrorResponse())
+
+            return True
+
+    class ApiClient:
+        def __init__(self, should_raise_exception):
+            self.should_raise_exception = should_raise_exception
+            self.private = Private(self.should_raise_exception)
+
+    return ApiClient
 
 
 def test_dydx_exchange_init(mocker) -> None:
@@ -188,15 +260,93 @@ def test_get_historical_candles_unknown_timeframe(mocker, caplog) -> None:
         return ["test_symbol"]
 
     mocker.patch(
-        "afang.exchanges.binance.BinanceExchange._get_symbols",
+        "afang.exchanges.dydx.DyDxExchange._get_symbols",
         mock_get_symbols,
     )
 
-    binance_exchange = DyDxExchange()
-    binance_exchange.get_historical_candles("test_symbol", 2, 100, Timeframe.M3)
+    dydx_exchange = DyDxExchange()
+    dydx_exchange.get_historical_candles("test_symbol", 2, 100, Timeframe.M3)
 
     assert caplog.records[0].levelname == "ERROR"
     assert (
         "dydx cannot fetch historical candles in 3m intervals. Please use another timeframe"
         in caplog.text
     )
+
+
+def test_get_api_client(mocker) -> None:
+    mocked_dydx3_client = mocker.patch("afang.exchanges.dydx.Client")
+    mocked_client_get_account = mocker.patch(
+        "afang.exchanges.dydx.Client.private.get_account"
+    )
+
+    dydx_exchange = DyDxExchange()
+    dydx_exchange._get_api_client()
+
+    assert mocked_dydx3_client.assert_called_once
+    assert mocked_client_get_account.assert_called_once
+
+
+@pytest.mark.parametrize("should_raise_exception", [True, False])
+def test_place_order(caplog, mock_dydx_api_client, should_raise_exception) -> None:
+    dydx_exchange = DyDxExchange()
+    dydx_exchange._api_client = mock_dydx_api_client(should_raise_exception)
+    order_id = dydx_exchange.place_order(
+        "BTC-USD", OrderSide.BUY, 0.001, OrderType.LIMIT, 10
+    )
+
+    if should_raise_exception:
+        assert caplog.records[-1].levelname == "ERROR"
+        assert (
+            "DydxApiError raised when attempting to place new BTC-USD order"
+            in caplog.text
+        )
+        return
+
+    assert order_id == "12345"
+
+
+@pytest.mark.parametrize("should_raise_exception", [True, False])
+def test_get_order_by_id(caplog, mock_dydx_api_client, should_raise_exception) -> None:
+    dydx_exchange = DyDxExchange()
+    dydx_exchange._api_client = mock_dydx_api_client(should_raise_exception)
+    order = dydx_exchange.get_order_by_id("BTC-USD", "12345")
+
+    if should_raise_exception:
+        assert caplog.records[-1].levelname == "ERROR"
+        assert (
+            "DydxApiError raised when attempting to get BTC-USD order status with ID 12345"
+            in caplog.text
+        )
+        return
+
+    assert order == Order(
+        symbol="BTC-USD",
+        order_id="12345",
+        side=OrderSide.BUY,
+        price=102.0,
+        average_price=12.09090909090909,
+        quantity=12.0,
+        executed_quantity=2.0,
+        remaining_quantity=10.0,
+        order_type=OrderType.MARKET,
+        order_status="OPEN",
+        time_in_force="GTT",
+    )
+
+
+@pytest.mark.parametrize("should_raise_exception", [True, False])
+def test_cancel_order(caplog, mock_dydx_api_client, should_raise_exception) -> None:
+    dydx_exchange = DyDxExchange()
+    dydx_exchange._api_client = mock_dydx_api_client(should_raise_exception)
+    order_placed = dydx_exchange.cancel_order("BTC-USD", "12345")
+
+    if should_raise_exception:
+        assert caplog.records[-1].levelname == "ERROR"
+        assert (
+            "DydxApiError raised when attempting to cancel BTC-USD order with ID 12345"
+            in caplog.text
+        )
+        return
+
+    assert order_placed is True

@@ -10,7 +10,14 @@ import pandas as pd
 import pytest
 
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod, Order, Symbol
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
@@ -93,15 +100,14 @@ def dummy_is_exchange() -> IsExchange:
         def place_order(
             self,
             symbol_name: str,
-            side: str,
+            side: OrderSide,
             quantity: float,
-            order_type: str,
+            order_type: OrderType,
             price: Optional[float] = None,
-            time_in_force: Optional[str] = None,
             **_kwargs,
-        ) -> bool:
+        ) -> Optional[str]:
             return super().place_order(
-                symbol_name, side, quantity, order_type, price, time_in_force, **_kwargs
+                symbol_name, side, quantity, order_type, price, **_kwargs
             )
 
         def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
