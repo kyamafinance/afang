@@ -1,5 +1,3 @@
-import argparse
-
 import pytest
 
 from afang.database.backtest_data_collector import (
@@ -177,8 +175,7 @@ def test_fetch_symbol_data(mocker, dummy_is_exchange, ohlcv_root_db_dir):
 
 
 def test_fetch_historical_price_data_no_symbols(dummy_is_exchange, caplog) -> None:
-    test_args = argparse.Namespace(symbols=[])
-    fetch_historical_price_data(dummy_is_exchange, test_args)
+    fetch_historical_price_data(dummy_is_exchange, [])
 
     assert caplog.records[0].levelname == "WARNING"
     assert "No symbols found to fetch historical price data" in caplog.text
@@ -187,16 +184,13 @@ def test_fetch_historical_price_data_no_symbols(dummy_is_exchange, caplog) -> No
 def test_fetch_historical_price_data_no_symbols_with_strategy(
     mocker, dummy_is_exchange, dummy_is_strategy, caplog
 ) -> None:
-    test_args = argparse.Namespace(symbols=[])
     dummy_is_exchange.symbols = ["test_symbol"]
     mocked_fetch_symbol_data = mocker.patch(
         "afang.database.backtest_data_collector.fetch_symbol_data",
         return_value=True,
     )
 
-    fetch_historical_price_data(
-        dummy_is_exchange, test_args, strategy=dummy_is_strategy
-    )
+    fetch_historical_price_data(dummy_is_exchange, [], strategy=dummy_is_strategy)
 
     # test to assert that if a strategy with an exchange watchlist is provided,
     # there will be symbols whose data is to be fetched therefore there will
@@ -206,8 +200,7 @@ def test_fetch_historical_price_data_no_symbols_with_strategy(
 
 
 def test_fetch_historical_price_data_unknown_symbol(dummy_is_exchange, caplog):
-    test_args = argparse.Namespace(symbols=["unknown_symbol"])
-    fetch_historical_price_data(dummy_is_exchange, test_args)
+    fetch_historical_price_data(dummy_is_exchange, ["unknown_symbol"])
 
     assert caplog.records[0].levelname == "ERROR"
     assert (
@@ -217,12 +210,11 @@ def test_fetch_historical_price_data_unknown_symbol(dummy_is_exchange, caplog):
 
 
 def test_fetch_historical_price_data(mocker, dummy_is_exchange) -> None:
-    test_args = argparse.Namespace(symbols=["test_symbol"])
     mocked_fetch_symbol_data = mocker.patch(
         "afang.database.backtest_data_collector.fetch_symbol_data",
         return_value=True,
     )
 
-    fetch_historical_price_data(dummy_is_exchange, test_args)
+    fetch_historical_price_data(dummy_is_exchange, ["test_symbol"])
 
     assert mocked_fetch_symbol_data.assert_called

@@ -1,4 +1,3 @@
-import argparse
 import os
 import pathlib
 import shutil
@@ -206,5 +205,6 @@ def dummy_is_strategy(dummy_is_strategy_callable) -> IsStrategy:
 def dummy_is_optimizer(
     dummy_is_exchange, dummy_is_strategy_callable
 ) -> StrategyOptimizer:
-    cli_args = argparse.Namespace()
-    return StrategyOptimizer(dummy_is_strategy_callable, dummy_is_exchange, cli_args)
+    return StrategyOptimizer(
+        dummy_is_strategy_callable, dummy_is_exchange, None, None, None, None
+    )

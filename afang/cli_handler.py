@@ -1,5 +1,7 @@
 import argparse
 
+from afang.models import Exchange, Mode, Timeframe
+
 
 def parse_args(args) -> argparse.Namespace:
     """Parse application command line arguments.
@@ -19,6 +21,7 @@ def parse_args(args) -> argparse.Namespace:
         type=str,
         help="program mode",
         required=True,
+        choices=[mode.value for mode in Mode],
     )
     parser.add_argument(
         "-e",
@@ -26,6 +29,7 @@ def parse_args(args) -> argparse.Namespace:
         type=str,
         help="exchange to use",
         required=True,
+        choices=[exchange.value for exchange in Exchange],
     )
     parser.add_argument(
         "--testnet",
@@ -46,6 +50,7 @@ def parse_args(args) -> argparse.Namespace:
         "--timeframe",
         type=str,
         help="timeframe to use",
+        choices=[timeframe.value for timeframe in Timeframe],
     )
     parser.add_argument(
         "--from-time",

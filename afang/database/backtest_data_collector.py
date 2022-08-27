@@ -1,10 +1,9 @@
-import argparse
 import logging
 import multiprocessing
 import time
 from concurrent.futures import ThreadPoolExecutor
 from operator import attrgetter
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from afang.database.ohlcv_database import OHLCVDatabase
 from afang.exchanges.is_exchange import IsExchange
@@ -228,7 +227,7 @@ def fetch_symbol_data(
     if symbol not in exchange.symbols:
         logger.warning(
             "%s %s: provided symbol not present in the exchange",
-            exchange.name,
+            exchange.display_name,
             symbol,
         )
         return None
@@ -282,19 +281,18 @@ def fetch_symbol_data(
 
 def fetch_historical_price_data(
     exchange: IsExchange,
-    cli_args: argparse.Namespace,
+    symbols: List[str],
     strategy: Optional[IsStrategy] = None,
 ) -> None:
     """Fetch historical price data for the parsed symbols.
 
     :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
-    :param cli_args: arguments parsed from the CLI.
+    :param symbols: symbol names to fetch historical price data for.
     :param strategy: optional strategy instance.
 
     :return: None
     """
 
-    symbols = cli_args.symbols
     if not symbols and strategy:
         symbols = strategy.config.get("watchlist", dict()).get(exchange.name, [])
     if not symbols:
@@ -305,7 +303,7 @@ def fetch_historical_price_data(
         if symbol not in exchange.symbols:
             logger.error(
                 "%s %s: provided symbol not present in the exchange",
-                exchange.name,
+                exchange.display_name,
                 symbol,
             )
             return None
