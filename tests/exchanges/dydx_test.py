@@ -13,7 +13,7 @@ from afang.exchanges.models import (
     OrderType,
     Symbol,
 )
-from afang.models import Timeframe
+from afang.models import Mode, Timeframe
 
 
 @pytest.fixture(autouse=True)
@@ -96,6 +96,7 @@ def test_dydx_exchange_init(mocker) -> None:
 
     dydx_exchange = DyDxExchange()
     assert dydx_exchange.name == "dydx"
+    assert dydx_exchange.mode is None
     assert dydx_exchange.display_name == "dydx"
     assert dydx_exchange.testnet is False
     assert dydx_exchange._base_url == "https://api.dydx.exchange"
@@ -107,10 +108,14 @@ def test_dydx_exchange_init(mocker) -> None:
     }
 
     dydx_exchange_testnet = DyDxExchange(testnet=True)
+    assert dydx_exchange_testnet.mode is None
     assert dydx_exchange_testnet.display_name == "dydx-testnet"
     assert dydx_exchange_testnet.testnet is True
     assert dydx_exchange_testnet._base_url == "https://api.stage.dydx.exchange"
     assert dydx_exchange_testnet._wss_url == "wss://api.stage.dydx.exchange/v3/ws"
+
+    dydx_exchange_data_mode = DyDxExchange(mode=Mode.data)
+    assert dydx_exchange_data_mode.mode == Mode.data
 
 
 @pytest.mark.parametrize(
@@ -290,6 +295,7 @@ def test_get_api_client(mocker) -> None:
 @pytest.mark.parametrize("should_raise_exception", [True, False])
 def test_place_order(caplog, mock_dydx_api_client, should_raise_exception) -> None:
     dydx_exchange = DyDxExchange()
+    dydx_exchange.mode = Mode.trade
     dydx_exchange._api_client = mock_dydx_api_client(should_raise_exception)
     order_id = dydx_exchange.place_order(
         "BTC-USD", OrderSide.BUY, 0.001, OrderType.LIMIT, 10

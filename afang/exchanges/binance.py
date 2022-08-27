@@ -18,7 +18,7 @@ from afang.exchanges.models import (
     OrderType,
     Symbol,
 )
-from afang.models import Timeframe
+from afang.models import Mode, Timeframe
 from afang.utils.util import get_float_precision
 
 load_dotenv()
@@ -39,7 +39,7 @@ class TimeframeMapping(Enum):
 class BinanceExchange(IsExchange):
     """Interface to run exchange functions on Binance USDT Futures."""
 
-    def __init__(self, testnet: bool = False) -> None:
+    def __init__(self, mode: Optional[Mode] = None, testnet: bool = False) -> None:
         """
         :param testnet: whether to use the testnet version of the exchange.
         """
@@ -51,7 +51,7 @@ class BinanceExchange(IsExchange):
             base_url = "https://testnet.binancefuture.com"
             wss_url = "wss://stream.binancefuture.com/ws"
 
-        super().__init__(name, testnet, base_url, wss_url)
+        super().__init__(name, mode, testnet, base_url, wss_url)
 
         # Binance exchange environment variables.
         self._API_KEY = os.environ.get("BINANCE_API_KEY")

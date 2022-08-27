@@ -21,7 +21,7 @@ from afang.exchanges.models import (
     OrderType,
     Symbol,
 )
-from afang.models import Timeframe
+from afang.models import Mode, Timeframe
 from afang.utils.util import get_float_precision
 
 load_dotenv()
@@ -41,7 +41,7 @@ class TimeframeMapping(Enum):
 class DyDxExchange(IsExchange):
     """Interface to run exchange functions on DyDx Futures."""
 
-    def __init__(self, testnet: bool = False) -> None:
+    def __init__(self, mode: Optional[Mode] = None, testnet: bool = False) -> None:
         """
         :param testnet: whether to use the testnet version of the exchange.
         """
@@ -53,7 +53,7 @@ class DyDxExchange(IsExchange):
             base_url = "https://api.stage.dydx.exchange"
             wss_url = "wss://api.stage.dydx.exchange/v3/ws"
 
-        super().__init__(name, testnet, base_url, wss_url)
+        super().__init__(name, mode, testnet, base_url, wss_url)
 
         # dYdX exchange environment variables.
         self._DYDX_API_KEY = os.environ.get("DYDX_API_KEY")
@@ -191,6 +191,11 @@ class DyDxExchange(IsExchange):
 
         :return: Optional[dydx3.Client]
         """
+
+        # If the mode does not involve authenticated exchange operations,
+        # there is no need to attempt instantiating an API client.
+        if self.mode != Mode.trade:
+            return None
 
         # Get API client instance.
         try:
