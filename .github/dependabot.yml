@@ -4,12 +4,12 @@ updates:
   directory: "/"
   schedule:
     interval: "weekly"
-  open-pull-requests-limit: 10
+  open-pull-requests-limit: 30
   target-branch: main
 
 - package-ecosystem: "github-actions"
   directory: "/"
   schedule:
     interval: "weekly"
-  open-pull-requests-limit: 10
+  open-pull-requests-limit: 30
   target-branch: main
