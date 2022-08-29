@@ -18,7 +18,7 @@ eth-hash==0.5.0
 eth-keyfile==0.5.1
 eth-keys==0.3.4
 eth-rlp==0.2.1
-eth-typing==2.3.0
+eth-typing==3.1.0
 eth-utils==1.9.5
 exchanges==0.0.1
 filelock==3.8.0
