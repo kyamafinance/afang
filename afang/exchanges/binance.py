@@ -2,11 +2,13 @@ import hashlib
 import hmac
 import logging
 import os
+import threading
 import time
 from enum import Enum
 from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
+import websocket
 from dotenv import load_dotenv
 
 from afang.exchanges.is_exchange import IsExchange
@@ -59,6 +61,11 @@ class BinanceExchange(IsExchange):
 
         # Headers to be applied to authenticated requests.
         self._headers = {"X-MBX-APIKEY": self._API_KEY}
+
+        # Start websocket connection.
+        self._wss_listen_key: Optional[str] = None
+        self._start_wss()
+        # print("I am actually executing after....!!!")
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -192,7 +199,7 @@ class BinanceExchange(IsExchange):
         quantity: float,
         order_type: OrderType,
         price: Optional[float] = None,
-        **_kwargs
+        **_kwargs,
     ) -> Optional[str]:
         """Place a new order for a specified symbol on the exchange. Returns
         the order ID if order placement was successful.
@@ -307,3 +314,88 @@ class BinanceExchange(IsExchange):
             return True
 
         return False
+
+    def _fetch_wss_listen_key(self) -> Optional[str]:
+        """Fetch the account's listen key and extend its validity for 60
+        minutes.
+
+        :return: Optional[str]
+        """
+
+        params: Dict = dict()
+        endpoint = "/fapi/v1/listenKey"
+
+        response = self._make_request(
+            HTTPMethod.POST, endpoint, params, headers=self._headers
+        )
+        if not response:
+            logger.error("Error fetching wss listen key")
+            return None
+
+        # print("lk: ", response["listenKey"])
+        return response["listenKey"]
+
+    def _keep_wss_alive(self) -> None:
+        """Periodically extend the validity period of the wss listen key.
+
+        :return: None
+        """
+
+        while True:
+            wss_listen_key = self._fetch_wss_listen_key()
+            if not wss_listen_key:
+                logger.warning(
+                    "Could not extend the validity of the wss listen key. Retrying..."
+                )
+                time.sleep(5)
+                continue
+
+            self._wss_listen_key = wss_listen_key
+            time.sleep(40 * 60)
+
+    def _wss_on_open(self, _ws):
+        logger.info("WSS has been opened")
+
+    def _wss_on_close(self, _ws):
+        logger.warning("WSS has closed")
+
+    def _wss_on_message(self, _ws, msg):
+        # print(msg)
+        pass
+
+    def _wss_on_error(self, _ws, msg):
+        logger.error("WSS has been opened %s", msg)
+
+    def _start_wss(self) -> None:
+        """Open a websocket connection to the exchange.
+
+        :return: None
+        """
+
+        # Only open websocket connection if authenticated operations
+        # are expected to be run.
+        if self.mode != Mode.trade:
+            return None
+
+        self._wss_listen_key = self._fetch_wss_listen_key()
+        if not self._wss_listen_key:
+            logger.error("Could not start wss due to lack of a valid listen key")
+            return None
+
+        wss = websocket.WebSocketApp(
+            f"{self._wss_url}/{self._wss_listen_key}",
+            on_open=self._wss_on_open,
+            on_close=self._wss_on_close,
+            on_message=self._wss_on_message,
+            on_error=self._wss_on_error,
+        )
+        wss_thread = threading.Thread(target=wss.run_forever)
+        wss_thread.start()
+
+        # Keep websocket listen key valid.
+        wss_listen_key_thread = threading.Thread(target=self._keep_wss_alive)
+        wss_listen_key_thread.start()
+
+
+if __name__ == "__main__":
+    b = BinanceExchange(testnet=True, mode=Mode.trade)
