@@ -101,7 +101,7 @@ def test_dydx_exchange_init(mocker) -> None:
     assert dydx_exchange.testnet is False
     assert dydx_exchange._base_url == "https://api.dydx.exchange"
     assert dydx_exchange._wss_url == "wss://api.dydx.exchange/v3/ws"
-    assert dydx_exchange.symbols == ["BTCUSDT", "ETHUSDT"]
+    assert dydx_exchange.exchange_symbols == ["BTCUSDT", "ETHUSDT"]
     assert dydx_exchange.get_config_params() == {
         "query_limit": 0.2,
         "write_limit": 20000,
@@ -184,7 +184,7 @@ def test_get_symbols(mocker, req_response, expected_symbols) -> None:
     )
 
     dydx_exchange = DyDxExchange()
-    assert dydx_exchange.symbols == expected_symbols
+    assert dydx_exchange.exchange_symbols == expected_symbols
 
 
 @pytest.mark.parametrize(
@@ -330,14 +330,15 @@ def test_get_order_by_id(caplog, mock_dydx_api_client, should_raise_exception) -
         symbol="BTC-USD",
         order_id="12345",
         side=OrderSide.BUY,
-        price=102.0,
+        original_price=102.0,
         average_price=12.09090909090909,
-        quantity=12.0,
+        original_quantity=12.0,
         executed_quantity=2.0,
         remaining_quantity=10.0,
         order_type=OrderType.MARKET,
         order_status="OPEN",
         time_in_force="GTT",
+        commission=None,
     )
 
 

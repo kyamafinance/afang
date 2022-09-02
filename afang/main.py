@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 import afang.strategies as strategies
 from afang.cli_handler import parse_args
-from afang.database.backtest_data_collector import fetch_historical_price_data
+from afang.database.ohlcv_data_collector import fetch_historical_price_data
 from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
 from afang.models import Exchange, Mode
 from afang.strategies.optimizer import StrategyOptimizer

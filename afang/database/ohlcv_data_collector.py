@@ -224,7 +224,7 @@ def fetch_symbol_data(
     :return: Optional[bool]
     """
 
-    if symbol not in exchange.symbols:
+    if symbol not in exchange.exchange_symbols:
         logger.warning(
             "%s %s: provided symbol not present in the exchange",
             exchange.display_name,
@@ -300,7 +300,7 @@ def fetch_historical_price_data(
         return
 
     for symbol in symbols:
-        if symbol not in exchange.symbols:
+        if symbol not in exchange.exchange_symbols:
             logger.error(
                 "%s %s: provided symbol not present in the exchange",
                 exchange.display_name,

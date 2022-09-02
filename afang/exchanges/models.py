@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 
 class HTTPMethod(Enum):
@@ -42,15 +43,22 @@ class Symbol:
 
 
 @dataclass
+class SymbolBalance:
+    name: str
+    wallet_balance: float
+
+
+@dataclass
 class Order:
     symbol: str
     order_id: str
     side: OrderSide
-    price: float
+    original_price: Optional[float]
     average_price: float
-    quantity: float
+    original_quantity: float
     executed_quantity: float
     remaining_quantity: float
     order_type: OrderType
     order_status: str
     time_in_force: str
+    commission: Optional[float] = None

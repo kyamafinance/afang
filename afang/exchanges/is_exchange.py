@@ -2,6 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 import requests
 
 from afang.exchanges.models import (
@@ -11,6 +12,7 @@ from afang.exchanges.models import (
     OrderSide,
     OrderType,
     Symbol,
+    SymbolBalance,
 )
 from afang.models import Mode, Timeframe
 
@@ -35,7 +37,13 @@ class IsExchange(ABC):
         self.testnet = testnet
         self._base_url = base_url
         self._wss_url = wss_url
-        self.symbols: Dict[str, Symbol] = self._get_symbols()
+        self.exchange_symbols: Dict[str, Symbol] = self._get_symbols()
+        self.symbol_leverage: Dict[str, int] = dict()
+        self.trading_symbols: Dict[str, Symbol] = dict()
+        self.trading_timeframe: Optional[Timeframe] = None
+        self.trading_price_data: Dict[str, pd.DataFrame] = dict()
+        self.active_orders: Dict[str, Order] = dict()
+        self.trading_symbol_balance: Dict[str, SymbolBalance] = dict()
 
     @classmethod
     def get_config_params(cls) -> Dict:

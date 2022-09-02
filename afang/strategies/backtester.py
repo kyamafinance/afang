@@ -501,7 +501,7 @@ class Backtester(ABC):
         )
 
         for symbol in self.symbols:
-            if symbol not in exchange.symbols:
+            if symbol not in exchange.exchange_symbols:
                 logger.error(
                     "%s %s: provided symbol not present in the exchange",
                     exchange.display_name,

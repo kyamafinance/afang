@@ -31,7 +31,7 @@ def test_binance_exchange_init(mocker) -> None:
     assert binance_exchange.testnet is False
     assert binance_exchange._base_url == "https://fapi.binance.com"
     assert binance_exchange._wss_url == "wss://fstream.binance.com/ws"
-    assert binance_exchange.symbols == ["BTCUSDT", "ETHUSDT"]
+    assert binance_exchange.exchange_symbols == ["BTCUSDT", "ETHUSDT"]
     assert binance_exchange.get_config_params() == {
         "query_limit": 1.1,
         "write_limit": 10000,
@@ -117,7 +117,7 @@ def test_get_symbols(mocker, req_response, expected_symbols) -> None:
     )
 
     binance_exchange = BinanceExchange()
-    assert binance_exchange.symbols == expected_symbols
+    assert binance_exchange.exchange_symbols == expected_symbols
 
 
 @pytest.mark.parametrize(
@@ -312,14 +312,15 @@ def test_get_order_by_id(mocker, response) -> None:
         symbol="BTCUSDT",
         order_id="12345",
         side=order_side,
-        price=float(response["price"]),
+        original_price=float(response["price"]),
         average_price=float(response["avgPrice"]),
-        quantity=order_quantity,
+        original_quantity=order_quantity,
         executed_quantity=executed_quantity,
         remaining_quantity=remaining_quantity,
         order_type=order_type,
         order_status=response["status"],
         time_in_force=response["timeInForce"],
+        commission=None,
     )
 
 

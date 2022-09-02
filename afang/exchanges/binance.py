@@ -1,13 +1,16 @@
 import hashlib
 import hmac
+import json
 import logging
 import os
 import threading
 import time
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
+import numpy as np
+import pandas as pd
 import websocket
 from dotenv import load_dotenv
 
@@ -19,6 +22,7 @@ from afang.exchanges.models import (
     OrderSide,
     OrderType,
     Symbol,
+    SymbolBalance,
 )
 from afang.models import Mode, Timeframe
 from afang.utils.util import get_float_precision
@@ -62,10 +66,9 @@ class BinanceExchange(IsExchange):
         # Headers to be applied to authenticated requests.
         self._headers = {"X-MBX-APIKEY": self._API_KEY}
 
-        # Start websocket connection.
+        self._wss_stream_id: int = 1
         self._wss_listen_key: Optional[str] = None
-        self._start_wss()
-        # print("I am actually executing after....!!!")
+        self._wss: Optional[websocket.WebSocketApp] = None
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -281,9 +284,9 @@ class BinanceExchange(IsExchange):
             symbol=symbol_name,
             order_id=order_id,
             side=order_side,
-            price=float(response["price"]),
+            original_price=float(response["price"]),
             average_price=float(response["avgPrice"]),
-            quantity=order_quantity,
+            original_quantity=order_quantity,
             executed_quantity=executed_quantity,
             remaining_quantity=remaining_quantity,
             order_type=order_type,
@@ -315,6 +318,191 @@ class BinanceExchange(IsExchange):
 
         return False
 
+    def _get_asset_balances(self) -> None:
+        """Get the wallet balances of all assets on the exchange.
+
+        :return: None
+        """
+
+        params: Dict = dict()
+        params["timestamp"] = int(time.time() * 1000)
+        params["signature"] = self._generate_authed_request_signature(params)
+
+        endpoint = "/fapi/v2/account"
+        response = self._make_request(
+            HTTPMethod.GET, endpoint, params, headers=self._headers
+        )
+        if not response:
+            logger.error("%s: error while fetching asset balances", self.display_name)
+            return None
+
+        for asset in response["assets"]:
+            self.trading_symbol_balance[asset["asset"]] = SymbolBalance(
+                name=asset["asset"], wallet_balance=float(asset["walletBalance"])
+            )
+
+    def _subscribe_wss_candlestick_stream(self) -> None:
+        """Subscribe to the exchange wss candlestick stream for all provided
+        symbols for the given timeframe.
+
+        :return: None
+        """
+
+        wss_data: Dict[str, Any] = dict()
+        wss_data["method"] = "SUBSCRIBE"
+        wss_data["params"] = list()
+
+        for symbol in self.trading_symbols:
+            wss_data["params"].append(
+                f"{symbol.lower()}_perpetual@continuousKline_{self.trading_timeframe.value}"
+            )
+            wss_data["id"] = self._wss_stream_id
+            self._wss_stream_id += 1
+            self._wss.send(json.dumps(wss_data))
+
+    def _wss_on_open(self, _ws: websocket.WebSocketApp) -> None:
+        """Runs when the websocket connection is opened.
+
+        :param _ws: instance of websocket connection.
+        :return: None
+        """
+
+        logger.info("%s: wss connection opened", self.display_name)
+        self._subscribe_wss_candlestick_stream()
+
+    def _wss_on_close(self, _ws: websocket.WebSocketApp) -> None:
+        """Runs when the websocket connection is closed.
+
+        :param _ws: instance of websocket connection.
+        :return: None
+        """
+
+        logger.warning("%s: wss connection closed", self.display_name)
+
+    def _wss_on_error(self, _ws: websocket.WebSocketApp, msg: str) -> None:
+        """Runs when there is an error in websocket connection.
+
+        :param _ws: instance of websocket connection.
+        :param msg: error message.
+        :return: None
+        """
+
+        logger.error("%s: wss connection error: %s", self.display_name, msg)
+
+    def _wss_handle_listen_key_expired(self, _msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that the wss
+        listen key has expired.
+
+        :param _msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        logger.error("%s: wss listen key expired", self.display_name)
+
+    def _wss_handle_margin_call(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that a user's
+        position risk ratio is too high.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        logger.warning(
+            "%s: position risk ratio is too high for symbols: %s",
+            self.display_name,
+            ", ".join([position["s"] for position in msg_data["p"]]),
+        )
+
+    def _wss_handle_asset_balance_update(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that there has
+        been an update to an asset's balance.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "a" not in msg_data or "B" not in msg_data["a"]:
+            return
+
+        assets = msg_data["a"]["B"]
+        for asset in assets:
+            self.trading_symbol_balance[asset["a"]] = SymbolBalance(
+                name=asset["a"], wallet_balance=float(asset["wb"])
+            )
+
+    def _wss_handle_order_update(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that there has
+        been an update to an order.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        msg_order = msg_data["o"]
+        msg_order_id = str(msg_order["i"])
+
+        order_quantity = float(msg_order["q"])
+        executed_quantity = float(msg_order["z"])
+        remaining_quantity = order_quantity - executed_quantity
+
+        order_side = OrderSide.UNKNOWN
+        if msg_order["S"] == "BUY":
+            order_side = OrderSide.BUY
+        elif msg_order["S"] == "SELL":
+            order_side = OrderSide.SELL
+
+        order_type = OrderType.UNKNOWN
+        if msg_order["o"] == "LIMIT":
+            order_type = OrderType.LIMIT
+        elif msg_order["o"] == "MARKET":
+            order_type = OrderType.MARKET
+
+        prev_order_commission = 0.0
+        if msg_order_id in self.active_orders:
+            prev_order = self.active_orders[msg_order_id]
+            prev_order_commission = prev_order.commission
+        current_order_commission = float(msg_order["n"]) if "n" in msg_order else 0.0
+        current_commission_tally = prev_order_commission + current_order_commission
+
+        updated_order = Order(
+            symbol=msg_order["s"],
+            order_id=msg_order_id,
+            side=order_side,
+            original_price=float(msg_order["p"]) if float(msg_order["p"]) else None,
+            average_price=float(msg_order["ap"]),
+            original_quantity=order_quantity,
+            executed_quantity=executed_quantity,
+            remaining_quantity=remaining_quantity,
+            order_type=order_type,
+            order_status=msg_order["X"],
+            time_in_force=msg_order["f"],
+            commission=current_commission_tally,
+        )
+        self.active_orders[msg_order_id] = updated_order
+
+    def _wss_on_message(self, _ws: websocket.WebSocketApp, msg: str) -> None:
+        """Runs whenever a message is received by the websocket connection.
+
+        :param _ws: instance of websocket connection.
+        :param msg: received message.
+        :return: None
+        """
+
+        msg_data = json.loads(msg)
+        if "e" not in msg_data:
+            return None
+
+        event_type = msg_data["e"]
+
+        if event_type == "listenKeyExpired":
+            self._wss_handle_listen_key_expired(msg_data)
+        elif event_type == "MARGIN_CALL":
+            self._wss_handle_margin_call(msg_data)
+        elif event_type == "ACCOUNT_UPDATE":
+            self._wss_handle_asset_balance_update(msg_data)
+        elif event_type == "ORDER_TRADE_UPDATE":
+            self._wss_handle_order_update(msg_data)
+
     def _fetch_wss_listen_key(self) -> Optional[str]:
         """Fetch the account's listen key and extend its validity for 60
         minutes.
@@ -329,10 +517,9 @@ class BinanceExchange(IsExchange):
             HTTPMethod.POST, endpoint, params, headers=self._headers
         )
         if not response:
-            logger.error("Error fetching wss listen key")
+            logger.error("%s: error fetching wss listen key", self.display_name)
             return None
 
-        # print("lk: ", response["listenKey"])
         return response["listenKey"]
 
     def _keep_wss_alive(self) -> None:
@@ -345,7 +532,8 @@ class BinanceExchange(IsExchange):
             wss_listen_key = self._fetch_wss_listen_key()
             if not wss_listen_key:
                 logger.warning(
-                    "Could not extend the validity of the wss listen key. Retrying..."
+                    "%s: could not extend the validity of the wss listen key. Retrying...",
+                    self.display_name,
                 )
                 time.sleep(5)
                 continue
@@ -353,49 +541,137 @@ class BinanceExchange(IsExchange):
             self._wss_listen_key = wss_listen_key
             time.sleep(40 * 60)
 
-    def _wss_on_open(self, _ws):
-        logger.info("WSS has been opened")
-
-    def _wss_on_close(self, _ws):
-        logger.warning("WSS has closed")
-
-    def _wss_on_message(self, _ws, msg):
-        # print(msg)
-        pass
-
-    def _wss_on_error(self, _ws, msg):
-        logger.error("WSS has been opened %s", msg)
-
     def _start_wss(self) -> None:
         """Open a websocket connection to the exchange.
 
         :return: None
         """
 
-        # Only open websocket connection if authenticated operations
-        # are expected to be run.
-        if self.mode != Mode.trade:
-            return None
-
         self._wss_listen_key = self._fetch_wss_listen_key()
         if not self._wss_listen_key:
-            logger.error("Could not start wss due to lack of a valid listen key")
+            logger.error(
+                "%s: could not start wss due to lack of a valid listen key",
+                self.display_name,
+            )
             return None
 
-        wss = websocket.WebSocketApp(
+        self._wss = websocket.WebSocketApp(
             f"{self._wss_url}/{self._wss_listen_key}",
             on_open=self._wss_on_open,
             on_close=self._wss_on_close,
             on_message=self._wss_on_message,
             on_error=self._wss_on_error,
         )
-        wss_thread = threading.Thread(target=wss.run_forever)
+        wss_thread = threading.Thread(target=self._wss.run_forever)
         wss_thread.start()
 
         # Keep websocket listen key valid.
         wss_listen_key_thread = threading.Thread(target=self._keep_wss_alive)
         wss_listen_key_thread.start()
 
+    def _setup_data_stream(self) -> None:
+        """Set up an exchange data stream with information on placed orders,
+        positions, account information, and candlestick data.
 
-if __name__ == "__main__":
-    b = BinanceExchange(testnet=True, mode=Mode.trade)
+        :return: None
+        """
+
+        for symbol in self.trading_symbols:
+            # Fetch initial historical symbol candles.
+            logger.info(
+                "%s %s: fetching initial price data candles", self.display_name, symbol
+            )
+            end_time = int(time.time() * 1000)
+            historical_candles: List[Candle] = []
+            for _ in range(1):  # Increase range for more initial price data candles.
+                candles = self.get_historical_candles(
+                    symbol, end_time=end_time, timeframe=self.trading_timeframe
+                )
+                if isinstance(candles, list) and candles:
+                    end_time = int(candles[0].open_time)
+                    historical_candles = candles + historical_candles
+                else:
+                    break
+            logger.info(
+                "%s %s: fetched %s initial price data candles",
+                self.display_name,
+                symbol,
+                len(historical_candles),
+            )
+
+            # Setup historical candles dataframe.
+            historical_candles_df = pd.DataFrame(historical_candles)
+            historical_candles_df.open_time = pd.to_datetime(
+                historical_candles_df.open_time.values.astype(np.int64), unit="ms"
+            )
+            historical_candles_df.set_index("open_time", drop=True, inplace=True)
+            self.trading_price_data[symbol] = historical_candles_df
+
+        # Open websocket connection.
+        self._start_wss()
+
+    def setup_exchange_for_trading(
+        self, symbols: List[str], timeframe: Timeframe
+    ) -> None:
+        """Set up the exchange for live or demo trading.
+
+        :param symbols: exchange symbols to be traded.
+        :param timeframe: desired trading timeframe.
+        :return: None
+        """
+
+        for symbol in symbols:
+            try:
+                self.trading_symbols[symbol] = self.exchange_symbols[symbol]
+            except KeyError:
+                logger.error("%s: symbol %s does not exist", self.display_name, symbol)
+                raise
+
+        self.trading_timeframe = timeframe
+        exchange_supported_timeframes = [tf.name for tf in TimeframeMapping]
+        if timeframe.name not in exchange_supported_timeframes:
+            err_msg = (
+                f"{self.display_name}: timeframe {timeframe.value} not supported. "
+                f"Try a different timeframe"
+            )
+            logger.error(err_msg)
+            raise ValueError(err_msg)
+
+        self._get_asset_balances()
+        self._setup_data_stream()
+
+    def change_initial_leverage(self, symbols: List[str], leverage: int) -> None:
+        """Change initial leverage for specific symbols.
+
+        :param symbols: symbols whose initial leverage will be changed.
+        :param leverage: new leverage.
+        :return: None
+        """
+
+        for symbol in symbols:
+            params = dict()
+            params["symbol"] = symbol
+            params["leverage"] = str(leverage)
+            params["timestamp"] = str(int(time.time() * 1000))
+            params["signature"] = self._generate_authed_request_signature(params)
+
+            endpoint = "/fapi/v1/leverage"
+            response = self._make_request(
+                HTTPMethod.POST, endpoint, params, headers=self._headers
+            )
+            if not response:
+                logger.warning(
+                    "%s: could not change %s initial leverage to %s",
+                    self.display_name,
+                    symbol,
+                    leverage,
+                )
+                continue
+
+            self.symbol_leverage[symbol] = leverage
+            logger.info(
+                "%s: changed %s initial leverage to %s",
+                self.display_name,
+                symbol,
+                leverage,
+            )
