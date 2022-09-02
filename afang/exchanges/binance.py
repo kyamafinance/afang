@@ -9,8 +9,6 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
-import numpy as np
-import pandas as pd
 import websocket
 from dotenv import load_dotenv
 
@@ -480,6 +478,37 @@ class BinanceExchange(IsExchange):
         )
         self.active_orders[msg_order_id] = updated_order
 
+    def _wss_handle_candlestick_update(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that there has
+        been an update to a symbol's candlestick.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "k" not in msg_data:
+            return
+
+        candlestick_data = msg_data["k"]
+        candlestick_symbol = msg_data["ps"]
+
+        updated_candlestick = Candle(
+            open_time=int(candlestick_data["t"]),
+            open=float(candlestick_data["o"]),
+            high=float(candlestick_data["h"]),
+            low=float(candlestick_data["l"]),
+            close=float(candlestick_data["c"]),
+            volume=float(candlestick_data["q"]),
+        )
+
+        most_recent_symbol_candlestick = self.trading_price_data[candlestick_symbol][-1]
+        last_recorded_candlestick_open_time = most_recent_symbol_candlestick.open_time
+        if last_recorded_candlestick_open_time == updated_candlestick.open_time:
+            self.trading_price_data[candlestick_symbol][-1] = updated_candlestick
+        else:
+            self.trading_price_data[candlestick_symbol].append(updated_candlestick)
+            self.trading_price_data[candlestick_symbol].pop(0)
+
     def _wss_on_message(self, _ws: websocket.WebSocketApp, msg: str) -> None:
         """Runs whenever a message is received by the websocket connection.
 
@@ -502,6 +531,8 @@ class BinanceExchange(IsExchange):
             self._wss_handle_asset_balance_update(msg_data)
         elif event_type == "ORDER_TRADE_UPDATE":
             self._wss_handle_order_update(msg_data)
+        elif event_type == "continuous_kline":
+            self._wss_handle_candlestick_update(msg_data)
 
     def _fetch_wss_listen_key(self) -> Optional[str]:
         """Fetch the account's listen key and extend its validity for 60
@@ -599,13 +630,7 @@ class BinanceExchange(IsExchange):
                 len(historical_candles),
             )
 
-            # Setup historical candles dataframe.
-            historical_candles_df = pd.DataFrame(historical_candles)
-            historical_candles_df.open_time = pd.to_datetime(
-                historical_candles_df.open_time.values.astype(np.int64), unit="ms"
-            )
-            historical_candles_df.set_index("open_time", drop=True, inplace=True)
-            self.trading_price_data[symbol] = historical_candles_df
+            self.trading_price_data[symbol] = historical_candles
 
         # Open websocket connection.
         self._start_wss()

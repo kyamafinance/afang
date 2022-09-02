@@ -2,7 +2,6 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-import pandas as pd
 import requests
 
 from afang.exchanges.models import (
@@ -41,7 +40,7 @@ class IsExchange(ABC):
         self.symbol_leverage: Dict[str, int] = dict()
         self.trading_symbols: Dict[str, Symbol] = dict()
         self.trading_timeframe: Optional[Timeframe] = None
-        self.trading_price_data: Dict[str, pd.DataFrame] = dict()
+        self.trading_price_data: Dict[str, List[Candle]] = dict()
         self.active_orders: Dict[str, Order] = dict()
         self.trading_symbol_balance: Dict[str, SymbolBalance] = dict()
 
