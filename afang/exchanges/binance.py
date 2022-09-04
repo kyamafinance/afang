@@ -5,14 +5,13 @@ import logging
 import os
 import threading
 import time
-from enum import Enum
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
 import websocket
 from dotenv import load_dotenv
 
-from afang.exchanges.is_exchange import IsExchange
+from afang.exchanges.is_exchange import ExchangeTimeframeMapping, IsExchange
 from afang.exchanges.models import (
     Candle,
     HTTPMethod,
@@ -29,7 +28,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-class TimeframeMapping(Enum):
+class TimeframeMapping(ExchangeTimeframeMapping):
+    """Maps application recognized timeframe names to their corresponding
+    values on the exchange."""
+
     M1 = "1m"
     M5 = "5m"
     M15 = "15m"
@@ -600,41 +602,6 @@ class BinanceExchange(IsExchange):
         wss_listen_key_thread = threading.Thread(target=self._keep_wss_alive)
         wss_listen_key_thread.start()
 
-    def _setup_data_stream(self) -> None:
-        """Set up an exchange data stream with information on placed orders,
-        positions, account information, and candlestick data.
-
-        :return: None
-        """
-
-        for symbol in self.trading_symbols:
-            # Fetch initial historical symbol candles.
-            logger.info(
-                "%s %s: fetching initial price data candles", self.display_name, symbol
-            )
-            end_time = int(time.time() * 1000)
-            historical_candles: List[Candle] = []
-            for _ in range(1):  # Increase range for more initial price data candles.
-                candles = self.get_historical_candles(
-                    symbol, end_time=end_time, timeframe=self.trading_timeframe
-                )
-                if isinstance(candles, list) and candles:
-                    end_time = int(candles[0].open_time)
-                    historical_candles = candles + historical_candles
-                else:
-                    break
-            logger.info(
-                "%s %s: fetched %s initial price data candles",
-                self.display_name,
-                symbol,
-                len(historical_candles),
-            )
-
-            self.trading_price_data[symbol] = historical_candles
-
-        # Open websocket connection.
-        self._start_wss()
-
     def setup_exchange_for_trading(
         self, symbols: List[str], timeframe: Timeframe
     ) -> None:
@@ -645,31 +612,25 @@ class BinanceExchange(IsExchange):
         :return: None
         """
 
-        for symbol in symbols:
-            try:
-                self.trading_symbols[symbol] = self.exchange_symbols[symbol]
-            except KeyError:
-                logger.error("%s: symbol %s does not exist", self.display_name, symbol)
-                raise
+        # Populate trading symbols and timeframe.
+        self._populate_trading_symbols(symbols)
+        supported_exchange_timeframes = [tf.name for tf in TimeframeMapping]
+        self._populate_trading_timeframe(timeframe, supported_exchange_timeframes)
 
-        self.trading_timeframe = timeframe
-        exchange_supported_timeframes = [tf.name for tf in TimeframeMapping]
-        if timeframe.name not in exchange_supported_timeframes:
-            err_msg = (
-                f"{self.display_name}: timeframe {timeframe.value} not supported. "
-                f"Try a different timeframe"
-            )
-            logger.error(err_msg)
-            raise ValueError(err_msg)
-
+        # Populate initial trading symbol balances.
         self._get_asset_balances()
-        self._setup_data_stream()
+
+        # Populate initial price data.
+        self._populate_initial_trading_price_data(num_iterations=1)
+
+        # Open exchange websocket connection.
+        self._start_wss()
 
     def change_initial_leverage(self, symbols: List[str], leverage: int) -> None:
         """Change initial leverage for specific symbols.
 
         :param symbols: symbols whose initial leverage will be changed.
-        :param leverage: new leverage.
+        :param leverage: updated leverage.
         :return: None
         """
 

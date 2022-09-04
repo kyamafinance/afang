@@ -1,18 +1,21 @@
+import json
 import logging
 import os
+import threading
 import time
+from collections import defaultdict
 from datetime import datetime
-from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import dateutil.parser
 import dydx3
 import pytz
+import websocket
 from dotenv import load_dotenv
 from dydx3 import Client
 from dydx3.errors import DydxApiError
 
-from afang.exchanges.is_exchange import IsExchange
+from afang.exchanges.is_exchange import ExchangeTimeframeMapping, IsExchange
 from afang.exchanges.models import (
     Candle,
     HTTPMethod,
@@ -20,6 +23,7 @@ from afang.exchanges.models import (
     OrderSide,
     OrderType,
     Symbol,
+    SymbolBalance,
 )
 from afang.models import Mode, Timeframe
 from afang.utils.util import get_float_precision
@@ -28,7 +32,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-class TimeframeMapping(Enum):
+class TimeframeMapping(ExchangeTimeframeMapping):
+    """Maps application recognized timeframe names to their corresponding
+    values on the exchange."""
+
     M1 = "1MIN"
     M5 = "5MINS"
     M15 = "15MINS"
@@ -65,6 +72,11 @@ class DyDxExchange(IsExchange):
         # dYdX API client.
         self._account_position_id: Optional[str] = None
         self._api_client: Optional[dydx3.Client] = self._get_api_client()
+
+        self._quote_balance: Optional[float] = None
+        self._oracle_prices: Dict[str, float] = dict()
+        self._symbol_total_pos_size: Dict[str, float] = defaultdict(float)
+        self._wss: Optional[websocket.WebSocketApp] = None
 
     @classmethod
     def get_config_params(cls) -> Dict:
@@ -243,6 +255,10 @@ class DyDxExchange(IsExchange):
         """Place a new order for a specified symbol on the exchange. Returns
         the order ID if order placement was successful.
 
+        NOTE: The `price` parameter is required even for MARKET orders.
+        However, if `self.trading_price_data[symbol_name]` is populated and a MARKET
+        order is attempted, the `price` will be set to the latest close price + 100.
+
         :param symbol_name: name of symbol.
         :param side: order side.
         :param quantity: order quantity.
@@ -260,8 +276,15 @@ class DyDxExchange(IsExchange):
         order_params["side"] = side.value
         order_params["order_type"] = order_type.value
         order_params["size"] = str(quantity)
-        # TODO: If no price was provided and market order, default to current market price + 100.
-        order_params["price"] = str(price)
+        if (
+            order_type.value == "MARKET"
+            and symbol_name in self.trading_price_data
+            and self.trading_price_data[symbol_name]
+        ):
+            price_val = str(float(self.trading_price_data[symbol_name][-1].close) + 100)
+            order_params["price"] = price_val
+        if price:
+            order_params["price"] = str(price)
         order_params["expiration_epoch_seconds"] = time.time() + 604800  # 1W
         order_params["post_only"] = _kwargs.get("post_only", False)
         order_params["limit_fee"] = _kwargs.get("dydx_limit_fee", 0.0005)
@@ -297,6 +320,7 @@ class DyDxExchange(IsExchange):
 
             average_price: float = 0.0
             total_filled_quantity = sum(float(fill["size"]) for fill in fills)
+            commission = sum(float(fill["fee"]) for fill in fills)
             for fill in fills:
                 average_price += (float(fill["size"]) / total_filled_quantity) * float(
                     fill["price"]
@@ -330,6 +354,7 @@ class DyDxExchange(IsExchange):
                 order_type=order_type,
                 order_status=order["status"],
                 time_in_force=order["timeInForce"],
+                commission=commission,
             )
         except DydxApiError as dydx_api_err:
             logger.error(
@@ -362,3 +387,478 @@ class DyDxExchange(IsExchange):
             )
 
         return False
+
+    def _wss_subscribe_trades_stream(self) -> None:
+        """Subscribe to the exchange trades stream.
+
+        :return: None
+        """
+
+        for symbol in self.trading_symbols:
+            wss_data: Dict[str, Any] = dict()
+            wss_data["type"] = "subscribe"
+            wss_data["channel"] = "v3_trades"
+            wss_data["id"] = symbol
+            self._wss.send(json.dumps(wss_data))
+
+    def _wss_subscribe_markets_stream(self) -> None:
+        """Subscribe to the exchange wss markets stream.
+
+        :return: None
+        """
+
+        wss_data: Dict[str, Any] = dict()
+        wss_data["type"] = "subscribe"
+        wss_data["channel"] = "v3_markets"
+
+        self._wss.send(json.dumps(wss_data))
+
+    def _wss_subscribe_accounts_stream(self) -> None:
+        """Subscribe to the exchange wss accounts stream.
+
+        :return: None
+        """
+
+        current_time_iso = datetime.utcnow().isoformat()
+
+        endpoint = "/ws/accounts"
+        signature = self._api_client.private.sign(
+            request_path=endpoint,
+            method=HTTPMethod.GET.value,
+            iso_timestamp=current_time_iso,
+            data={},
+        )
+
+        wss_data: Dict[str, Any] = dict()
+        wss_data["type"] = "subscribe"
+        wss_data["channel"] = "v3_accounts"
+        wss_data["accountNumber"] = "0"
+        wss_data["apiKey"] = self._DYDX_API_KEY
+        wss_data["passphrase"] = self._DYDX_API_PASSPHRASE
+        wss_data["timestamp"] = current_time_iso
+        wss_data["signature"] = signature
+
+        self._wss.send(json.dumps(wss_data))
+
+    def _wss_on_open(self, _ws: websocket.WebSocketApp) -> None:
+        """Runs when the websocket connection is opened.
+
+        :param _ws: instance of websocket connection.
+        :return: None
+        """
+
+        logger.info("%s: wss connection opened", self.display_name)
+        self._wss_subscribe_trades_stream()
+        self._wss_subscribe_markets_stream()
+        self._wss_subscribe_accounts_stream()
+
+    def _wss_on_close(self, _ws: websocket.WebSocketApp) -> None:
+        """Runs when the websocket connection is closed.
+
+        :param _ws: instance of websocket connection.
+        :return: None
+        """
+
+        logger.warning("%s: wss connection closed", self.display_name)
+
+    def _wss_on_error(self, _ws: websocket.WebSocketApp, msg: str) -> None:
+        """Runs when there is an error in websocket connection.
+
+        :param _ws: instance of websocket connection.
+        :param msg: error message.
+        :return: None
+        """
+
+        logger.error("%s: wss connection error: %s", self.display_name, msg)
+
+    def _update_collateral_balance(self) -> None:
+        """Constantly updates the collateral balance value.
+
+        - collateral balance value = Q + Σ(Si × Pi) where:
+            - Q = quote balance.
+            - S = size of the position (positive if long, negative if short).
+            - P = oracle price for the market.
+
+        :return: None
+        """
+
+        while True:
+            time.sleep(5)
+
+            if not self._symbol_total_pos_size:
+                continue
+
+            if not self._quote_balance:
+                continue
+
+            total_position_value = 0.0
+            for symbol, pos_size in self._symbol_total_pos_size.items():
+                total_position_value += self._oracle_prices[symbol] * pos_size
+
+            collateral_balance = self._quote_balance + total_position_value
+            self.trading_symbol_balance["USD"] = SymbolBalance(
+                name="USD", wallet_balance=collateral_balance
+            )
+
+    def _wss_handle_oracle_price_update(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that there has
+        been an update to a market.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "contents" not in msg_data:
+            return None
+
+        msg_content = msg_data["contents"]
+
+        if "markets" in msg_content:
+            msg_content = msg_content["markets"]
+
+        for symbol_name, updated_market_info in msg_content.items():
+            if "oraclePrice" in updated_market_info:
+                self._oracle_prices[symbol_name] = float(
+                    updated_market_info["oraclePrice"]
+                )
+
+    def __wss_update_quote_balance(self, msg_data: Any) -> None:
+        """Updates the quote balance given an accounts stream wss message.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "contents" not in msg_data:
+            return None
+
+        msg_content = msg_data["contents"]
+
+        if "account" in msg_content:
+            account = msg_content["account"]
+            self._quote_balance = float(account["quoteBalance"])
+
+        if "accounts" in msg_content:
+            accounts = msg_content["accounts"]
+            account_0 = next(
+                (account for account in accounts if int(account["accountNumber"]) == 0),
+                None,
+            )
+            if account_0:
+                self._quote_balance = float(account_0["quoteBalance"])
+
+    def __wss_update_total_position_size(self, msg_data: Any) -> None:
+        """Updates the total position size of all open positions given an
+        accounts stream wss message.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "contents" not in msg_data:
+            return None
+
+        msg_content = msg_data["contents"]
+        symbol_total_pos_size: Dict[str, float] = defaultdict(float)
+
+        if "positions" not in msg_content:
+            return None
+
+        for position in msg_content["positions"]:
+            symbol_name = position["market"]
+            pos_size = float(position["size"])
+            symbol_total_pos_size[symbol_name] += pos_size
+
+        self._symbol_total_pos_size.update(symbol_total_pos_size)
+
+    def _wss_handle_collateral_balance_update(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that there has
+        been an update to the account collateral balance.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "contents" not in msg_data:
+            return None
+
+        msg_content = msg_data["contents"]
+
+        self.__wss_update_quote_balance(msg_data)
+        if not self._quote_balance:
+            return None
+
+        if "USD" not in self.trading_symbol_balance:
+            if "account" in msg_content and "equity" in msg_content["account"]:
+                equity = msg_content["account"]["equity"]
+                self.trading_symbol_balance["USD"] = SymbolBalance(
+                    name="USD", wallet_balance=float(equity)
+                )
+                return None
+
+        self.__wss_update_total_position_size(msg_data)
+
+    def _wss_handle_order_update(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that there has
+        been an update to an order.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "contents" not in msg_data:
+            return None
+
+        msg_content = msg_data["contents"]
+
+        orders = msg_content["orders"] if "orders" in msg_content else list()
+        fills = msg_content["fills"] if "fills" in msg_content else list()
+
+        for order in orders:
+            order_id = order["id"]
+
+            order_quantity = float(order["size"])
+            remaining_quantity = float(order["remainingSize"])
+            executed_quantity = order_quantity - remaining_quantity
+
+            order_side = OrderSide.UNKNOWN
+            if order["side"] == "BUY":
+                order_side = OrderSide.BUY
+            elif order["side"] == "SELL":
+                order_side = OrderSide.SELL
+
+            order_type = OrderType.UNKNOWN
+            if order["type"] == "LIMIT":
+                order_type = OrderType.LIMIT
+            elif order["type"] == "MARKET":
+                order_type = OrderType.MARKET
+
+            prev_order_commission = 0.0
+            prev_order_executed_qty = 0.0
+            prev_order_average_price = 0.0
+            if order_id in self.active_orders:
+                prev_order = self.active_orders[order_id]
+                prev_order_commission = prev_order.commission
+                prev_order_average_price = prev_order.average_price
+                prev_order_executed_qty = prev_order.executed_quantity
+
+            order_fills = [fill for fill in fills if fill["orderId"] == order_id]
+
+            average_price = prev_order_average_price
+            prev_executed_qty = prev_order_executed_qty
+            for fill in order_fills:
+                current_executed_qty = prev_executed_qty + float(fill["size"])
+                adjusted_average_price = (
+                    prev_executed_qty / current_executed_qty
+                ) * average_price
+                fill_average_price = (
+                    float(fill["size"]) / current_executed_qty
+                ) * float(fill["price"])
+                average_price = adjusted_average_price + fill_average_price
+                prev_executed_qty += float(fill["size"])
+
+            updated_commission = sum(float(fill["fee"]) for fill in order_fills)
+            updated_commission += prev_order_commission
+
+            updated_order = Order(
+                symbol=order["market"],
+                order_id=order_id,
+                side=order_side,
+                original_price=float(order["price"]),
+                average_price=average_price,
+                original_quantity=order_quantity,
+                executed_quantity=executed_quantity,
+                remaining_quantity=remaining_quantity,
+                order_type=order_type,
+                order_status=order["status"],
+                time_in_force=order["timeInForce"],
+                commission=updated_commission,
+            )
+            self.active_orders[order_id] = updated_order
+
+    def _wss_handle_candlestick_update(self, msg_data: Any) -> None:
+        """Runs when exchange websocket receives message data that there has
+        been an update to a symbol's candlestick.
+
+        :param msg_data: corresponding websocket message.
+        :return: None
+        """
+
+        if "contents" not in msg_data:
+            return None
+
+        msg_content = msg_data["contents"]
+        if "trades" not in msg_content:
+            return None
+
+        symbol_name = msg_data["id"]
+        trades = msg_content["trades"]
+
+        symbol_trading_candles = self.trading_price_data[symbol_name]
+        if len(symbol_trading_candles) < 2:
+            err_msg = (
+                f"{self.display_name}: {symbol_name} candles cannot be updated because there are"
+                f" too few initial candles"
+            )
+            logger.error(err_msg)
+            raise ValueError(err_msg)
+
+        latest_candle_open_time = symbol_trading_candles[-1].open_time
+        candle_time_difference = (
+            latest_candle_open_time - symbol_trading_candles[-2].open_time
+        )
+        next_candle_open_time = latest_candle_open_time + candle_time_difference
+        next_candle_close_time = next_candle_open_time + candle_time_difference
+
+        for trade in trades:
+            trade_time_iso = trade["createdAt"]
+            trade_time_timestamp = int(
+                dateutil.parser.isoparse(trade_time_iso).timestamp() * 1000
+            )
+            updated_candle_price = float(trade["price"])
+            updated_candle_volume = float(trade["size"])
+
+            if latest_candle_open_time <= trade_time_timestamp < next_candle_open_time:
+                # update the current candlestick.
+                self.trading_price_data[symbol_name][-1] = Candle(
+                    open_time=symbol_trading_candles[-1].open_time,
+                    open=symbol_trading_candles[-1].open,
+                    high=max(symbol_trading_candles[-1].high, updated_candle_price),
+                    low=min(symbol_trading_candles[-1].low, updated_candle_price),
+                    close=updated_candle_price,
+                    volume=symbol_trading_candles[-1].volume + updated_candle_volume,
+                )
+
+            elif next_candle_open_time <= trade_time_timestamp < next_candle_close_time:
+                # add a new candlestick.
+                self.trading_price_data[symbol_name].append(
+                    Candle(
+                        open_time=next_candle_open_time,
+                        open=updated_candle_price,
+                        high=updated_candle_price,
+                        low=updated_candle_price,
+                        close=updated_candle_price,
+                        volume=updated_candle_volume,
+                    )
+                )
+                self.trading_price_data[symbol_name].pop(0)
+
+            elif trade_time_timestamp > next_candle_close_time:
+                # missing candle(s) from persisted record.
+                logger.error(
+                    "%s: %s candles cannot be updated because candle(s) are potentially"
+                    " missing from the persisted record."
+                    " trade timestamp: %s latest candle open: %s timeframe: %s",
+                    self.display_name,
+                    symbol_name,
+                    trade_time_timestamp,
+                    latest_candle_open_time,
+                    self.trading_timeframe.value,
+                )
+
+    def _wss_on_message(self, _ws: websocket.WebSocketApp, msg: str) -> None:
+        """Runs whenever a message is received by the websocket connection.
+
+        :param _ws: instance of websocket connection.
+        :param msg: received message.
+        :return: None
+        """
+
+        msg_data = json.loads(msg)
+        if "channel" not in msg_data:
+            return None
+
+        channel_name = msg_data["channel"]
+
+        if channel_name == "v3_markets":
+            self._wss_handle_oracle_price_update(msg_data)
+        elif channel_name == "v3_accounts":
+            self._wss_handle_collateral_balance_update(msg_data)
+            self._wss_handle_order_update(msg_data)
+        elif channel_name == "v3_trades":
+            self._wss_handle_candlestick_update(msg_data)
+
+    def _start_wss(self) -> None:
+        """Open a websocket connection to the exchange.
+
+        :return: None
+        """
+
+        self._wss = websocket.WebSocketApp(
+            self._wss_url,
+            on_open=self._wss_on_open,
+            on_close=self._wss_on_close,
+            on_message=self._wss_on_message,
+            on_error=self._wss_on_error,
+        )
+        wss_thread = threading.Thread(target=self._wss.run_forever)
+        wss_thread.start()
+
+    def _populate_initial_position_sizes(self) -> None:
+        """Populate initial symbol position sizes for all open positions.
+
+        :return: None
+        """
+
+        try:
+            account = self._api_client.private.get_account()
+            account_data = account.data
+
+            if "openPositions" not in account_data["account"]:
+                return None
+
+            open_positions = account_data["account"]["openPositions"]
+            for symbol_name, open_position in open_positions.items():
+                pos_size = float(open_position["size"])
+                self._symbol_total_pos_size[symbol_name] += pos_size
+
+        except DydxApiError as dydx_api_err:
+            logger.error(
+                "DydxApiError raised when attempting to populate initial position sizes: %s",
+                dydx_api_err,
+            )
+
+    def setup_exchange_for_trading(
+        self, symbols: List[str], timeframe: Timeframe
+    ) -> None:
+        """Set up the exchange for live or demo trading.
+
+        :param symbols: exchange symbols to be traded.
+        :param timeframe: desired trading timeframe.
+        :return: None
+        """
+
+        # Populate trading symbols and timeframe.
+        self._populate_trading_symbols(symbols)
+        supported_exchange_timeframes = [tf.name for tf in TimeframeMapping]
+        self._populate_trading_timeframe(timeframe, supported_exchange_timeframes)
+
+        # Populate initial position sizes for open positions.
+        self._populate_initial_position_sizes()
+
+        # Constantly update collateral balance.
+        balance_update_thread = threading.Thread(target=self._update_collateral_balance)
+        balance_update_thread.start()
+
+        # Populate initial price data.
+        self._populate_initial_trading_price_data(num_iterations=10)
+
+        # Open exchange websocket connection.
+        self._start_wss()
+
+    def change_initial_leverage(self, symbols: List[str], leverage: int) -> None:
+        """Change initial leverage for specific symbols.
+
+        :param symbols: symbols whose initial leverage will be changed.
+        :param leverage: updated leverage.
+        :return: None
+        """
+
+        for symbol in symbols:
+            self.symbol_leverage[symbol] = leverage
+            logger.info(
+                "%s: changed %s initial leverage to %s",
+                self.display_name,
+                symbol,
+                leverage,
+            )
