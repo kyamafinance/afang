@@ -117,6 +117,14 @@ def dummy_is_exchange() -> IsExchange:
         def cancel_order(self, symbol_name: str, order_id: str) -> bool:
             return super().cancel_order(symbol_name, order_id)
 
+        def setup_exchange_for_trading(
+            self, symbols: List[str], timeframe: Timeframe
+        ) -> None:
+            return super().setup_exchange_for_trading(symbols, timeframe)
+
+        def change_initial_leverage(self, symbols: List[str], leverage: int) -> None:
+            return super().change_initial_leverage(symbols, leverage)
+
     return Dummy(
         name="test_exchange",
         mode=None,

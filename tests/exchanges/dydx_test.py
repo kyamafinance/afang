@@ -47,7 +47,10 @@ def mock_dydx_api_client():
         @classmethod
         def get_fills(cls, _market, _order_id, _limit):
             fills = {
-                "fills": [{"size": "10", "price": "11"}, {"size": "12", "price": "13"}]
+                "fills": [
+                    {"size": "10", "price": "11", "fee": 2},
+                    {"size": "12", "price": "13", "fee": 1},
+                ]
             }
             data = dict(data=fills)
             return SimpleNamespace(**data)
@@ -338,7 +341,7 @@ def test_get_order_by_id(caplog, mock_dydx_api_client, should_raise_exception) -
         order_type=OrderType.MARKET,
         order_status="OPEN",
         time_in_force="GTT",
-        commission=None,
+        commission=3,
     )
 
 

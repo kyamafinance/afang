@@ -292,3 +292,27 @@ class IsExchange(ABC):
         """
 
         return False
+
+    @abstractmethod
+    def setup_exchange_for_trading(
+        self, symbols: List[str], timeframe: Timeframe
+    ) -> None:
+        """Set up the exchange for live or demo trading.
+
+        :param symbols: exchange symbols to be traded.
+        :param timeframe: desired trading timeframe.
+        :return: None
+        """
+
+        return None
+
+    @abstractmethod
+    def change_initial_leverage(self, symbols: List[str], leverage: int) -> None:
+        """Change initial leverage for specific symbols.
+
+        :param symbols: symbols whose initial leverage will be changed.
+        :param leverage: updated leverage.
+        :return: None
+        """
+
+        return None
