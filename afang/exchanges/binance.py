@@ -555,9 +555,10 @@ class BinanceExchange(IsExchange):
 
         return response["listenKey"]
 
-    def _keep_wss_alive(self) -> None:
+    def _keep_wss_alive(self, run_forever: bool = True) -> None:
         """Periodically extend the validity period of the wss listen key.
 
+        :param run_forever: whether to continuously keep the wss alive. used for testing purposes.
         :return: None
         """
 
@@ -568,10 +569,14 @@ class BinanceExchange(IsExchange):
                     "%s: could not extend the validity of the wss listen key. Retrying...",
                     self.display_name,
                 )
+                if not run_forever:
+                    break
                 time.sleep(5)
                 continue
 
             self._wss_listen_key = wss_listen_key
+            if not run_forever:
+                break
             time.sleep(40 * 60)
 
     def _start_wss(self) -> None:
@@ -654,10 +659,10 @@ class BinanceExchange(IsExchange):
                 )
                 continue
 
-            self.symbol_leverage[symbol] = leverage
+            self.symbol_leverage[symbol] = int(response["leverage"])
             logger.info(
                 "%s: changed %s initial leverage to %s",
                 self.display_name,
                 symbol,
-                leverage,
+                int(response["leverage"]),
             )
