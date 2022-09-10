@@ -471,7 +471,7 @@ class DyDxExchange(IsExchange):
 
         logger.error("%s: wss connection error: %s", self.display_name, msg)
 
-    def _update_collateral_balance(self) -> None:
+    def _update_collateral_balance(self, run_forever: bool = True) -> None:
         """Constantly updates the collateral balance value.
 
         - collateral balance value = Q + Σ(Si × Pi) where:
@@ -479,17 +479,28 @@ class DyDxExchange(IsExchange):
             - S = size of the position (positive if long, negative if short).
             - P = oracle price for the market.
 
+        :param run_forever: whether to continuously update collateral balance. used for testing purposes.
         :return: None
         """
 
         while True:
-            time.sleep(5)
+            if run_forever:
+                time.sleep(5)
 
             if not self._symbol_total_pos_size:
-                continue
+                if run_forever:
+                    continue
+                break
 
             if not self._quote_balance:
-                continue
+                if run_forever:
+                    continue
+                break
+
+            if not self._oracle_prices:
+                if run_forever:
+                    continue
+                break
 
             total_position_value = 0.0
             for symbol, pos_size in self._symbol_total_pos_size.items():
@@ -499,6 +510,9 @@ class DyDxExchange(IsExchange):
             self.trading_symbol_balance["USD"] = SymbolBalance(
                 name="USD", wallet_balance=collateral_balance
             )
+
+            if not run_forever:
+                break
 
     def _wss_handle_oracle_price_update(self, msg_data: Any) -> None:
         """Runs when exchange websocket receives message data that there has
