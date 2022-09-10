@@ -16,7 +16,7 @@ from afang.exchanges.models import (
     Symbol,
     SymbolBalance,
 )
-from afang.models import Mode, Timeframe
+from afang.models import Timeframe
 
 
 @pytest.fixture(autouse=True)
@@ -113,7 +113,6 @@ def test_dydx_exchange_init(mocker) -> None:
 
     dydx_exchange = DyDxExchange()
     assert dydx_exchange.name == "dydx"
-    assert dydx_exchange.mode is None
     assert dydx_exchange.display_name == "dydx"
     assert dydx_exchange.testnet is False
     assert dydx_exchange._base_url == "https://api.dydx.exchange"
@@ -125,14 +124,10 @@ def test_dydx_exchange_init(mocker) -> None:
     }
 
     dydx_exchange_testnet = DyDxExchange(testnet=True)
-    assert dydx_exchange_testnet.mode is None
     assert dydx_exchange_testnet.display_name == "dydx-testnet"
     assert dydx_exchange_testnet.testnet is True
     assert dydx_exchange_testnet._base_url == "https://api.stage.dydx.exchange"
     assert dydx_exchange_testnet._wss_url == "wss://api.stage.dydx.exchange/v3/ws"
-
-    dydx_exchange_data_mode = DyDxExchange(mode=Mode.data)
-    assert dydx_exchange_data_mode.mode == Mode.data
 
 
 @pytest.mark.parametrize(
@@ -312,7 +307,6 @@ def test_get_api_client(mocker) -> None:
 @pytest.mark.parametrize("should_raise_exception", [True, False])
 def test_place_order(caplog, mock_dydx_api_client, should_raise_exception) -> None:
     dydx_exchange = DyDxExchange()
-    dydx_exchange.mode = Mode.trade
     dydx_exchange.trading_price_data["BTC-USD"] = [
         Candle(
             open_time=1,
@@ -892,6 +886,7 @@ def test_populate_initial_position_sizes(
 
 
 def test_setup_exchange_for_trading(mocker) -> None:
+    mocked_get_api_client = mocker.patch.object(DyDxExchange, "_get_api_client")
     mocked_populate_trading_symbols = mocker.patch.object(
         DyDxExchange, "_populate_trading_symbols"
     )
@@ -910,6 +905,7 @@ def test_setup_exchange_for_trading(mocker) -> None:
     dydx_exchange = DyDxExchange()
     dydx_exchange.setup_exchange_for_trading(["BTC-USD"], Timeframe.M1)
 
+    assert mocked_get_api_client.assert_called_once
     assert mocked_populate_trading_symbols.assert_called_once
     assert mocked_populate_trading_timeframe.assert_called_once
     assert mocked_populate_initial_pos_sizes.assert_called_once

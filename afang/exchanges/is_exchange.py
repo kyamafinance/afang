@@ -17,7 +17,7 @@ from afang.exchanges.models import (
     Symbol,
     SymbolBalance,
 )
-from afang.models import Mode, Timeframe
+from afang.models import Timeframe
 
 logger = logging.getLogger(__name__)
 
@@ -36,14 +36,12 @@ class IsExchange(ABC):
     def __init__(
         self,
         name: str,
-        mode: Optional[Mode],
         testnet: bool,
         base_url: str,
         wss_url: str,
     ) -> None:
         self.name = name
         self.display_name = name + "-testnet" if testnet else name
-        self.mode = mode
         self.testnet = testnet
         self._base_url = base_url
         self._wss_url = wss_url
