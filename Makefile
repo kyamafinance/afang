@@ -19,6 +19,9 @@ setup: $(VENV)/bin/activate
 run: $(VENV)/bin/activate
 	./$(PYTHON) -m afang $(ARGS)
 
+lint:
+	pre-commit run --all-files
+
 test: $(VENV)/bin/activate
 	./$(PYTHON) -m pytest --cov=afang/ tests/
 
@@ -26,4 +29,4 @@ clean:
 	rm -rf $(VENV)/
 	find . -type f -name '*.pyc' -delete
 
-.PHONY: all setup run test clean
+.PHONY: all setup run lint test clean
