@@ -25,7 +25,7 @@ from afang.exchanges.models import (
     Symbol,
     SymbolBalance,
 )
-from afang.models import Mode, Timeframe
+from afang.models import Timeframe
 from afang.utils.util import get_float_precision
 
 load_dotenv()
@@ -48,7 +48,7 @@ class TimeframeMapping(ExchangeTimeframeMapping):
 class DyDxExchange(IsExchange):
     """Interface to run exchange functions on DyDx Futures."""
 
-    def __init__(self, mode: Optional[Mode] = None, testnet: bool = False) -> None:
+    def __init__(self, testnet: bool = False) -> None:
         """
         :param testnet: whether to use the testnet version of the exchange.
         """
@@ -60,7 +60,7 @@ class DyDxExchange(IsExchange):
             base_url = "https://api.stage.dydx.exchange"
             wss_url = "wss://api.stage.dydx.exchange/v3/ws"
 
-        super().__init__(name, mode, testnet, base_url, wss_url)
+        super().__init__(name, testnet, base_url, wss_url)
 
         # dYdX exchange environment variables.
         self._DYDX_API_KEY = os.environ.get("DYDX_API_KEY")
@@ -71,7 +71,7 @@ class DyDxExchange(IsExchange):
 
         # dYdX API client.
         self._account_position_id: Optional[str] = None
-        self._api_client: Optional[dydx3.Client] = self._get_api_client()
+        self._api_client: Optional[dydx3.Client] = None
 
         self._quote_balance: Optional[float] = None
         self._oracle_prices: Dict[str, float] = dict()
@@ -204,12 +204,6 @@ class DyDxExchange(IsExchange):
         :return: Optional[dydx3.Client]
         """
 
-        # If the mode does not involve authenticated exchange operations,
-        # there is no need to attempt instantiating an API client.
-        if self.mode != Mode.trade:
-            return None
-
-        # Get API client instance.
         try:
             api_client = Client(
                 host=self._base_url,
@@ -841,6 +835,9 @@ class DyDxExchange(IsExchange):
         :param timeframe: desired trading timeframe.
         :return: None
         """
+
+        # Setup API client.
+        self._api_client = self._get_api_client()
 
         # Populate trading symbols and timeframe.
         self._populate_trading_symbols(symbols)

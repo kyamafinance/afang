@@ -17,7 +17,7 @@ from afang.exchanges.models import (
     OrderType,
     Symbol,
 )
-from afang.models import Mode, Timeframe
+from afang.models import Timeframe
 from afang.strategies.is_strategy import IsStrategy
 from afang.strategies.models import TradeLevels
 from afang.strategies.optimizer import StrategyOptimizer
@@ -66,10 +66,8 @@ def delete_optimization_records(optimization_root_dir) -> Generator:
 @pytest.fixture
 def dummy_is_exchange() -> IsExchange:
     class Dummy(IsExchange):
-        def __init__(
-            self, name: str, mode: Optional[Mode], base_url: str, wss_url: str
-        ) -> None:
-            super().__init__(name, mode, False, base_url, wss_url)
+        def __init__(self, name: str, base_url: str, wss_url: str) -> None:
+            super().__init__(name, False, base_url, wss_url)
 
         @classmethod
         def get_config_params(cls) -> Dict:
@@ -127,7 +125,6 @@ def dummy_is_exchange() -> IsExchange:
 
     return Dummy(
         name="test_exchange",
-        mode=None,
         base_url="https://dummy.com",
         wss_url="wss://dummy.com/ws",
     )
