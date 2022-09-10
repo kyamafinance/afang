@@ -217,7 +217,7 @@ def test_get_data(ohlcv_root_db_dir, dummy_is_exchange, caplog) -> None:
     ]
     expected_data_df = pd.DataFrame(data=expected_data)
     expected_data_df.set_index(pd.DatetimeIndex(ts_data), drop=True, inplace=True)
-    expected_data_df.index.name = "timestamp"
+    expected_data_df.index.name = "open_time"
 
     assert_frame_equal(data, expected_data_df, check_dtype=True)
 

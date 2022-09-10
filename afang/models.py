@@ -1,6 +1,18 @@
 from enum import Enum
 
 
+class Mode(Enum):
+    data = "data"
+    backtest = "backtest"
+    optimize = "optimize"
+    trade = "trade"
+
+
+class Exchange(Enum):
+    binance = "binance"
+    dydx = "dydx"
+
+
 class Timeframe(Enum):
     M1 = "1m"
     M3 = "3m"

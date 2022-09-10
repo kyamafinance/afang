@@ -1,4 +1,5 @@
 import argparse
+from enum import Enum
 
 import pytest
 
@@ -19,7 +20,18 @@ def mock_dydx_get_api_client(mocker):
         (["-m", "data", "-e", "unknown_exchange"], "Unknown exchange provided"),
     ],
 )
-def test_unknown_inputs(args, expected_log, caplog) -> None:
+def test_unknown_inputs(mocker, args, expected_log, caplog) -> None:
+    class MockedMode(Enum):
+        data = "data"
+        unknown_mode = "unknown_mode"
+
+    class MockedExchange(Enum):
+        dydx = "dydx"
+        unknown_exchange = "unknown_exchange"
+
+    mocker.patch("afang.cli_handler.Mode", MockedMode)
+    mocker.patch("afang.cli_handler.Exchange", MockedExchange)
+
     main(args)
 
     assert caplog.records[-1].levelname == "WARNING"

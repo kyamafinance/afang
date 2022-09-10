@@ -1,4 +1,3 @@
-import argparse
 import datetime
 import uuid
 from collections import namedtuple
@@ -453,8 +452,9 @@ def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
         "afang.strategies.backtester.StrategyAnalyzer.run_analysis", return_value=None
     )
 
-    cli_args = argparse.Namespace(symbols=[], timeframe="5m", from_time=0, to_time=0)
-    dummy_is_strategy.run_backtest(dummy_is_exchange, cli_args)
+    dummy_is_strategy.run_backtest(
+        dummy_is_exchange, [], "5m", "2021-01-01", "2022-02-02"
+    )
 
     assert mock_run_symbol_backtest.assert_called
     assert mock_run_analysis.assert_called

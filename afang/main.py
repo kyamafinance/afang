@@ -6,8 +6,9 @@ from typing import Callable, Optional
 
 import afang.strategies as strategies
 from afang.cli_handler import parse_args
-from afang.database.backtest_data_collector import fetch_historical_price_data
+from afang.database.ohlcv_data_collector import fetch_historical_price_data
 from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
+from afang.models import Exchange, Mode
 from afang.strategies.optimizer import StrategyOptimizer
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,9 @@ def get_exchange_client(parsed_args: argparse.Namespace) -> Optional[IsExchange]
     """
 
     exchange: Optional[IsExchange] = None
-    if parsed_args.exchange == "binance":
+    if parsed_args.exchange == Exchange.binance.value:
         exchange = BinanceExchange(testnet=parsed_args.testnet)
-    elif parsed_args.exchange == "dydx":
+    elif parsed_args.exchange == Exchange.dydx.value:
         exchange = DyDxExchange(testnet=parsed_args.testnet)
 
     return exchange
@@ -67,19 +68,32 @@ def main(args):
     # Get the strategy instance if one was specified.
     strategy = get_strategy_instance(parsed_args.strategy)
 
-    if parsed_args.mode == "data":
+    if parsed_args.mode == Mode.data.value:
         # If the provided mode is data, collect historical price data.
         fetch_historical_price_data(
-            exchange, parsed_args, strategy=strategy() if strategy else None
+            exchange, parsed_args.symbols, strategy=strategy() if strategy else None
         )
 
-    elif parsed_args.mode == "backtest":
+    elif parsed_args.mode == Mode.backtest.value:
         # If the mode provided is backtest, run a backtest on the provided strategy
-        strategy().run_backtest(exchange, parsed_args)
+        strategy().run_backtest(
+            exchange,
+            parsed_args.symbols,
+            parsed_args.timeframe,
+            parsed_args.from_time,
+            parsed_args.to_time,
+        )
 
-    elif parsed_args.mode == "optimize":
+    elif parsed_args.mode == Mode.optimize.value:
         # Optimize trading strategy parameters.
-        StrategyOptimizer(strategy, exchange, parsed_args).optimize()
+        StrategyOptimizer(
+            strategy,
+            exchange,
+            parsed_args.symbols,
+            parsed_args.timeframe,
+            parsed_args.from_time,
+            parsed_args.to_time,
+        ).optimize()
 
     else:
         logger.warning("Unknown mode provided: %s", parsed_args.mode)

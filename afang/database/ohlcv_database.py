@@ -160,12 +160,12 @@ class OHLCVDatabase:
         data = np.array(data)
 
         df = pd.DataFrame(
-            data, columns=["timestamp", "open", "high", "low", "close", "volume"]
+            data, columns=["open_time", "open", "high", "low", "close", "volume"]
         )
-        df = df[(df.timestamp >= from_time) & (df.timestamp <= to_time)]
+        df = df[(df.open_time >= from_time) & (df.open_time <= to_time)]
 
-        df.timestamp = pd.to_datetime(df.timestamp.values.astype(np.int64), unit="ms")
-        df.set_index("timestamp", drop=True, inplace=True)
+        df.open_time = pd.to_datetime(df.open_time.values.astype(np.int64), unit="ms")
+        df.set_index("open_time", drop=True, inplace=True)
 
         query_time = round(time.time() - query_start_time, 2)
 
@@ -224,11 +224,11 @@ class OHLCVDatabase:
         data = np.array(data)
 
         df = pd.DataFrame(
-            data, columns=["timestamp", "open", "high", "low", "close", "volume"]
+            data, columns=["open_time", "open", "high", "low", "close", "volume"]
         )
-        df.timestamp = pd.to_datetime(df.timestamp.values.astype(np.int64), unit="ms")
+        df.open_time = pd.to_datetime(df.open_time.values.astype(np.int64), unit="ms")
 
-        df["open-time-diff"] = df["timestamp"].shift(-1) - df["timestamp"]
+        df["open-time-diff"] = df["open_time"].shift(-1) - df["open_time"]
         allowed_values = {
             np.timedelta64(60000000000, "ns"),  # 1 minute
             np.timedelta64(120000000000, "ns"),  # 2 minutes

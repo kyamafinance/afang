@@ -1,4 +1,3 @@
-import argparse
 import builtins
 import copy
 import csv
@@ -97,18 +96,30 @@ class StrategyOptimizer:
     """Interface to optimize user defined strategies."""
 
     def __init__(
-        self, strategy: Callable, exchange: IsExchange, cli_args: argparse.Namespace
+        self,
+        strategy: Callable,
+        exchange: IsExchange,
+        symbols: Optional[List[str]],
+        timeframe: Optional[str],
+        from_time: Optional[str],
+        to_time: Optional[str],
     ) -> None:
         """Initialize StrategyOptimizer class.
 
         :param strategy: user defined strategy instance.
         :param exchange: exchange to use in the strategy optimization.
-        :param cli_args: command line arguments.
+        :param symbols: exchange symbols to optimization backtests on.
+        :param timeframe: timeframe to run the optimization backtests on.
+        :param from_time: desired begin time of the optimization backtests.
+        :param to_time: desired end time of the optimization backtests.
         """
 
         self.strategy = strategy
         self.exchange = exchange
-        self.cli_args = cli_args
+        self.symbols = symbols
+        self.timeframe = timeframe
+        self.from_time = from_time
+        self.to_time = to_time
         self.population_backtest_params: List[Dict] = list()
 
         self.strategy_instance = strategy()
@@ -165,7 +176,11 @@ class StrategyOptimizer:
             strategy = self.strategy()
             strategy.config["parameters"].update(backtest_profile.backtest_parameters)
             backtest_profile.backtest_analysis = strategy.run_backtest(
-                self.exchange, self.cli_args
+                self.exchange,
+                self.symbols,
+                self.timeframe,
+                self.from_time,
+                self.to_time,
             )
 
             # penalize backtest profiles that make no trades.

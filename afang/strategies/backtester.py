@@ -1,4 +1,3 @@
-import argparse
 import logging
 import time
 import uuid
@@ -441,18 +440,26 @@ class Backtester(ABC):
         )
 
     def run_backtest(
-        self, exchange: IsExchange, cli_args: argparse.Namespace
+        self,
+        exchange: IsExchange,
+        symbols: Optional[List[str]],
+        timeframe: Optional[str],
+        from_time: Optional[str],
+        to_time: Optional[str],
     ) -> Optional[List[Dict]]:
         """Run trading backtest for multiple symbols at once and return
         analysis results on the backtest.
 
         :param exchange: exchange to use to run the backtest.
-        :param cli_args: command line arguments.
+        :param symbols: exchange symbols to run backtest on.
+        :param timeframe: timeframe to run the backtest on.
+        :param from_time: desired begin time of the backtest.
+        :param to_time: desired end time of the backtest.
         :return: Optional[List[Dict]]
         """
 
         # Get symbols to backtest.
-        self.symbols = cli_args.symbols
+        self.symbols = symbols
         if not self.symbols:
             self.symbols = self.config.get("watchlist", dict()).get(exchange.name, [])
         if not self.symbols:
@@ -465,7 +472,7 @@ class Backtester(ABC):
         self.exchange = exchange
 
         # Get the backtesting timeframe.
-        self.timeframe = cli_args.timeframe
+        self.timeframe = timeframe
         if not self.timeframe:
             self.timeframe = self.config.get("timeframe", None)
         if not self.timeframe:
@@ -477,11 +484,11 @@ class Backtester(ABC):
 
         # Get the backtesting duration.
         self.backtest_from_time = 0
-        if cli_args.from_time:
-            self.backtest_from_time = time_str_to_milliseconds(cli_args.from_time)
+        if from_time:
+            self.backtest_from_time = time_str_to_milliseconds(from_time)
         self.backtest_to_time = int(time.time()) * 1000
-        if cli_args.to_time:
-            self.backtest_to_time = time_str_to_milliseconds(cli_args.to_time)
+        if to_time:
+            self.backtest_to_time = time_str_to_milliseconds(to_time)
 
         # Update the strategy config with the working parameters.
         self.config.update(
@@ -494,10 +501,10 @@ class Backtester(ABC):
         )
 
         for symbol in self.symbols:
-            if symbol not in exchange.symbols:
+            if symbol not in exchange.exchange_symbols:
                 logger.error(
                     "%s %s: provided symbol not present in the exchange",
-                    exchange.name,
+                    exchange.display_name,
                     symbol,
                 )
                 return None
