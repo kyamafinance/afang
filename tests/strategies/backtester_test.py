@@ -449,6 +449,17 @@ def test_run_symbol_backtest(
     assert len(dummy_is_strategy.backtest_data["test_symbol"].index) == 2
 
 
+def test_run_symbol_backtest_symbol_not_in_exchange(
+    caplog, dummy_is_exchange, dummy_is_strategy
+) -> None:
+    dummy_is_strategy.timeframe = "5m"
+    dummy_is_strategy.exchange = dummy_is_exchange
+    dummy_is_strategy.run_symbol_backtest("test_symbol")
+
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "provided symbol not present in the exchange" in caplog.text
+
+
 def test_run_symbol_backtest_no_ohlcv_data(
     mocker, caplog, dummy_is_strategy, dummy_is_exchange, ohlcv_db_no_data
 ) -> None:
