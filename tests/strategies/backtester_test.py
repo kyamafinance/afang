@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from afang.database.ohlcv_database import OHLCVDatabase
+from afang.exchanges.models import Symbol
 from afang.strategies.models import TradePosition
 
 
@@ -378,6 +379,19 @@ def test_handle_open_backtest_positions(
     assert test_symbol_position.holding_time == 1
 
 
+def test_handle_open_backtest_positions_same_candle(
+    dummy_is_strategy, ohlcv_row
+) -> None:
+    dummy_is_strategy.backtest_data["test_symbol"] = ohlcv_df
+    dummy_is_strategy.max_holding_candles = 2
+    dummy_is_strategy.open_long_backtest_position(
+        "test_symbol", 1, ohlcv_row.Index, 1, 1
+    )
+    dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
+
+    assert len(dummy_is_strategy.fetch_open_backtest_positions("test_symbol")) == 1
+
+
 def test_run_symbol_backtest(
     mocker, dummy_is_exchange, dummy_is_strategy, ohlcv_db
 ) -> None:
@@ -408,6 +422,15 @@ def test_run_symbol_backtest(
         "afang.strategies.backtester.Backtester.handle_open_backtest_positions"
     )
 
+    dummy_is_exchange.exchange_symbols["test_symbol"] = Symbol(
+        name="test_symbol",
+        base_asset="test",
+        quote_asset="symbol",
+        price_decimals=2,
+        quantity_decimals=2,
+        tick_size=2,
+        step_size=2,
+    )
     dummy_is_strategy.exchange = dummy_is_exchange
     dummy_is_strategy.timeframe = "5m"
     dummy_is_strategy.backtest_from_time = 0
@@ -426,6 +449,17 @@ def test_run_symbol_backtest(
     assert len(dummy_is_strategy.backtest_data["test_symbol"].index) == 2
 
 
+def test_run_symbol_backtest_symbol_not_in_exchange(
+    caplog, dummy_is_exchange, dummy_is_strategy
+) -> None:
+    dummy_is_strategy.timeframe = "5m"
+    dummy_is_strategy.exchange = dummy_is_exchange
+    dummy_is_strategy.run_symbol_backtest("test_symbol")
+
+    assert caplog.records[-1].levelname == "ERROR"
+    assert "provided symbol not present in the exchange" in caplog.text
+
+
 def test_run_symbol_backtest_no_ohlcv_data(
     mocker, caplog, dummy_is_strategy, dummy_is_exchange, ohlcv_db_no_data
 ) -> None:
@@ -433,6 +467,15 @@ def test_run_symbol_backtest_no_ohlcv_data(
         "afang.strategies.backtester.OHLCVDatabase", return_value=ohlcv_db_no_data
     )
 
+    dummy_is_exchange.exchange_symbols["test_symbol"] = Symbol(
+        name="test_symbol",
+        base_asset="test",
+        quote_asset="symbol",
+        price_decimals=2,
+        quantity_decimals=2,
+        tick_size=2,
+        step_size=2,
+    )
     dummy_is_strategy.timeframe = "5m"
     dummy_is_strategy.exchange = dummy_is_exchange
     dummy_is_strategy.run_symbol_backtest("test_symbol")

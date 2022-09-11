@@ -1,7 +1,9 @@
 import logging
+import multiprocessing
 import time
 import uuid
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -283,6 +285,10 @@ class Backtester(ABC):
         position: TradePosition
         for (position_id, position) in self.trade_positions.get(symbol, dict()).items():
 
+            # ensure that the trade position was not opened during the current candle.
+            if position.entry_time == data.Index:
+                continue
+
             # ensure that the trade position is still open.
             if not position.open_position:
                 continue
@@ -349,6 +355,14 @@ class Backtester(ABC):
         :return: None
         """
 
+        if symbol not in self.exchange.exchange_symbols:
+            logger.error(
+                "%s %s: provided symbol not present in the exchange",
+                self.exchange.display_name,
+                symbol,
+            )
+            return None
+
         logger.info(
             "%s %s %s: started backtest on the %s strategy",
             symbol,
@@ -404,7 +418,7 @@ class Backtester(ABC):
                 )
 
             # open a short position if we get a short trading signal.
-            elif (
+            if (
                 self.allow_short_positions
                 and self.is_short_trade_signal_present(row)
                 and row.Index != self.backtest_data[symbol].index.values[-1]
@@ -428,8 +442,7 @@ class Backtester(ABC):
                 )
 
             # monitor and handle all open positions.
-            else:
-                self.handle_open_backtest_positions(symbol, row)
+            self.handle_open_backtest_positions(symbol, row)
 
         logger.info(
             "%s %s %s: completed backtest on the %s strategy",
@@ -500,16 +513,9 @@ class Backtester(ABC):
             }
         )
 
-        for symbol in self.symbols:
-            if symbol not in exchange.exchange_symbols:
-                logger.error(
-                    "%s %s: provided symbol not present in the exchange",
-                    exchange.display_name,
-                    symbol,
-                )
-                return None
-
-            self.run_symbol_backtest(symbol)
+        max_workers = multiprocessing.cpu_count() - 1
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(self.run_symbol_backtest, self.symbols)
 
         # Analyze the trading strategy.
         strategy_analyzer = StrategyAnalyzer(strategy=self)
