@@ -29,7 +29,7 @@ identify==2.5.8
 idna==3.4
 iniconfig==1.1.1
 ipfshttpclient==0.8.0a2
-jsonschema==4.16.0
+jsonschema==4.17.3
 lru-dict==1.1.8
 mpmath==1.2.1
 multiaddr==0.0.9
