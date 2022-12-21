@@ -6,8 +6,9 @@ from typing import Any, Optional
 import pandas as pd
 import pytest
 
-from afang.database.ohlcv_database import OHLCVDatabase
+from afang.database.ohlcv_db.ohlcv_database import OHLCVDatabase
 from afang.exchanges.models import Symbol
+from afang.models import Timeframe
 from afang.strategies.models import TradePosition
 
 
@@ -220,7 +221,9 @@ def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
 
     dummy_is_strategy.close_backtest_position("test_symbol", "3", 50, trade_entry_time)
 
-    open_positions = dummy_is_strategy.fetch_open_backtest_positions("test_symbol")
+    open_positions = dummy_is_strategy.fetch_open_symbol_backtest_positions(
+        "test_symbol"
+    )
 
     assert len(open_positions) == 2
     assert open_positions[0].entry_price == 10
@@ -389,7 +392,9 @@ def test_handle_open_backtest_positions_same_candle(
     )
     dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
 
-    assert len(dummy_is_strategy.fetch_open_backtest_positions("test_symbol")) == 1
+    assert (
+        len(dummy_is_strategy.fetch_open_symbol_backtest_positions("test_symbol")) == 1
+    )
 
 
 def test_run_symbol_backtest(
@@ -413,7 +418,7 @@ def test_run_symbol_backtest(
         "afang.strategies.backtester.Backtester.is_short_trade_signal_present"
     )
     mocked_fetch_open_backtest_positions = mocker.patch(
-        "afang.strategies.backtester.Backtester.fetch_open_backtest_positions"
+        "afang.strategies.backtester.Backtester.fetch_open_symbol_backtest_positions"
     )
     mocked_open_short_backtest_position = mocker.patch(
         "afang.strategies.backtester.Backtester.open_short_backtest_position"
@@ -432,7 +437,7 @@ def test_run_symbol_backtest(
         step_size=2,
     )
     dummy_is_strategy.exchange = dummy_is_exchange
-    dummy_is_strategy.timeframe = "5m"
+    dummy_is_strategy.timeframe = Timeframe.M5
     dummy_is_strategy.backtest_from_time = 0
     dummy_is_strategy.backtest_to_time = 1000
     dummy_is_strategy.unstable_indicator_values = 1
@@ -452,7 +457,7 @@ def test_run_symbol_backtest(
 def test_run_symbol_backtest_symbol_not_in_exchange(
     caplog, dummy_is_exchange, dummy_is_strategy
 ) -> None:
-    dummy_is_strategy.timeframe = "5m"
+    dummy_is_strategy.timeframe = Timeframe.M5
     dummy_is_strategy.exchange = dummy_is_exchange
     dummy_is_strategy.run_symbol_backtest("test_symbol")
 
@@ -476,7 +481,7 @@ def test_run_symbol_backtest_no_ohlcv_data(
         tick_size=2,
         step_size=2,
     )
-    dummy_is_strategy.timeframe = "5m"
+    dummy_is_strategy.timeframe = Timeframe.M5
     dummy_is_strategy.exchange = dummy_is_exchange
     dummy_is_strategy.run_symbol_backtest("test_symbol")
 

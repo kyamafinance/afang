@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 import afang.strategies as strategies
 from afang.cli_handler import parse_args
-from afang.database.ohlcv_data_collector import fetch_historical_price_data
+from afang.database.ohlcv_db.ohlcv_data_collector import fetch_historical_price_data
 from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
 from afang.models import Exchange, Mode
 from afang.strategies.optimizer import StrategyOptimizer
@@ -94,6 +94,12 @@ def main(args):
             parsed_args.from_time,
             parsed_args.to_time,
         ).optimize()
+
+    elif parsed_args.mode == Mode.trade.value:
+        # Run the trader on the provided strategy.
+        strategy().run_trader(
+            exchange, parsed_args.symbols, parsed_args.timeframe, demo_mode=True
+        )
 
     else:
         logger.warning("Unknown mode provided: %s", parsed_args.mode)

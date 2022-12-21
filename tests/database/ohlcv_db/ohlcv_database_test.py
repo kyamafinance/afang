@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
-from afang.database.ohlcv_database import OHLCVDatabase
+from afang.database.ohlcv_db.ohlcv_database import OHLCVDatabase
 from afang.exchanges.models import Candle
 
 
@@ -122,7 +122,7 @@ def test_write_to_dataset(
         return min_ts, max_ts
 
     mocker.patch(
-        "afang.database.ohlcv_database.OHLCVDatabase.get_min_max_timestamp",
+        "afang.database.ohlcv_db.ohlcv_database.OHLCVDatabase.get_min_max_timestamp",
         mock_get_min_max_timestamp,
     )
 

@@ -81,9 +81,9 @@ class IsExchange(ABC):
         query_parameters: Dict,
         headers: Optional[Dict] = None,
     ) -> Any:
-        """Make an unauthenticated GET request to the exchange. If the request
-        is successful, a JSON object instance will be returned. If the request
-        in unsuccessful, None will be returned.
+        """Make an HTTP request to the exchange. If the request is successful,
+        a JSON object instance will be returned. If the request in
+        unsuccessful, None will be returned.
 
         :param method: HTTP method to be used to make the request.
         :param endpoint: the URL path of the associated GET request.
@@ -261,8 +261,8 @@ class IsExchange(ABC):
         :param price: optional. order price.
         :param _kwargs:
             post_only bool: order will only be allowed if it will enter the order book.
-                            NOTE: post_only orders may override the time in force if specified.
-            dydx_limit_fee: float: highest accepted fee for the trade on the dYdX exchange.
+                            NOTE: post_only orders may override the time in force if specified (Binance).
+            dydx_limit_fee: Optional[float]: highest accepted fee for the trade on the dYdX exchange.
         :return: Optional[str]
         """
 

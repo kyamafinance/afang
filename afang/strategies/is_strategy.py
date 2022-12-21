@@ -8,11 +8,12 @@ import yaml
 
 from afang.strategies.backtester import Backtester
 from afang.strategies.models import TradeLevels
+from afang.strategies.trader import Trader
 
 logger = logging.getLogger(__name__)
 
 
-class IsStrategy(Backtester):
+class IsStrategy(Backtester, Trader):
     """Base interface for a user supported strategy."""
 
     @abstractmethod
@@ -23,6 +24,7 @@ class IsStrategy(Backtester):
         """
 
         Backtester.__init__(self, strategy_name)
+        Trader.__init__(self, strategy_name)
 
         self.strategy_name = strategy_name
         self.allow_long_positions = True

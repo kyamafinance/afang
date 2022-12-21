@@ -246,33 +246,43 @@ def test_place_order(mocker, response) -> None:
 
 
 @pytest.mark.parametrize(
-    "response",
+    "response, expected_commission",
     [
-        None,
-        {
-            "origQty": "10",
-            "executedQty": "5",
-            "side": "BUY",
-            "type": "MARKET",
-            "price": "15",
-            "avgPrice": "12",
-            "status": "PARTIALLY_FILLED",
-            "timeInForce": "GTC",
-        },
-        {
-            "origQty": "10",
-            "executedQty": "5",
-            "side": "SELL",
-            "type": "LIMIT",
-            "price": "15",
-            "avgPrice": "12",
-            "status": "PARTIALLY_FILLED",
-            "timeInForce": "GTC",
-        },
+        (None, None),
+        (
+            {
+                "origQty": "10",
+                "executedQty": "5",
+                "side": "BUY",
+                "type": "MARKET",
+                "price": "15",
+                "avgPrice": "12",
+                "status": "PARTIALLY_FILLED",
+                "timeInForce": "GTC",
+            },
+            0.024,
+        ),
+        (
+            {
+                "origQty": "10",
+                "executedQty": "10",
+                "side": "SELL",
+                "type": "LIMIT",
+                "price": "15",
+                "avgPrice": "12",
+                "status": "FILLED",
+                "timeInForce": "GTC",
+            },
+            0.048,
+        ),
     ],
 )
-def test_get_order_by_id(mocker, response) -> None:
+def test_get_order_by_id(mocker, response, expected_commission) -> None:
     mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+    mocker.patch(
+        "afang.exchanges.binance.BinanceExchange.get_user_commission_rate",
+        return_value=0.0004,
+    )
     mocked_make_request = mocker.patch(
         "afang.exchanges.binance.BinanceExchange._make_request", return_value=response
     )
@@ -318,7 +328,7 @@ def test_get_order_by_id(mocker, response) -> None:
         order_type=order_type,
         order_status=response["status"],
         time_in_force=response["timeInForce"],
-        commission=None,
+        commission=expected_commission,
     )
 
 
@@ -404,6 +414,7 @@ def test_subscribe_wss_candlestick_stream() -> None:
 
 
 def test_wss_on_open(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     mocked_subscribe_wss_candlestick_stream = mocker.patch(
         "afang.exchanges.binance.BinanceExchange._subscribe_wss_candlestick_stream"
     )
@@ -416,7 +427,9 @@ def test_wss_on_open(mocker, caplog) -> None:
     assert mocked_subscribe_wss_candlestick_stream.assert_called_once
 
 
-def test_wss_on_close(caplog) -> None:
+def test_wss_on_close(caplog, mocker) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+
     binance_exchange = BinanceExchange()
     binance_exchange._wss_on_close(websocket.WebSocketApp("fake-url"))
 
@@ -440,7 +453,9 @@ def test_wss_handle_listen_key_expired(caplog) -> None:
     assert "wss listen key expired" in caplog.text
 
 
-def test_wss_handle_margin_call(caplog) -> None:
+def test_wss_handle_margin_call(caplog, mocker) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+
     binance_exchange = BinanceExchange()
     binance_exchange._wss_handle_margin_call({"p": [{"s": "BTC"}, {"s": "ETH"}]})
 

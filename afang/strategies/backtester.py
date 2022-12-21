@@ -9,8 +9,9 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from afang.database.ohlcv_database import OHLCVDatabase
+from afang.database.ohlcv_db.ohlcv_database import OHLCVDatabase
 from afang.exchanges import IsExchange
+from afang.models import Timeframe
 from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.models import TradeLevels, TradePosition
 from afang.utils.util import resample_timeframe, time_str_to_milliseconds
@@ -31,11 +32,9 @@ class Backtester(ABC):
         self.strategy_name: str = strategy_name
         self.allow_long_positions: bool = True
         self.allow_short_positions: bool = True
-        self.timeframe: Optional[str] = None
+        self.timeframe: Optional[Timeframe] = None
         self.symbols: Optional[List[str]] = None
         self.exchange: Optional[IsExchange] = None
-        self.backtest_to_time: Optional[int] = None
-        self.backtest_from_time: Optional[int] = None
         # leverage to use per trade.
         self.leverage: int = 1
         # exchange order fee as a percentage of the trade principal.
@@ -46,8 +45,6 @@ class Backtester(ABC):
         self.unstable_indicator_values: int = 0
         # maximum number of candles for a single trade.
         self.max_holding_candles: int = 100
-        # account initial balance - will be constantly updated to match current account balance.
-        self.current_backtest_balance: float = 10000
         # percentage of current account balance to risk per trade.
         self.percentage_risk_per_trade: float = 2
         # maximum amount to invest per trade.
@@ -57,6 +54,12 @@ class Backtester(ABC):
         self.allow_multiple_open_positions: bool = True
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
         self.config: Dict = dict()
+
+        # --Unique to Backtester (not in Trader)
+        self.backtest_to_time: Optional[int] = None
+        self.backtest_from_time: Optional[int] = None
+        # account initial balance - will be constantly updated to match current account balance.
+        self.current_backtest_balance: float = 10000
         # backtest data that initially contains OHLCV data.
         self.backtest_data: Dict = dict()
         # backtest trade positions.
@@ -142,7 +145,7 @@ class Backtester(ABC):
             self.trade_positions[symbol] = dict()
         self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
 
-    def fetch_open_backtest_positions(self, symbol: str) -> List[TradePosition]:
+    def fetch_open_symbol_backtest_positions(self, symbol: str) -> List[TradePosition]:
         """Fetch a list of all open backtest positions for a given symbol.
 
         :param symbol: symbol to fetch open positions for.
@@ -151,7 +154,7 @@ class Backtester(ABC):
 
         open_positions = list()
         position: TradePosition
-        for (_, position) in self.trade_positions.get(symbol, dict()).items():
+        for position in self.trade_positions.get(symbol, dict()).values():
             if position.open_position:
                 open_positions.append(position)
 
@@ -367,7 +370,7 @@ class Backtester(ABC):
             "%s %s %s: started backtest on the %s strategy",
             symbol,
             self.exchange.display_name,
-            self.timeframe,
+            self.timeframe.value,
             self.strategy_name,
         )
 
@@ -380,12 +383,12 @@ class Backtester(ABC):
                 "%s %s %s: unable to get price data for the %s strategy",
                 symbol,
                 self.exchange.display_name,
-                self.timeframe,
+                self.timeframe.value,
                 self.strategy_name,
             )
             return None
 
-        resampled_ohlcv_data = resample_timeframe(ohlcv_data, self.timeframe)
+        resampled_ohlcv_data = resample_timeframe(ohlcv_data, self.timeframe.value)
 
         # generate trading features.
         populated_ohlcv_data = self.generate_features(resampled_ohlcv_data)
@@ -404,7 +407,7 @@ class Backtester(ABC):
                 # only open a position if multiple open positions are allowed or
                 # there is no open position.
                 if not self.allow_multiple_open_positions and len(
-                    self.fetch_open_backtest_positions(symbol)
+                    self.fetch_open_symbol_backtest_positions(symbol)
                 ):
                     continue
 
@@ -426,7 +429,7 @@ class Backtester(ABC):
                 # only open a position if multiple open positions are allowed or
                 # there is no open position.
                 if not self.allow_multiple_open_positions and len(
-                    self.fetch_open_backtest_positions(symbol)
+                    self.fetch_open_symbol_backtest_positions(symbol)
                 ):
                     continue
 
@@ -448,7 +451,7 @@ class Backtester(ABC):
             "%s %s %s: completed backtest on the %s strategy",
             symbol,
             self.exchange.display_name,
-            self.timeframe,
+            self.timeframe.value,
             self.strategy_name,
         )
 
@@ -485,13 +488,22 @@ class Backtester(ABC):
         self.exchange = exchange
 
         # Get the backtesting timeframe.
-        self.timeframe = timeframe
-        if not self.timeframe:
-            self.timeframe = self.config.get("timeframe", None)
-        if not self.timeframe:
+        if not timeframe:
+            timeframe = self.config.get("timeframe", None)
+        if not timeframe:
             logger.warning(
                 "%s: timeframe not defined for the strategy backtest",
                 self.strategy_name,
+            )
+            return None
+        # Ensure the trading timeframe is supported.
+        try:
+            self.timeframe = Timeframe(timeframe)
+        except ValueError:
+            logger.warning(
+                "%s: invalid timeframe %s defined for the strategy backtest",
+                self.strategy_name,
+                timeframe,
             )
             return None
 
@@ -506,7 +518,7 @@ class Backtester(ABC):
         # Update the strategy config with the working parameters.
         self.config.update(
             {
-                "timeframe": self.timeframe,
+                "timeframe": self.timeframe.value,
                 "exchange": self.exchange,
                 "backtest_from_time": self.backtest_from_time,
                 "backtest_to_time": self.backtest_to_time,

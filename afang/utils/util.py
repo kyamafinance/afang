@@ -1,4 +1,5 @@
 import logging
+import math
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -77,3 +78,17 @@ def get_float_precision(input_float: float) -> int:
         return len(split_input_float[1])
 
     return 0
+
+
+def round_float_to_precision(input_val: float, precision: float) -> float:
+    """Round a floating point number to a given precision.
+
+    :param input_val: floating point number to round.
+    :param precision: intended precision.
+    :return: float
+    """
+
+    precision = int(round(-math.log(precision, 10), 0))
+    precise_value = float(round(input_val, precision))
+
+    return precise_value
