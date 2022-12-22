@@ -227,6 +227,16 @@ class Trader(ABC):
         position_open_order = self.exchange.active_orders.get(
             position.open_order_id, None
         )
+        if not position_open_order:
+            logger.error(
+                "%s %s: could not find position open order. position id: %s. open order id: %s",
+                self.exchange.display_name,
+                position.symbol,
+                position.id,
+                position.open_order_id,
+            )
+            return float()
+
         close_order_quantity = position_open_order.executed_quantity
         position_last_close_order = self.exchange.active_orders.get(
             position.final_close_order_id, None
@@ -386,6 +396,7 @@ class Trader(ABC):
         """
 
         updated_order: Dict[str, Any] = dict()
+        updated_order["complete"] = True
         updated_order["time_in_force"] = order.time_in_force
         updated_order["average_price"] = order.average_price
         updated_order["executed_quantity"] = order.executed_quantity
@@ -395,102 +406,57 @@ class Trader(ABC):
 
         self.update_db_order(order.symbol, db_order.id, updated_order, trades_database)
 
-    def cancel_position_open_order(
-        self, position: DBTradePosition, trades_database: TradesDatabase
+    def cancel_position_order(
+        self, exchange_order_id: str, trades_database: TradesDatabase
     ) -> None:
-        """Cancel a position open order if some/all of its quantity is un-
-        executed and update order details in DB.
+        """Cancel a position order if some/all of its quantity is un- executed
+        and mark the order as completed in the DB.
 
-        :param position: position whose open order is to be canceled.
+        :param exchange_order_id: exchange order ID of the order to be canceled.
         :param trades_database: TradesDatabase instance.
         :return: None
         """
 
-        position_open_order = self.exchange.active_orders.get(
-            position.open_order_id, None
+        db_position_order = trades_database.fetch_order_by_exchange_id(
+            exchange_order_id
         )
-        if not position_open_order:
+        if not db_position_order:
             logger.error(
-                "%s %s: position open order not canceled because open order was not found on the exchange. ,"
-                "position id: %s. open order id: %s",
-                self.exchange.display_name,
-                position.symbol,
-                position.id,
-                position.open_order_id,
+                "%s %s: position order not cancelled because it was not found in the DB. exchange order id: %s",
+                exchange_order_id,
             )
             return None
 
-        if position_open_order.remaining_quantity:
-            logger.info(
-                "%s %s: attempting to cancel position open order due to partly un-executed qty. "
-                "position id: %s. open order id: %s",
-                self.exchange.display_name,
-                position.symbol,
-                position.id,
-                position.open_order_id,
-            )
-            self.exchange.cancel_order(position.symbol, order_id=position.open_order_id)
+        if db_position_order.complete:
+            return None
 
-        filters = (
-            DBOrder.is_open_order is True,
-            DBOrder.order_id == position.open_order_id,
+        exchange_position_order = self.exchange.active_orders.get(
+            exchange_order_id, None
         )
-        db_position_open_order = trades_database.fetch_orders(filters, limit=1)
-        if not db_position_open_order:
+        if not exchange_position_order:
             logger.error(
-                "%s %s: position open order not updated because it was not found in the DB. "
-                "open order id: %s",
-                position.open_order_id,
+                "%s %s: position order not canceled because order was not found on the exchange. "
+                "exchange order id: %s",
+                self.exchange.display_name,
+                db_position_order.symbol,
+                exchange_order_id,
             )
             return None
-        self.update_closed_order_in_db(
-            position_open_order, db_position_open_order[0], trades_database
-        )
 
-    def cancel_position_last_close_order(
-        self, position: DBTradePosition, trades_database: TradesDatabase
-    ) -> None:
-        """Cancel a position's last close order if one exists and some/all of
-        its quantity is un-executed.
-
-        :param position: position whose last close order is to be canceled.
-        :param trades_database: TradesDatabase instance.
-        :return: None
-        """
-
-        position_last_close_order = self.exchange.active_orders.get(
-            position.final_close_order_id, None
-        )
-        if not position_last_close_order:
-            return None
-
-        if position_last_close_order.remaining_quantity:
+        if exchange_position_order.remaining_quantity:
             logger.info(
-                "%s %s: attempting to cancel position last close order due to partly un-executed qty. "
-                "position id: %s. last close order id: %s",
+                "%s %s: attempting to cancel position order due to partly un-executed qty. "
+                "exchange order id: %s",
                 self.exchange.display_name,
-                position.symbol,
-                position.id,
-                position.final_close_order_id,
+                exchange_position_order.symbol,
+                exchange_order_id,
             )
             self.exchange.cancel_order(
-                position.symbol, order_id=position.final_close_order_id
+                exchange_position_order.symbol, order_id=exchange_order_id
             )
 
-        filters = (
-            DBOrder.is_open_order is False,
-            DBOrder.order_id == position.final_close_order_id,
-        )
-        db_position_last_close_order = trades_database.fetch_orders(filters, limit=1)
-        if not db_position_last_close_order:
-            logger.error(
-                "%s %s: position last close order not updated because it was not found in the DB. "
-                "order id: %s",
-                position.final_close_order_id,
-            )
-            return None
         self.update_closed_order_in_db(
-            position_last_close_order, db_position_last_close_order[0], trades_database
+            exchange_position_order, db_position_order, trades_database
         )
 
     def is_order_filled(self, order_id: str) -> bool:
@@ -772,8 +738,9 @@ class Trader(ABC):
             close_order_id,
         )
 
-        self.cancel_position_open_order(position, trades_database)
-        self.cancel_position_last_close_order(position, trades_database)
+        self.cancel_position_order(position.open_order_id, trades_database)
+        if position.final_close_order_id:
+            self.cancel_position_order(position.final_close_order_id, trades_database)
 
         new_close_order = DBOrder(
             symbol=symbol,

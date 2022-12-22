@@ -59,7 +59,7 @@ class TradesDatabase:
         """Fetch a trade position by ID from the trades' database.
 
         :param position_id: ID of the position to be fetched.
-        :return: TradePosition
+        :return: Optional[TradePosition]
         """
 
         trade_position = (
@@ -105,6 +105,36 @@ class TradesDatabase:
         """
 
         self.session.query(Order).filter(Order.id == order_id).update(updated_fields)
+
+    def fetch_order_by_id(self, db_order_id: int) -> Optional[Order]:
+        """Fetch an order by ID from the trades' database.
+
+        :param db_order_id: DB ID of the order to be fetched.
+        :return: Optional[Order]
+        """
+
+        order = (
+            self.session.query(TradePosition).filter(Order.id == db_order_id).first()
+        )
+        if not order:
+            logger.info("Order not found in DB. id: %s", db_order_id)
+
+        return order
+
+    def fetch_order_by_exchange_id(self, order_id: str) -> Optional[Order]:
+        """Fetch an order by exchange order ID from the trades' database.
+
+        :param order_id: exchange order ID of the order to be fetched.
+        :return: Optional[Order]
+        """
+
+        order = (
+            self.session.query(TradePosition).filter(Order.order_id == order_id).first()
+        )
+        if not order:
+            logger.info("Order not found in DB. exchange order id: %s", order_id)
+
+        return order
 
     def fetch_orders(self, filters: Tuple = tuple(), limit: int = -1) -> List[Order]:
         """Fetch multiple orders from the trades' database.

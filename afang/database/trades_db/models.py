@@ -57,5 +57,6 @@ class Order(Base):
     remaining_quantity = Column(Float, nullable=True)
     order_status = Column(String, nullable=True)
     commission = Column(Float, nullable=True)
+    complete = Column(Boolean, default=False)
     trade_position_id = Column(Integer, ForeignKey("position.id"))
     position = relationship("TradePosition", back_populates="orders")
