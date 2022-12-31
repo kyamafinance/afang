@@ -68,7 +68,9 @@ class TradesDatabase:
             .first()
         )
         if not trade_position:
-            logger.info("Trade position not found in DB. position id: %s", position_id)
+            logger.warning(
+                "Trade position not found in DB. position id: %s", position_id
+            )
 
         return trade_position
 
@@ -117,7 +119,7 @@ class TradesDatabase:
             self.session.query(TradePosition).filter(Order.id == db_order_id).first()
         )
         if not order:
-            logger.info("Order not found in DB. id: %s", db_order_id)
+            logger.warning("Order not found in DB. id: %s", db_order_id)
 
         return order
 
@@ -132,7 +134,7 @@ class TradesDatabase:
             self.session.query(TradePosition).filter(Order.order_id == order_id).first()
         )
         if not order:
-            logger.info("Order not found in DB. exchange order id: %s", order_id)
+            logger.warning("Order not found in DB. exchange order id: %s", order_id)
 
         return order
 

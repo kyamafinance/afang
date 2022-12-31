@@ -4,6 +4,7 @@ import queue
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -409,7 +410,7 @@ class Trader(ABC):
     def cancel_position_order(
         self, exchange_order_id: str, trades_database: TradesDatabase
     ) -> None:
-        """Cancel a position order if some/all of its quantity is un- executed
+        """Cancel a position order if some/all of its quantity is un-executed
         and mark the order as completed in the DB.
 
         :param exchange_order_id: exchange order ID of the order to be canceled.
@@ -459,20 +460,33 @@ class Trader(ABC):
             exchange_position_order, db_position_order, trades_database
         )
 
-    def is_order_filled(self, order_id: str) -> bool:
+    def is_order_filled(self, order_exchange_id: str) -> bool:
         """
-        Returns a bool whether an order has been filled or not.
+        Returns a bool on whether an order has been filled or not.
         NOTE: Even a partial order fill will return true.
 
-        :param order_id: ID of the order to query.
+        :param order_exchange_id: exchange ID of the order to query.
         :return: bool
         """
 
-        order = self.exchange.active_orders.get(order_id, None)
+        order = self.exchange.active_orders.get(order_exchange_id, None)
         if order and order.executed_quantity:
             return True
 
         return False
+
+    def get_order_average_price(self, order_exchange_id: str) -> float:
+        """Get the average price of a given order.
+
+        :param order_exchange_id: order exchange ID.
+        :return: float
+        """
+
+        order = self.exchange.active_orders.get(order_exchange_id, None)
+        if not order:
+            return float()
+
+        return order.average_price
 
     def get_symbol_ohlcv_candles_df(self, symbol: str) -> Optional[pd.DataFrame]:
         """Get a symbol's OHLCV candles as a dataframe.
@@ -527,6 +541,177 @@ class Trader(ABC):
 
         return current_candle_data
 
+    @classmethod
+    def get_position_total_commission(cls, position: DBTradePosition) -> float:
+        """Get the total commission accrued by a given trade position.
+
+        :param position: database trade position.
+        :return: float
+        """
+
+        total_commission = float()
+
+        position_order: DBOrder
+        for position_order in position.orders:
+            total_commission += position_order.commission
+
+        return total_commission
+
+    @classmethod
+    def get_position_total_slippage(cls, position: DBTradePosition) -> float:
+        """Get the total slippage for a given trade position.
+
+        :param position: database trade position.
+        :return: float
+        """
+
+        total_slippage = float()
+
+        position_order: DBOrder
+        for position_order in position.orders:
+            price_execution_difference = (
+                position_order.average_price - position_order.original_price
+            )
+            order_slippage = (
+                price_execution_difference
+                * position_order.executed_quantity
+                * position_order.direction
+            )
+            total_slippage += order_slippage
+
+        return total_slippage
+
+    @classmethod
+    def get_position_executed_qty(cls, position: DBTradePosition) -> float:
+        """Get the total executed quantity for a given trade position.
+
+        :param position: database trade position.
+        :return: float
+        """
+
+        total_executed_qty = float()
+
+        position_order: DBOrder
+        for position_order in position.orders:
+            if not position_order.is_open_order:
+                total_executed_qty += position_order.executed_quantity
+
+        return total_executed_qty
+
+    def get_position_close_price(self, position: DBTradePosition) -> float:
+        """Get the average close price for a given trade position.
+
+        :param position: database trade position.
+        :return: float
+        """
+
+        position_close_price = float()
+
+        position_executed_qty = self.get_position_executed_qty(position)
+
+        position_order: DBOrder
+        for position_order in position.orders:
+            if not position_order.is_open_order:
+                position_close_price += position_order.average_price * (
+                    position_order.executed_quantity / position_executed_qty
+                )
+
+        return position_close_price
+
+    def get_position_pnl(self, position: DBTradePosition) -> float:
+        """Get the PnL of a given trade position.
+
+        :param position: database trade position.
+        :return: float
+        """
+
+        position_pnl = float()
+
+        position_order: DBOrder
+        for position_order in position.orders:
+            order_size = position_order.average_price * position_order.executed_quantity
+            if position_order.is_open_order:
+                order_size *= -1
+            position_pnl += order_size
+
+        position_pnl *= position.direction
+        position_pnl -= self.get_position_total_commission(position)
+
+        return position_pnl
+
+    def get_position_roe(
+        self,
+        trades_database: TradesDatabase,
+        position: DBTradePosition,
+        cost_adjusted: bool = False,
+    ) -> float:
+        """Get the ROE of a given trade position.
+
+        :param trades_database: TradesDatabase instance.
+        :param position: database trade position.
+        :param cost_adjusted: whether to calculate the cost adjusted ROE i.e. inclusive of commission.
+        :return: float
+        """
+
+        position_pnl = self.get_position_pnl(position)
+        if cost_adjusted:
+            position_pnl -= self.get_position_total_commission(position)
+
+        open_position_order = trades_database.fetch_order_by_exchange_id(
+            position.open_order_id
+        )
+        if not open_position_order:
+            logger.error(
+                "%s %s: could not calculate position ROE because the open order could not be found. "
+                "open order id: %s",
+                self.exchange.display_name,
+                position.symbol,
+                position.open_order_id,
+            )
+            return float()
+
+        open_order_size = (
+            open_position_order.executed_quantity * open_position_order.average_price
+        )
+
+        roe = (position_pnl / open_order_size) * 100.0
+        return roe
+
+    def close_trade_position(
+        self, position: DBTradePosition, trades_database: TradesDatabase
+    ) -> None:
+        """Mark a trade position as closed in the DB.
+
+        :param position: database trade position.
+        :param trades_database: TradesDatabase instance.
+        :return: None
+        """
+
+        quote_asset_balance = self.get_quote_asset_balance(position.symbol)
+        if not quote_asset_balance:
+            return None
+
+        trade_position: Dict[str, Any] = dict()
+        trade_position["open_position"] = False
+        trade_position["exit_time"] = datetime.utcnow()
+        trade_position["pnl"] = self.get_position_pnl(position)
+        trade_position["slippage"] = self.get_position_total_slippage(position)
+        trade_position["close_price"] = self.get_position_close_price(position)
+        trade_position["roe"] = self.get_position_roe(trades_database, position)
+        trade_position["executed_qty"] = self.get_position_executed_qty(position)
+        trade_position["commission"] = self.get_position_total_commission(position)
+        trade_position["final_account_balance"] = quote_asset_balance.wallet_balance
+        trade_position["cost_adjusted_roe"] = self.get_position_roe(
+            trades_database, position, cost_adjusted=True
+        )
+
+        self.update_db_trade_position(
+            position.symbol,
+            position.id,
+            trade_position,
+            trades_database,
+        )
+
     def open_trade_position(
         self,
         symbol: str,
@@ -548,7 +733,8 @@ class Trader(ABC):
         """
 
         logger.info(
-            "%s %s: attempting to open a new trade position. entry price: %s. target price: %s. stop price: %s",
+            "%s %s: attempting to open a new trade position. "
+            "entry price: %s. target price: %s. stop price: %s",
             self.exchange.display_name,
             symbol,
             round(desired_entry_price, 4),
@@ -623,6 +809,7 @@ class Trader(ABC):
         position_open_order = DBOrder(
             symbol=symbol,
             is_open_order=True,
+            direction=direction,
             order_id=open_order_id,
             order_side=open_order_side.value,
             original_price=desired_entry_price,
@@ -653,7 +840,8 @@ class Trader(ABC):
         """
 
         logger.info(
-            "%s %s: attempting to place a close trade position order. position id: %s. close price: %s",
+            "%s %s: attempting to place a close trade position order. "
+            "position id: %s. close price: %s",
             self.exchange.display_name,
             symbol,
             position_id,
@@ -745,6 +933,7 @@ class Trader(ABC):
         new_close_order = DBOrder(
             symbol=symbol,
             is_open_order=False,
+            direction=direction,
             order_id=close_order_id,
             order_side=close_order_side.value,
             original_price=close_price,
@@ -757,13 +946,17 @@ class Trader(ABC):
         updated_trade_position: Dict[str, Any] = dict()
         updated_trade_position["final_close_order_id"] = close_order_id
         updated_trade_position["final_desired_close_price"] = close_price
+        if not position.final_close_order_id:
+            updated_trade_position["entry_time"] = datetime.utcnow()
+            updated_trade_position["entry_price"] = self.get_order_average_price(
+                position.open_order_id
+            )
         self.update_db_trade_position(
             symbol, position_id, updated_trade_position, trades_database
         )
 
     def handle_open_trade_positions(
         self,
-        symbol: str,
         current_candle_data: Any,
         open_symbol_positions: List[DBTradePosition],
         trades_database: TradesDatabase,
@@ -771,7 +964,6 @@ class Trader(ABC):
         """Monitor and handle open positions for a given symbol and place close
         trade position orders if they hit a trade barrier.
 
-        :param symbol: symbol to monitor open positions for.
         :param current_candle_data: the current trading candle data.
         :param open_symbol_positions: open positions for the given symbol.
         :param trades_database: TradesDatabase instance.
@@ -857,6 +1049,7 @@ class Trader(ABC):
             # TODO: If the position has not yet been filled - even partially - but
             #  has been open for more than *holding time*, close it.
 
+            # Attempt to place close position order if needed.
             if should_close_position:
                 # Ensure that a similar close position order is not already present for the position.
                 if (
@@ -866,12 +1059,60 @@ class Trader(ABC):
                     continue
 
                 self.place_close_trade_position_order(
-                    symbol,
+                    position.symbol,
                     position.id,
                     position.direction,
                     desired_close_price,
                     trades_database,
                 )
+
+    def handle_finalized_trade_positions(
+        self,
+        open_symbol_positions: List[DBTradePosition],
+        trades_database: TradesDatabase,
+    ) -> None:
+        """Monitor and handle trade positions that have been finalized on the
+        exchange but have not been marked as completed in the trade database.
+
+        :param open_symbol_positions: open positions for the given symbol.
+        :param trades_database: TradesDatabase instance.
+        :return: None
+        """
+
+        for position in open_symbol_positions:
+            # ensure that the trade position is still open.
+            if not position.open_position:
+                continue
+
+            # ensure that the trade position has a close position order.
+            if not position.final_close_order_id:
+                continue
+
+            final_exchange_close_order = self.exchange.active_orders.get(
+                position.final_close_order_id, None
+            )
+            if not final_exchange_close_order:
+                return None
+
+            final_db_close_order = trades_database.fetch_order_by_exchange_id(
+                position.final_close_order_id
+            )
+            if not final_db_close_order:
+                return None
+
+            # check if the trade position is finalized on the exchange.
+            if not final_exchange_close_order.remaining_quantity:
+                logger.info(
+                    "%s %s: attempting to close a trade position. position id: %s",
+                    self.exchange.display_name,
+                    position.symbol,
+                    position.id,
+                )
+
+                self.update_closed_order_in_db(
+                    final_exchange_close_order, final_db_close_order, trades_database
+                )
+                self.close_trade_position(position, trades_database)
 
     def run_symbol_trader(self, symbol: str) -> None:
         """Run trader on a single symbol.
@@ -940,8 +1181,9 @@ class Trader(ABC):
 
         # monitor and handle all open symbol positions.
         self.handle_open_trade_positions(
-            symbol, current_candle_data, symbol_open_positions, trades_database
+            current_candle_data, symbol_open_positions, trades_database
         )
+        self.handle_finalized_trade_positions(symbol_open_positions, trades_database)
 
         # close the trades' database connection.
         trades_database.session.close()

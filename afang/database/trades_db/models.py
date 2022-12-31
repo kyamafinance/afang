@@ -45,6 +45,7 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True)
     symbol = Column(String, nullable=False)
+    direction = Column(Integer, nullable=False)
     is_open_order = Column(Boolean, nullable=False)
     order_id = Column(String, nullable=False)
     order_side = Column(String, nullable=False)
