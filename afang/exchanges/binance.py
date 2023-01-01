@@ -509,8 +509,8 @@ class BinanceExchange(IsExchange):
             order_type = OrderType.MARKET
 
         prev_order_commission = 0.0
-        if msg_order_id in self.active_orders:
-            prev_order = self.active_orders[msg_order_id]
+        if msg_order_id in self._active_orders:
+            prev_order = self._active_orders[msg_order_id]
             prev_order_commission = prev_order.commission
         current_order_commission = float(msg_order["n"]) if "n" in msg_order else 0.0
         current_commission_tally = prev_order_commission + current_order_commission
@@ -529,7 +529,7 @@ class BinanceExchange(IsExchange):
             time_in_force=msg_order["f"],
             commission=current_commission_tally,
         )
-        self.active_orders[msg_order_id] = updated_order
+        self._active_orders[msg_order_id] = updated_order
 
     def _wss_handle_candlestick_update(self, msg_data: Any) -> None:
         """Runs when exchange websocket receives message data that there has

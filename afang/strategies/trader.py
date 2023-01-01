@@ -225,8 +225,8 @@ class Trader(ABC):
         :return: float
         """
 
-        position_open_order = self.exchange.active_orders.get(
-            position.open_order_id, None
+        position_open_order = self.exchange.get_exchange_order(
+            position.symbol, position.open_order_id
         )
         if not position_open_order:
             logger.error(
@@ -239,8 +239,8 @@ class Trader(ABC):
             return float()
 
         close_order_quantity = position_open_order.executed_quantity
-        position_last_close_order = self.exchange.active_orders.get(
-            position.final_close_order_id, None
+        position_last_close_order = self.exchange.get_exchange_order(
+            position.symbol, position.final_close_order_id
         )
         if position_last_close_order:
             close_order_quantity = position_last_close_order.remaining_quantity
@@ -431,8 +431,8 @@ class Trader(ABC):
         if db_position_order.complete:
             return None
 
-        exchange_position_order = self.exchange.active_orders.get(
-            exchange_order_id, None
+        exchange_position_order = self.exchange.get_exchange_order(
+            db_position_order.symbol, exchange_order_id
         )
         if not exchange_position_order:
             logger.error(
@@ -460,30 +460,39 @@ class Trader(ABC):
             exchange_position_order, db_position_order, trades_database
         )
 
-    def is_order_filled(self, order_exchange_id: str) -> bool:
+    def is_order_filled(self, symbol: str, order_exchange_id: str) -> bool:
         """
         Returns a bool on whether an order has been filled or not.
         NOTE: Even a partial order fill will return true.
 
+        :param symbol: order symbol name.
         :param order_exchange_id: exchange ID of the order to query.
         :return: bool
         """
 
-        order = self.exchange.active_orders.get(order_exchange_id, None)
+        order = self.exchange.get_exchange_order(symbol, order_exchange_id)
         if order and order.executed_quantity:
             return True
 
         return False
 
-    def get_order_average_price(self, order_exchange_id: str) -> float:
+    def get_order_average_price(self, symbol: str, order_exchange_id: str) -> float:
         """Get the average price of a given order.
 
+        :param symbol: order symbol name.
         :param order_exchange_id: order exchange ID.
         :return: float
         """
 
-        order = self.exchange.active_orders.get(order_exchange_id, None)
+        order = self.exchange.get_exchange_order(symbol, order_exchange_id)
         if not order:
+            logger.warning(
+                "%s %s: Could not get the order average price for %s order: %s",
+                self.exchange.display_name,
+                self.strategy_name,
+                symbol,
+                order_exchange_id,
+            )
             return float()
 
         return order.average_price
@@ -876,7 +885,7 @@ class Trader(ABC):
             return None
 
         # Check if the trade position open order has been filled - even partially.
-        if not self.is_order_filled(position.open_order_id):
+        if not self.is_order_filled(symbol, position.open_order_id):
             logger.error(
                 "%s %s: trade position open order is not yet filled. position id: %s",
                 self.exchange.display_name,
@@ -949,7 +958,7 @@ class Trader(ABC):
         if not position.final_close_order_id:
             updated_trade_position["entry_time"] = datetime.utcnow()
             updated_trade_position["entry_price"] = self.get_order_average_price(
-                position.open_order_id
+                position.symbol, position.open_order_id
             )
         self.update_db_trade_position(
             symbol, position_id, updated_trade_position, trades_database
@@ -979,7 +988,9 @@ class Trader(ABC):
                 continue
 
             # check if the trade position open order has been filled - even partially.
-            is_open_order_filled = self.is_order_filled(position.open_order_id)
+            is_open_order_filled = self.is_order_filled(
+                position.symbol, position.open_order_id
+            )
 
             # check if upper horizontal barrier has been hit for long positions.
             if (
@@ -1088,8 +1099,8 @@ class Trader(ABC):
             if not position.final_close_order_id:
                 continue
 
-            final_exchange_close_order = self.exchange.active_orders.get(
-                position.final_close_order_id, None
+            final_exchange_close_order = self.exchange.get_exchange_order(
+                position.symbol, position.final_close_order_id
             )
             if not final_exchange_close_order:
                 return None

@@ -618,14 +618,14 @@ def test_wss_handle_order_update_no_contents(mocker) -> None:
 
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_order_update({})
-    assert not dydx_exchange.active_orders
+    assert not dydx_exchange._active_orders
 
 
 def test_wss_handle_order_update(mocker) -> None:
     mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
 
     dydx_exchange = DyDxExchange()
-    dydx_exchange.active_orders["12345"] = Order(
+    dydx_exchange._active_orders["12345"] = Order(
         symbol="BTC-USD",
         order_id="12345",
         side=OrderSide.SELL,
@@ -662,7 +662,7 @@ def test_wss_handle_order_update(mocker) -> None:
         }
     )
 
-    assert dydx_exchange.active_orders["12345"] == Order(
+    assert dydx_exchange._active_orders["12345"] == Order(
         symbol="BTC-USD",
         order_id="12345",
         side=OrderSide.SELL,

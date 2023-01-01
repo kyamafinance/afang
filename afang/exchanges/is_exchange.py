@@ -50,7 +50,7 @@ class IsExchange(ABC):
         self.trading_symbols: Dict[str, Symbol] = dict()
         self.trading_timeframe: Optional[Timeframe] = None
         self.trading_price_data: Dict[str, List[Candle]] = dict()
-        self.active_orders: Dict[str, Order] = dict()
+        self._active_orders: Dict[str, Order] = dict()
         self.trading_symbol_balance: Dict[str, SymbolBalance] = dict()
 
     @classmethod
@@ -218,6 +218,30 @@ class IsExchange(ABC):
 
         pool.close()
         pool.join()
+
+    def get_exchange_order(self, symbol_name: str, order_id: str) -> Optional[Order]:
+        """Efficiently fetch an order from the exchange.
+
+        :param symbol_name: symbol name.
+        :param order_id: ID of the order to query.
+        :return: Optional[Order]
+        """
+
+        if order_id in self._active_orders:
+            return self._active_orders[order_id]
+
+        order = self.get_order_by_id(symbol_name, order_id)
+        if not order:
+            logger.warning(
+                "Unable to get %s %s order with id: %s",
+                self.display_name,
+                symbol_name,
+                order_id,
+            )
+
+        self._active_orders[order_id] = order
+
+        return order
 
     @abstractmethod
     def get_historical_candles(

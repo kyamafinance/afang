@@ -673,8 +673,8 @@ class DyDxExchange(IsExchange):
             prev_order_commission = 0.0
             prev_order_executed_qty = 0.0
             prev_order_average_price = 0.0
-            if order_id in self.active_orders:
-                prev_order = self.active_orders[order_id]
+            if order_id in self._active_orders:
+                prev_order = self._active_orders[order_id]
                 prev_order_commission = prev_order.commission
                 prev_order_average_price = prev_order.average_price
                 prev_order_executed_qty = prev_order.executed_quantity
@@ -711,7 +711,7 @@ class DyDxExchange(IsExchange):
                 time_in_force=order["timeInForce"],
                 commission=updated_commission,
             )
-            self.active_orders[order_id] = updated_order
+            self._active_orders[order_id] = updated_order
 
     def _wss_handle_candlestick_update(self, msg_data: Any) -> None:
         """Runs when exchange websocket receives message data that there has

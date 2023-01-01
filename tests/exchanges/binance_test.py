@@ -499,7 +499,7 @@ def test_wss_handle_order_update() -> None:
     }
 
     binance_exchange = BinanceExchange()
-    binance_exchange.active_orders["12345"] = Order(
+    binance_exchange._active_orders["12345"] = Order(
         symbol="BTC",
         order_id="12345",
         side=OrderSide.SELL,
@@ -515,7 +515,7 @@ def test_wss_handle_order_update() -> None:
     )
     binance_exchange._wss_handle_order_update(msg_data)
 
-    assert binance_exchange.active_orders["12345"] == Order(
+    assert binance_exchange._active_orders["12345"] == Order(
         symbol="BTC",
         order_id="12345",
         side=OrderSide.SELL,
