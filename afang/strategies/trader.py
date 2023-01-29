@@ -12,7 +12,10 @@ import pandas as pd
 
 from afang.database.trades_db.trades_database import Order as DBOrder
 from afang.database.trades_db.trades_database import TradePosition as DBTradePosition
-from afang.database.trades_db.trades_database import TradesDatabase
+from afang.database.trades_db.trades_database import (
+    TradesDatabase,
+    create_session_factory,
+)
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Order, OrderSide, OrderType, Symbol, SymbolBalance
 from afang.models import Timeframe
@@ -1142,7 +1145,7 @@ class Trader(ABC):
             return None
 
         ohlcv_candles_df = self.get_symbol_ohlcv_candles_df(symbol)
-        if not ohlcv_candles_df:
+        if ohlcv_candles_df.empty:
             return None
 
         populated_ohlcv_data = self.generate_features(ohlcv_candles_df)
@@ -1209,6 +1212,7 @@ class Trader(ABC):
         symbols: Optional[List[str]],
         timeframe: Optional[str],
         demo_mode: Optional[bool] = True,
+        db_engine_url: Optional[str] = None,
     ) -> None:
         """Trade multiple symbols either on demo or live mode.
 
@@ -1216,6 +1220,7 @@ class Trader(ABC):
         :param symbols: exchange symbols to run trader on.
         :param timeframe: timeframe to run the trader on.
         :param demo_mode: whether to run the trader on demo mode.
+        :param db_engine_url: database engine URL.
         :return: None
         """
 
@@ -1279,6 +1284,7 @@ class Trader(ABC):
 
         # Run trading loop.
         max_workers = multiprocessing.cpu_count() - 1
+        create_session_factory(engine_url=db_engine_url)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             executor.map(
                 self.run_symbol_trader, iter(self.get_next_trading_symbol, None)

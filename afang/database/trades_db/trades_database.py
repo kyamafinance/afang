@@ -1,13 +1,42 @@
 import logging
+import os
+import pathlib
 from typing import Dict, List, Optional, Tuple
 
-from afang.database.trades_db.base import Session, engine
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 from afang.database.trades_db.models import Base, Order, TradePosition
 
-# Generate database schema
-Base.metadata.create_all(engine)
-
 logger = logging.getLogger(__name__)
+
+# DB session factory
+Session: Optional[scoped_session] = None
+
+
+def create_session_factory(
+    db_name: Optional[str] = None, engine_url: Optional[str] = None
+) -> None:
+    """Create database session factory. This function is required to be called
+    before possible concurrent calls to initialize TradesDatabase instances.
+
+    :param db_name: database name.
+    :param engine_url: database engine URL.
+    :return: None
+    """
+
+    if engine_url:
+        engine = create_engine(engine_url)
+    else:
+        database_name = db_name if db_name else "trades.sqlite3"
+        base_dir = os.path.join(pathlib.Path(__file__).parents[3], "data", "trades")
+        engine = create_engine(f"sqlite:///{os.path.join(base_dir, database_name)}")
+
+    global Session
+    session_factory = sessionmaker(bind=engine)
+    Session = scoped_session(session_factory)
+
+    Base.metadata.create_all(engine)
 
 
 class TradesDatabase:
@@ -16,6 +45,12 @@ class TradesDatabase:
 
     def __init__(self) -> None:
         """Initialize the TradesDatabase class."""
+
+        global Session
+        if not Session:
+            # create_session_factory needs to be called before possible concurrent calls to
+            # initialize TradesDatabase instances.
+            logger.error("TradesDatabase requires an initialized session factory")
 
         self.session = Session()
 
