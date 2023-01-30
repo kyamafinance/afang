@@ -16,13 +16,13 @@ Session: Optional[scoped_session] = None
 
 def create_session_factory(
     db_name: Optional[str] = None, engine_url: Optional[str] = None
-) -> None:
+) -> scoped_session:
     """Create database session factory. This function is required to be called
     before possible concurrent calls to initialize TradesDatabase instances.
 
     :param db_name: database name.
     :param engine_url: database engine URL.
-    :return: None
+    :return: scoped_session
     """
 
     if engine_url:
@@ -38,6 +38,8 @@ def create_session_factory(
 
     Base.metadata.create_all(engine)
 
+    return Session
+
 
 class TradesDatabase:
     """Interface to store, retrieve, and manipulate user demo/live trade
@@ -51,6 +53,7 @@ class TradesDatabase:
             # create_session_factory needs to be called before possible concurrent calls to
             # initialize TradesDatabase instances.
             logger.error("TradesDatabase requires an initialized session factory")
+            return
 
         self.session = Session()
 
@@ -150,9 +153,7 @@ class TradesDatabase:
         :return: Optional[Order]
         """
 
-        order = (
-            self.session.query(TradePosition).filter(Order.id == db_order_id).first()
-        )
+        order = self.session.query(Order).filter(Order.id == db_order_id).first()
         if not order:
             logger.warning("Order not found in DB. id: %s", db_order_id)
 
@@ -165,9 +166,7 @@ class TradesDatabase:
         :return: Optional[Order]
         """
 
-        order = (
-            self.session.query(TradePosition).filter(Order.order_id == order_id).first()
-        )
+        order = self.session.query(Order).filter(Order.order_id == order_id).first()
         if not order:
             logger.warning("Order not found in DB. exchange order id: %s", order_id)
 
