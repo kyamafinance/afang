@@ -7,6 +7,7 @@ from afang.utils.util import (
     get_float_precision,
     milliseconds_to_datetime,
     resample_timeframe,
+    round_float_to_precision,
     time_str_to_milliseconds,
 )
 
@@ -69,3 +70,17 @@ def test_resample_timeframe() -> None:
 def test_get_float_precision(input_float, expected_precision) -> None:
     precision = get_float_precision(input_float)
     assert precision == expected_precision
+
+
+@pytest.mark.parametrize(
+    "input_val, precision, expected_val",
+    [
+        (20.998, 0.01, 21),
+        (0, 0.0001, 0),
+        (1.36443, 0.001, 1.364),
+        (1.36453, 0.001, 1.365),
+    ],
+)
+def test_round_float_to_precision(input_val, precision, expected_val) -> None:
+    output_val = round_float_to_precision(input_val, precision)
+    assert output_val == expected_val
