@@ -492,7 +492,12 @@ def test_run_symbol_backtest_no_ohlcv_data(
     )
 
 
-def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
+@pytest.mark.parametrize(
+    "timeframe, expected_timeframe", [(None, "1h"), ("5m", "5m"), ("invalid", None)]
+)
+def test_run_backtest(
+    mocker, dummy_is_exchange, dummy_is_strategy, timeframe, expected_timeframe, caplog
+) -> None:
     mock_run_symbol_backtest = mocker.patch(
         "afang.strategies.backtester.Backtester.run_symbol_backtest", return_value=None
     )
@@ -501,12 +506,21 @@ def test_run_backtest(mocker, dummy_is_exchange, dummy_is_strategy) -> None:
     )
 
     dummy_is_strategy.run_backtest(
-        dummy_is_exchange, [], "5m", "2021-01-01", "2022-02-02"
+        dummy_is_exchange, [], timeframe, "2021-01-01", "2022-02-02"
     )
 
     assert mock_run_symbol_backtest.assert_called
     assert mock_run_analysis.assert_called
-    assert dummy_is_strategy.config["timeframe"] == "5m"
+
+    if not expected_timeframe:
+        assert caplog.records[0].levelname == "WARNING"
+        assert (
+            "test_strategy: invalid timeframe invalid defined for the strategy backtest"
+            in caplog.text
+        )
+        return
+
+    assert dummy_is_strategy.config["timeframe"] == expected_timeframe
     assert list(dummy_is_strategy.config.keys()) == [
         "name",
         "timeframe",
