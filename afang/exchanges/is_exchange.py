@@ -238,6 +238,7 @@ class IsExchange(ABC):
                 symbol_name,
                 order_id,
             )
+            return None
 
         self._active_orders[order_id] = order
 

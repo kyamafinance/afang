@@ -4,8 +4,33 @@ import pytest
 import requests
 
 from afang.exchanges import IsExchange
-from afang.exchanges.models import Candle, HTTPMethod, Symbol
+from afang.exchanges.models import (
+    Candle,
+    HTTPMethod,
+    Order,
+    OrderSide,
+    OrderType,
+    Symbol,
+)
 from afang.models import Timeframe
+
+
+@pytest.fixture
+def dummy_order() -> Order:
+    return Order(
+        symbol="BTCUSDT",
+        order_id="12345",
+        side=OrderSide.SELL,
+        original_price=100,
+        average_price=110,
+        original_quantity=10,
+        executed_quantity=10,
+        remaining_quantity=0,
+        order_type=OrderType.LIMIT,
+        order_status="FILLED",
+        time_in_force="GTC",
+        commission=9,
+    )
 
 
 def test_is_exchange_initialization(dummy_is_exchange) -> None:
@@ -181,3 +206,38 @@ def test_populate_initial_trading_price_data(mocker, caplog, dummy_is_exchange) 
     assert len(dummy_is_exchange.trading_price_data["BTCUSDT"]) == 1
     assert caplog.records[-1].levelname == "INFO"
     assert "fetched 1 initial price data candles" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "active_orders, expected_order, should_log_warning",
+    [
+        ({"12345": dummy_order}, dummy_order, False),
+        (dict(), dummy_order, False),
+        (dict(), None, True),
+    ],
+)
+def test_get_exchange_order(
+    mocker,
+    dummy_is_exchange,
+    caplog,
+    active_orders,
+    expected_order,
+    should_log_warning,
+) -> None:
+    mocker.patch.object(
+        IsExchange,
+        "get_order_by_id",
+        return_value=expected_order,
+    )
+
+    dummy_is_exchange._active_orders = active_orders
+    order = dummy_is_exchange.get_exchange_order("BTCUSDT", "12345")
+
+    assert order == expected_order
+    if should_log_warning:
+        assert caplog.records[0].levelname == "WARNING"
+        assert "Unable to get test_exchange BTCUSDT order with id: 12345" in caplog.text
+    if expected_order:
+        assert dummy_is_exchange._active_orders["12345"]
+    else:
+        assert "12345" not in dummy_is_exchange._active_orders
