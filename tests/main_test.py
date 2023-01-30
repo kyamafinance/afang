@@ -147,3 +147,23 @@ def test_run_strategy_optimization(mocker) -> None:
     main(args)
 
     assert mocked_strategy_optimize.assert_called
+
+
+def test_run_strategy_trader(mocker) -> None:
+    args = [
+        "-m",
+        "trade",
+        "-e",
+        "dydx",
+        "--symbols",
+        "BTC-USD",
+        "--strategy",
+        "SampleStrategy",
+    ]
+
+    mocked_strategy_trader = mocker.patch(
+        "afang.strategies.is_strategy.IsStrategy.run_trader", return_value=None
+    )
+    main(args)
+
+    assert mocked_strategy_trader.assert_called
