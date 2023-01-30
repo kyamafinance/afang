@@ -246,6 +246,53 @@ def test_place_order(mocker, response) -> None:
 
 
 @pytest.mark.parametrize(
+    "order_type, response",
+    [
+        (
+            OrderType.MARKET,
+            {
+                "symbol": "BTCUSDT",
+                "makerCommissionRate": "0.0002",
+                "takerCommissionRate": "0.0004",
+            },
+        ),
+        (
+            OrderType.LIMIT,
+            {
+                "symbol": "BTCUSDT",
+                "makerCommissionRate": "0.0002",
+                "takerCommissionRate": "0.0004",
+            },
+        ),
+        (OrderType.LIMIT, None),
+    ],
+)
+def test_get_user_commission_rate(mocker, order_type, response) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+    mocked_make_request = mocker.patch(
+        "afang.exchanges.binance.BinanceExchange._make_request", return_value=response
+    )
+    mocked_generate_authed_request_signature = mocker.patch(
+        "afang.exchanges.binance.BinanceExchange._generate_authed_request_signature"
+    )
+
+    binance_exchange = BinanceExchange()
+    user_commission_rate = binance_exchange.get_user_commission_rate(
+        "BTCUSDT", order_type
+    )
+
+    assert mocked_make_request.assert_called_once
+    assert mocked_generate_authed_request_signature.assert_called_once
+
+    if not response:
+        assert user_commission_rate is None
+    elif order_type == OrderType.MARKET:
+        assert user_commission_rate == float(response["takerCommissionRate"])
+    elif order_type == OrderType.LIMIT:
+        assert user_commission_rate == float(response["makerCommissionRate"])
+
+
+@pytest.mark.parametrize(
     "response, expected_commission",
     [
         (None, None),
