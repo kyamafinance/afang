@@ -138,7 +138,7 @@ class Trader(ABC):
 
         filters = (
             DBTradePosition.symbol == symbol,
-            DBTradePosition.open_position is True,
+            DBTradePosition.open_position.__eq__(True),
         )
 
         open_positions: List[DBTradePosition] = trades_database.fetch_positions(
@@ -147,15 +147,18 @@ class Trader(ABC):
 
         return open_positions
 
-    def get_next_trading_symbol(self) -> Optional[str]:
+    def get_next_trading_symbol(self, run_forever: bool = True) -> Optional[str]:
         """Get the next trading symbol from the execution queue to trade.
 
+        :param run_forever: whether to continuously run the function. Used for testing purposes.
         :return: Optional[str]
         """
 
         while True:
             if not self.trading_execution_queue.empty():
                 return self.trading_execution_queue.get()
+            if not run_forever:
+                return None
             time.sleep(0.5)
 
     def get_trading_symbol(self, symbol: str) -> Optional[Symbol]:
@@ -303,10 +306,10 @@ class Trader(ABC):
             trades_database.session.commit()
         except Exception as e:
             logger.error(
-                "%s %s: failed to record new trade position to the DB. position id: %s: %s",
+                "%s %s: failed to record new trade position to the DB. open order id: %s: %s",
                 self.exchange.display_name,
                 db_position.symbol,
-                db_position.id,
+                db_position.open_order_id,
                 str(e),
             )
 
@@ -325,7 +328,7 @@ class Trader(ABC):
             trades_database.session.commit()
         except Exception as e:
             logger.error(
-                "%s %s: failed to record new order to the DB. order id: %s: %s",
+                "%s %s: failed to record new order to the DB. exchange order id: %s: %s",
                 self.exchange.display_name,
                 db_order.symbol,
                 db_order.order_id,

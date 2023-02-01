@@ -26,22 +26,9 @@ class IsStrategy(Backtester, Trader):
         Backtester.__init__(self, strategy_name)
         Trader.__init__(self, strategy_name)
 
-        self.strategy_name = strategy_name
-        self.allow_long_positions = True
-        self.allow_short_positions = True
-        # leverage to use per trade.
-        self.leverage = 1
-        # maximum number of candles for a single trade.
-        self.max_holding_candles = 100
-        # percentage of current account balance to risk per trade.
-        self.percentage_risk_per_trade = 2
-        # maximum amount to invest per trade.
-        # If `None`, the maximum amount to invest per trade will be the current account balance.
-        self.max_amount_per_trade = None
-        # Whether to allow for multiple open positions per symbol at a time.
-        self.allow_multiple_open_positions = True
+        self.strategy_name: str = strategy_name
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
-        self.config = self.read_strategy_config()
+        self.config: Dict = self.read_strategy_config()
 
     def read_strategy_config(self) -> Dict:
         """Read and return the strategy config.

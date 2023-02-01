@@ -59,6 +59,7 @@ def test_create_new_position(trades_db_test_engine_url, dummy_trade_position) ->
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_position(dummy_trade_position)
+    trades_db.session.commit()
     persisted_trade_position = trades_db.fetch_position_by_id(1)
     assert persisted_trade_position == dummy_trade_position
 
@@ -67,7 +68,9 @@ def test_delete_position(trades_db_test_engine_url, dummy_trade_position) -> Non
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_position(dummy_trade_position)
+    trades_db.session.commit()
     trades_db.delete_position(1)
+    trades_db.session.commit()
     persisted_trade_position = trades_db.fetch_position_by_id(1)
     assert persisted_trade_position is None
 
@@ -76,7 +79,9 @@ def test_update_position(trades_db_test_engine_url, dummy_trade_position) -> Non
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_position(dummy_trade_position)
+    trades_db.session.commit()
     trades_db.update_position(1, {"symbol": "ETHUSDT", "open_order_id": "6789"})
+    trades_db.session.commit()
     persisted_trade_position = trades_db.fetch_position_by_id(1)
     assert persisted_trade_position.symbol == "ETHUSDT"
     assert persisted_trade_position.open_order_id == "6789"
@@ -86,6 +91,7 @@ def test_fetch_position_by_id(trades_db_test_engine_url, dummy_trade_position) -
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_position(dummy_trade_position)
+    trades_db.session.commit()
     persisted_trade_position = trades_db.fetch_position_by_id(1)
     assert persisted_trade_position is dummy_trade_position
 
@@ -109,6 +115,7 @@ def test_fetch_positions(
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_position(dummy_trade_position)
+    trades_db.session.commit()
     second_dummy_trade_position = TradePosition(
         symbol="LINKUSDT",
         direction=1,
@@ -121,6 +128,7 @@ def test_fetch_positions(
         initial_account_balance=20,
     )
     trades_db.create_new_position(second_dummy_trade_position)
+    trades_db.session.commit()
     persisted_positions = trades_db.fetch_positions(filters, limit)
 
     assert len(persisted_positions) == expected_persisted_positions
@@ -130,6 +138,7 @@ def test_create_new_order(trades_db_test_engine_url, dummy_trade_order) -> None:
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_order(dummy_trade_order)
+    trades_db.session.commit()
     persisted_order = trades_db.fetch_order_by_id(1)
     assert persisted_order == dummy_trade_order
 
@@ -138,6 +147,7 @@ def test_update_order(trades_db_test_engine_url, dummy_trade_order) -> None:
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_order(dummy_trade_order)
+    trades_db.session.commit()
     trades_db.update_order(
         1,
         {
@@ -145,6 +155,7 @@ def test_update_order(trades_db_test_engine_url, dummy_trade_order) -> None:
             "is_open_order": False,
         },
     )
+    trades_db.session.commit()
     persisted_order = trades_db.fetch_order_by_id(1)
     assert persisted_order.symbol == "ETHUSDT"
     assert not persisted_order.is_open_order
@@ -154,6 +165,7 @@ def test_fetch_order_by_id(trades_db_test_engine_url, dummy_trade_order) -> None
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_order(dummy_trade_order)
+    trades_db.session.commit()
     persisted_order = trades_db.fetch_order_by_id(1)
     assert persisted_order is dummy_trade_order
 
@@ -164,6 +176,7 @@ def test_fetch_order_by_exchange_id(
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_order(dummy_trade_order)
+    trades_db.session.commit()
     persisted_order = trades_db.fetch_order_by_exchange_id("12345")
     assert persisted_order is dummy_trade_order
 
@@ -187,6 +200,7 @@ def test_fetch_orders(
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     trades_db.create_new_order(dummy_trade_order)
+    trades_db.session.commit()
     second_dummy_trade_order = Order(
         symbol="LINKUSDT",
         direction=1,
@@ -198,6 +212,7 @@ def test_fetch_orders(
         order_type="MARKET",
     )
     trades_db.create_new_order(second_dummy_trade_order)
+    trades_db.session.commit()
     persisted_orders = trades_db.fetch_orders(filters, limit)
 
     assert len(persisted_orders) == expected_persisted_orders

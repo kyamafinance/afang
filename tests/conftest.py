@@ -63,6 +63,26 @@ def delete_optimization_records(optimization_root_dir) -> Generator:
             shutil.rmtree(file_path)
 
 
+@pytest.fixture()
+def trades_db_filepath() -> str:
+    filepath = (
+        f"{pathlib.Path(__file__).parent}/testdata/database/trades/trades.sqlite3"
+    )
+    return filepath
+
+
+@pytest.fixture()
+def trades_db_test_engine_url(trades_db_filepath) -> str:
+    return f"sqlite:///{trades_db_filepath}"
+
+
+@pytest.fixture(autouse=True)
+def delete_trades_database(trades_db_filepath) -> Generator:
+    yield
+    if os.path.exists(trades_db_filepath):
+        os.unlink(trades_db_filepath)
+
+
 @pytest.fixture
 def dummy_is_exchange() -> IsExchange:
     class Dummy(IsExchange):

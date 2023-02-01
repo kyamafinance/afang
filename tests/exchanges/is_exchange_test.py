@@ -209,17 +209,19 @@ def test_populate_initial_trading_price_data(mocker, caplog, dummy_is_exchange) 
 
 
 @pytest.mark.parametrize(
-    "active_orders, expected_order, should_log_warning",
+    "order_id, active_orders, expected_order, should_log_warning",
     [
-        ({"12345": dummy_order}, dummy_order, False),
-        (dict(), dummy_order, False),
-        (dict(), None, True),
+        (None, {"12345": dummy_order}, None, False),
+        ("12345", {"12345": dummy_order}, dummy_order, False),
+        ("12345", dict(), dummy_order, False),
+        ("12345", dict(), None, True),
     ],
 )
 def test_get_exchange_order(
     mocker,
     dummy_is_exchange,
     caplog,
+    order_id,
     active_orders,
     expected_order,
     should_log_warning,
@@ -231,7 +233,7 @@ def test_get_exchange_order(
     )
 
     dummy_is_exchange._active_orders = active_orders
-    order = dummy_is_exchange.get_exchange_order("BTCUSDT", "12345")
+    order = dummy_is_exchange.get_exchange_order("BTCUSDT", order_id)
 
     assert order == expected_order
     if should_log_warning:
@@ -240,4 +242,4 @@ def test_get_exchange_order(
     if expected_order:
         assert dummy_is_exchange._active_orders["12345"]
     else:
-        assert "12345" not in dummy_is_exchange._active_orders
+        assert "12345" not in dummy_is_exchange._active_orders or not order_id

@@ -227,6 +227,9 @@ class IsExchange(ABC):
         :return: Optional[Order]
         """
 
+        if not order_id:
+            return None
+
         if order_id in self._active_orders:
             return self._active_orders[order_id]
 
