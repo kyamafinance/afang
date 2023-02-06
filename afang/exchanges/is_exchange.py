@@ -62,7 +62,6 @@ class IsExchange(ABC):
 
         :return: dict
         """
-
         return {"query_limit": 1, "write_limit": 50000}
 
     @abstractmethod
@@ -71,7 +70,6 @@ class IsExchange(ABC):
 
         :return: Dict[str, Symbol]
         """
-
         return dict()
 
     def _make_request(
@@ -141,7 +139,6 @@ class IsExchange(ABC):
         :param symbols: exchange symbols to be traded.
         :return: None
         """
-
         for symbol in symbols:
             try:
                 self.trading_symbols[symbol] = self.exchange_symbols[symbol]
@@ -208,7 +205,6 @@ class IsExchange(ABC):
         :param num_iterations: number of candle batches to fetch for each trading symbol.
         :return: None
         """
-
         pool = Pool(multiprocessing.cpu_count() - 1)
         for symbol in self.trading_symbols:
             pool.apply_async(
@@ -276,7 +272,6 @@ class IsExchange(ABC):
         :param order_id: ID of the order to query.
         :return: Optional[Order]
         """
-
         return None
 
     @abstractmethod
@@ -288,7 +283,6 @@ class IsExchange(ABC):
         :param order_id: ID of the order to cancel.
         :return: bool
         """
-
         return False
 
     @abstractmethod
@@ -312,5 +306,4 @@ class IsExchange(ABC):
         :param leverage: updated leverage.
         :return: None
         """
-
         return None

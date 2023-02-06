@@ -52,7 +52,6 @@ class DyDxExchange(IsExchange):
         """
         :param testnet: whether to use the testnet version of the exchange.
         """
-
         name = "dydx"
         base_url = "https://api.dydx.exchange"
         wss_url = "wss://api.dydx.exchange/v3/ws"
@@ -84,7 +83,6 @@ class DyDxExchange(IsExchange):
 
         :return: dict
         """
-
         return {"query_limit": 0.2, "write_limit": 20000}
 
     def _get_symbols(self) -> Dict[str, Symbol]:
@@ -92,7 +90,6 @@ class DyDxExchange(IsExchange):
 
         :return: List[str]
         """
-
         symbols: Dict[str, Symbol] = dict()
         params: Dict = dict()
         endpoint = "/v3/markets"
@@ -203,7 +200,6 @@ class DyDxExchange(IsExchange):
 
         :return: Optional[dydx3.Client]
         """
-
         try:
             api_client = Client(
                 host=self._base_url,
@@ -305,7 +301,6 @@ class DyDxExchange(IsExchange):
         :param order_id: ID of the order to query.
         :return: Optional[Order]
         """
-
         try:
             order_res = self._api_client.private.get_order_by_id(order_id)
             fills_res = self._api_client.private.get_fills(symbol_name, order_id, 100)
@@ -368,7 +363,6 @@ class DyDxExchange(IsExchange):
         :param order_id: ID of the order to cancel.
         :return: bool
         """
-
         try:
             self._api_client.private.cancel_order(order_id)
             return True
@@ -387,7 +381,6 @@ class DyDxExchange(IsExchange):
 
         :return: None
         """
-
         for symbol in self.trading_symbols:
             wss_data: Dict[str, Any] = dict()
             wss_data["type"] = "subscribe"
@@ -400,7 +393,6 @@ class DyDxExchange(IsExchange):
 
         :return: None
         """
-
         wss_data: Dict[str, Any] = dict()
         wss_data["type"] = "subscribe"
         wss_data["channel"] = "v3_markets"
@@ -412,7 +404,6 @@ class DyDxExchange(IsExchange):
 
         :return: None
         """
-
         current_time_iso = datetime.utcnow().isoformat()
 
         endpoint = "/ws/accounts"
@@ -440,7 +431,6 @@ class DyDxExchange(IsExchange):
         :param _ws: instance of websocket connection.
         :return: None
         """
-
         logger.info("%s: wss connection opened", self.display_name)
         self._wss_subscribe_trades_stream()
         self._wss_subscribe_markets_stream()
@@ -452,7 +442,6 @@ class DyDxExchange(IsExchange):
         :param _ws: instance of websocket connection.
         :return: None
         """
-
         logger.warning("%s: wss connection closed", self.display_name)
 
     def _wss_on_error(self, _ws: websocket.WebSocketApp, msg: str) -> None:
@@ -462,7 +451,6 @@ class DyDxExchange(IsExchange):
         :param msg: error message.
         :return: None
         """
-
         logger.error("%s: wss connection error: %s", self.display_name, msg)
 
     def _update_collateral_balance(self, run_forever: bool = True) -> None:
@@ -476,7 +464,6 @@ class DyDxExchange(IsExchange):
         :param run_forever: whether to continuously update collateral balance. used for testing purposes.
         :return: None
         """
-
         while True:
             if run_forever:
                 time.sleep(5)
@@ -515,7 +502,6 @@ class DyDxExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "contents" not in msg_data:
             return None
 
@@ -536,7 +522,6 @@ class DyDxExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "contents" not in msg_data:
             return None
 
@@ -562,7 +547,6 @@ class DyDxExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "contents" not in msg_data:
             return None
 
@@ -586,7 +570,6 @@ class DyDxExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "contents" not in msg_data:
             return None
 
@@ -613,7 +596,6 @@ class DyDxExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "contents" not in msg_data:
             return None
 
@@ -691,7 +673,6 @@ class DyDxExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "contents" not in msg_data:
             return None
 
@@ -771,7 +752,6 @@ class DyDxExchange(IsExchange):
         :param msg: received message.
         :return: None
         """
-
         msg_data = json.loads(msg)
         if "channel" not in msg_data:
             return None
@@ -791,7 +771,6 @@ class DyDxExchange(IsExchange):
 
         :return: None
         """
-
         self._wss = websocket.WebSocketApp(
             self._wss_url,
             on_open=self._wss_on_open,
@@ -807,7 +786,6 @@ class DyDxExchange(IsExchange):
 
         :return: None
         """
-
         try:
             account = self._api_client.private.get_account()
             account_data = account.data
@@ -864,7 +842,6 @@ class DyDxExchange(IsExchange):
         :param leverage: updated leverage.
         :return: None
         """
-
         for symbol in symbols:
             self.symbol_leverage[symbol] = leverage
             logger.info(

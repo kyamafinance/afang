@@ -11,7 +11,6 @@ class SampleStrategy(IsStrategy):
 
     def __init__(self) -> None:
         """Initialize SampleStrategy class."""
-
         super().__init__(strategy_name="SampleStrategy")
 
         self.leverage = 5
@@ -26,7 +25,6 @@ class SampleStrategy(IsStrategy):
 
         :return: Dict
         """
-
         return dict()
 
     def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -39,7 +37,6 @@ class SampleStrategy(IsStrategy):
         :param data: OHLCV data for a trading symbol.
         :return: None
         """
-
         params = self.config["parameters"]
 
         # EMA.
@@ -71,7 +68,6 @@ class SampleStrategy(IsStrategy):
         :param data: the historical price dataframe row at the current time in backtest.
         :return: bool
         """
-
         # Ensure that the candle is above the EMA.
         if not data.low > data.ema:
             return False
@@ -94,7 +90,6 @@ class SampleStrategy(IsStrategy):
         :param data: the historical price dataframe row at the current time in backtest.
         :return: bool
         """
-
         # Ensure that the candle is below the EMA.
         if not data.high < data.ema:
             return False
@@ -152,7 +147,6 @@ class SampleStrategy(IsStrategy):
 
         :return: Dict
         """
-
         # ensure that psar acceleration is less than psar max value.
         # the psar acceleration and the psar max value could end up being the same value.
         # however, if this were to happen, the optimizer would discard the backtest due to

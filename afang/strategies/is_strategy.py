@@ -21,7 +21,6 @@ class IsStrategy(Backtester):
 
         :param strategy_name: name of the trading strategy.
         """
-
         Backtester.__init__(self, strategy_name)
 
         self.strategy_name = strategy_name
@@ -46,7 +45,6 @@ class IsStrategy(Backtester):
 
         :return: Dict
         """
-
         config_file_path = (
             f"{pathlib.Path(__file__).parent}/{self.strategy_name}/config.yaml"
         )
@@ -60,7 +58,6 @@ class IsStrategy(Backtester):
         :param exchange: name of exchange to fetch watchlist for.
         :return: List[str]
         """
-
         watchlist = self.config.get("watchlist", dict())
         if not watchlist:
             return []
@@ -78,7 +75,6 @@ class IsStrategy(Backtester):
         :param data: OHLCV data for a trading symbol.
         :return: None
         """
-
         return data
 
     @abstractmethod
@@ -88,7 +84,6 @@ class IsStrategy(Backtester):
         :param data: the historical price dataframe row at the current time in backtest.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -98,7 +93,6 @@ class IsStrategy(Backtester):
         :param data: the historical price dataframe row at the current time in backtest.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -129,5 +123,4 @@ class IsStrategy(Backtester):
 
         :return: Dict
         """
-
         pass
