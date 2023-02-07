@@ -41,7 +41,7 @@ class IsExchange(ABC):
         wss_url: str,
     ) -> None:
         self.name = name
-        self.display_name = name + "-testnet" if testnet else name
+        self.display_name = f"{name}-testnet" if testnet else name
         self.testnet = testnet
         self._base_url = base_url
         self._wss_url = wss_url

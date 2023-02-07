@@ -17,7 +17,8 @@ from afang.database.trades_db.trades_database import (
     create_session_factory,
 )
 from afang.exchanges.is_exchange import IsExchange
-from afang.exchanges.models import Order, OrderSide, OrderType, Symbol, SymbolBalance
+from afang.exchanges.models import Order as ExchangeOrder
+from afang.exchanges.models import OrderSide, OrderType, Symbol, SymbolBalance
 from afang.models import Timeframe
 from afang.strategies.models import TradeLevels
 from afang.utils.util import round_float_to_precision
@@ -392,11 +393,14 @@ class Trader(ABC):
             )
 
     def update_closed_order_in_db(
-        self, order: Order, db_order: DBOrder, trades_database: TradesDatabase
+        self,
+        exchange_order: ExchangeOrder,
+        db_order: DBOrder,
+        trades_database: TradesDatabase,
     ) -> None:
         """Update a closed order's details in the DB.
 
-        :param order: exchange order instance.
+        :param exchange_order: exchange order instance.
         :param db_order: database order instance.
         :param trades_database: TradesDatabase instance.
         :return: None
@@ -404,21 +408,24 @@ class Trader(ABC):
 
         updated_order: Dict[str, Any] = dict()
         updated_order["complete"] = True
-        updated_order["time_in_force"] = order.time_in_force
-        updated_order["average_price"] = order.average_price
-        updated_order["executed_quantity"] = order.executed_quantity
-        updated_order["remaining_quantity"] = order.remaining_quantity
-        updated_order["order_status"] = order.order_status
-        updated_order["commission"] = order.commission
+        updated_order["time_in_force"] = exchange_order.time_in_force
+        updated_order["average_price"] = exchange_order.average_price
+        updated_order["executed_quantity"] = exchange_order.executed_quantity
+        updated_order["remaining_quantity"] = exchange_order.remaining_quantity
+        updated_order["order_status"] = exchange_order.order_status
+        updated_order["commission"] = exchange_order.commission
 
-        self.update_db_order(order.symbol, db_order.id, updated_order, trades_database)
+        self.update_db_order(
+            exchange_order.symbol, db_order.id, updated_order, trades_database
+        )
 
     def cancel_position_order(
-        self, exchange_order_id: str, trades_database: TradesDatabase
+        self, symbol: str, exchange_order_id: str, trades_database: TradesDatabase
     ) -> None:
         """Cancel a position order if some/all of its quantity is un-executed
         and mark the order as completed in the DB.
 
+        :param symbol: name of symbol whose position order is to be cancelled.
         :param exchange_order_id: exchange order ID of the order to be canceled.
         :param trades_database: TradesDatabase instance.
         :return: None
@@ -430,6 +437,8 @@ class Trader(ABC):
         if not db_position_order:
             logger.error(
                 "%s %s: position order not cancelled because it was not found in the DB. exchange order id: %s",
+                self.exchange.display_name,
+                symbol,
                 exchange_order_id,
             )
             return None
@@ -552,8 +561,9 @@ class Trader(ABC):
                 symbol,
                 self.timeframe.value,
             )
-        current_candle_data = current_candle_data_list[0]
+            return None
 
+        current_candle_data = current_candle_data_list[0]
         return current_candle_data
 
     @classmethod
@@ -669,8 +679,8 @@ class Trader(ABC):
         """
 
         position_pnl = self.get_position_pnl(position)
-        if cost_adjusted:
-            position_pnl -= self.get_position_total_commission(position)
+        if not cost_adjusted:
+            position_pnl += self.get_position_total_commission(position)
 
         open_position_order = trades_database.fetch_order_by_exchange_id(
             position.open_order_id
@@ -941,9 +951,11 @@ class Trader(ABC):
             close_order_id,
         )
 
-        self.cancel_position_order(position.open_order_id, trades_database)
+        self.cancel_position_order(symbol, position.open_order_id, trades_database)
         if position.final_close_order_id:
-            self.cancel_position_order(position.final_close_order_id, trades_database)
+            self.cancel_position_order(
+                symbol, position.final_close_order_id, trades_database
+            )
 
         new_close_order = DBOrder(
             symbol=symbol,
