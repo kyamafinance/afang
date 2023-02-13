@@ -292,6 +292,7 @@ def test_get_historical_candles_unknown_timeframe(mocker, caplog) -> None:
 
 
 def test_get_api_client(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     mocked_dydx3_client = mocker.patch("afang.exchanges.dydx.Client")
     mocked_client_get_account = mocker.patch(
         "afang.exchanges.dydx.Client.private.get_account"
@@ -305,7 +306,10 @@ def test_get_api_client(mocker) -> None:
 
 
 @pytest.mark.parametrize("should_raise_exception", [True, False])
-def test_place_order(caplog, mock_dydx_api_client, should_raise_exception) -> None:
+def test_place_order(
+    mocker, caplog, mock_dydx_api_client, should_raise_exception
+) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     dydx_exchange = DyDxExchange()
     dydx_exchange.trading_price_data["BTC-USD"] = [
         Candle(
@@ -334,7 +338,10 @@ def test_place_order(caplog, mock_dydx_api_client, should_raise_exception) -> No
 
 
 @pytest.mark.parametrize("should_raise_exception", [True, False])
-def test_get_order_by_id(caplog, mock_dydx_api_client, should_raise_exception) -> None:
+def test_get_order_by_id(
+    mocker, caplog, mock_dydx_api_client, should_raise_exception
+) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     dydx_exchange = DyDxExchange()
     dydx_exchange._api_client = mock_dydx_api_client(should_raise_exception)
     order = dydx_exchange.get_order_by_id("BTC-USD", "12345")
@@ -364,7 +371,10 @@ def test_get_order_by_id(caplog, mock_dydx_api_client, should_raise_exception) -
 
 
 @pytest.mark.parametrize("should_raise_exception", [True, False])
-def test_cancel_order(caplog, mock_dydx_api_client, should_raise_exception) -> None:
+def test_cancel_order(
+    mocker, caplog, mock_dydx_api_client, should_raise_exception
+) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     dydx_exchange = DyDxExchange()
     dydx_exchange._api_client = mock_dydx_api_client(should_raise_exception)
     order_placed = dydx_exchange.cancel_order("BTC-USD", "12345")
@@ -380,7 +390,9 @@ def test_cancel_order(caplog, mock_dydx_api_client, should_raise_exception) -> N
     assert order_placed is True
 
 
-def test_wss_subscribe_trades_stream() -> None:
+def test_wss_subscribe_trades_stream(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     class MockWSS:
         def __init__(self):
             self.send_count = 0
@@ -417,7 +429,9 @@ def test_wss_subscribe_trades_stream() -> None:
     assert mock_wss.send_count == 2
 
 
-def test_wss_subscribe_markets_stream() -> None:
+def test_wss_subscribe_markets_stream(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     class MockWSS:
         def __init__(self):
             self.send_count = 0
@@ -434,7 +448,9 @@ def test_wss_subscribe_markets_stream() -> None:
     assert mock_wss.send_count == 1
 
 
-def test_wss_subscribe_accounts_stream(mock_dydx_api_client) -> None:
+def test_wss_subscribe_accounts_stream(mocker, mock_dydx_api_client) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     class MockWSS:
         def __init__(self):
             self.send_count = 0
@@ -453,6 +469,8 @@ def test_wss_subscribe_accounts_stream(mock_dydx_api_client) -> None:
 
 
 def test_wss_on_open(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     mocked_subscribe_trades_stream = mocker.patch.object(
         DyDxExchange, "_wss_subscribe_trades_stream"
     )
@@ -471,7 +489,9 @@ def test_wss_on_open(mocker) -> None:
     assert mocked_subscribe_accounts_stream.assert_called_once
 
 
-def test_wss_on_close(caplog) -> None:
+def test_wss_on_close(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_on_close(websocket.WebSocketApp("fake-url"))
 
@@ -479,7 +499,9 @@ def test_wss_on_close(caplog) -> None:
     assert "wss connection closed" in caplog.text
 
 
-def test_wss_on_error(caplog) -> None:
+def test_wss_on_error(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_on_error(websocket.WebSocketApp("fake-url"), "message")
 
@@ -487,7 +509,9 @@ def test_wss_on_error(caplog) -> None:
     assert "wss connection error" in caplog.text
 
 
-def test_update_collateral_balance() -> None:
+def test_update_collateral_balance(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
 
     # no dydx_exchange._symbol_total_pos_size
@@ -512,13 +536,17 @@ def test_update_collateral_balance() -> None:
     )
 
 
-def test_wss_handle_oracle_price_update_no_contents() -> None:
+def test_wss_handle_oracle_price_update_no_contents(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_oracle_price_update({})
     assert not dydx_exchange._oracle_prices
 
 
-def test_wss_handle_oracle_price_update() -> None:
+def test_wss_handle_oracle_price_update(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_oracle_price_update(
         {"contents": {"markets": {"BTC-USD": {"oraclePrice": 20}}}}
@@ -527,13 +555,17 @@ def test_wss_handle_oracle_price_update() -> None:
     assert dydx_exchange._oracle_prices["BTC-USD"] == 20
 
 
-def test_wss_handle_collateral_balance_update_no_contents() -> None:
+def test_wss_handle_collateral_balance_update_no_contents(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_collateral_balance_update({})
     assert not dydx_exchange.trading_symbol_balance
 
 
-def test_wss_handle_collateral_balance_update() -> None:
+def test_wss_handle_collateral_balance_update(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_collateral_balance_update(
         {
@@ -557,7 +589,9 @@ def test_wss_handle_collateral_balance_update() -> None:
     assert "ETH-USD" in dydx_exchange._symbol_total_pos_size
 
 
-def test_wss_handle_collateral_balance_update_with_equity() -> None:
+def test_wss_handle_collateral_balance_update_with_equity(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_collateral_balance_update(
         {
@@ -579,15 +613,19 @@ def test_wss_handle_collateral_balance_update_with_equity() -> None:
     assert dydx_exchange.trading_symbol_balance["USD"].wallet_balance == 700
 
 
-def test_wss_handle_order_update_no_contents() -> None:
+def test_wss_handle_order_update_no_contents(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_order_update({})
-    assert not dydx_exchange.active_orders
+    assert not dydx_exchange._active_orders
 
 
-def test_wss_handle_order_update() -> None:
+def test_wss_handle_order_update(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
-    dydx_exchange.active_orders["12345"] = Order(
+    dydx_exchange._active_orders["12345"] = Order(
         symbol="BTC-USD",
         order_id="12345",
         side=OrderSide.SELL,
@@ -624,7 +662,7 @@ def test_wss_handle_order_update() -> None:
         }
     )
 
-    assert dydx_exchange.active_orders["12345"] == Order(
+    assert dydx_exchange._active_orders["12345"] == Order(
         symbol="BTC-USD",
         order_id="12345",
         side=OrderSide.SELL,
@@ -640,13 +678,17 @@ def test_wss_handle_order_update() -> None:
     )
 
 
-def test_wss_handle_candlestick_update_no_contents() -> None:
+def test_wss_handle_candlestick_update_no_contents(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_handle_candlestick_update({})
     assert not dydx_exchange.trading_price_data
 
 
-def test_wss_handle_candlestick_update_few_trading_price_data(caplog) -> None:
+def test_wss_handle_candlestick_update_few_trading_price_data(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange.trading_price_data["BTC-USD"] = []
 
@@ -662,7 +704,9 @@ def test_wss_handle_candlestick_update_few_trading_price_data(caplog) -> None:
         )
 
 
-def test_wss_handle_candlestick_update_update_current_candle() -> None:
+def test_wss_handle_candlestick_update_update_current_candle(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange.trading_price_data["BTC-USD"] = [
         Candle(
@@ -709,7 +753,9 @@ def test_wss_handle_candlestick_update_update_current_candle() -> None:
     )
 
 
-def test_wss_handle_candlestick_update_add_new_candle() -> None:
+def test_wss_handle_candlestick_update_add_new_candle(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange.trading_price_data["BTC-USD"] = [
         Candle(
@@ -756,7 +802,9 @@ def test_wss_handle_candlestick_update_add_new_candle() -> None:
     )
 
 
-def test_wss_handle_candlestick_update_invalid_candle(caplog) -> None:
+def test_wss_handle_candlestick_update_invalid_candle(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange.trading_timeframe = Timeframe.M1
     dydx_exchange.trading_price_data["BTC-USD"] = [
@@ -810,6 +858,7 @@ def test_wss_handle_candlestick_update_invalid_candle(caplog) -> None:
 
 
 def test_wss_on_message_no_channel(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     mocked_oracle_price_update = mocker.patch.object(
         DyDxExchange, "_wss_handle_oracle_price_update"
     )
@@ -832,6 +881,7 @@ def test_wss_on_message_no_channel(mocker) -> None:
 
 @pytest.mark.parametrize("msg_channel", ["v3_markets", "v3_accounts", "v3_trades"])
 def test_wss_on_message(mocker, msg_channel) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     mocked_oracle_price_update = mocker.patch.object(
         DyDxExchange, "_wss_handle_oracle_price_update"
     )
@@ -858,6 +908,7 @@ def test_wss_on_message(mocker, msg_channel) -> None:
 
 
 def test_start_wss(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     mocked_threading_thread = mocker.patch("afang.exchanges.dydx.threading.Thread")
 
     dydx_exchange = DyDxExchange()
@@ -868,8 +919,10 @@ def test_start_wss(mocker) -> None:
 
 @pytest.mark.parametrize("should_raise_exception", [True, False])
 def test_populate_initial_position_sizes(
-    caplog, mock_dydx_api_client, should_raise_exception
+    mocker, caplog, mock_dydx_api_client, should_raise_exception
 ) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange._api_client = mock_dydx_api_client(should_raise_exception)
     dydx_exchange._populate_initial_position_sizes()
@@ -886,6 +939,7 @@ def test_populate_initial_position_sizes(
 
 
 def test_setup_exchange_for_trading(mocker) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
     mocked_get_api_client = mocker.patch.object(DyDxExchange, "_get_api_client")
     mocked_populate_trading_symbols = mocker.patch.object(
         DyDxExchange, "_populate_trading_symbols"
@@ -914,7 +968,9 @@ def test_setup_exchange_for_trading(mocker) -> None:
     assert mocked_start_wss.assert_called_once
 
 
-def test_change_initial_leverage(caplog) -> None:
+def test_change_initial_leverage(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+
     dydx_exchange = DyDxExchange()
     dydx_exchange.change_initial_leverage(["BTC-USD"], 5)
 

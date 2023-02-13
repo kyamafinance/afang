@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from operator import attrgetter
 from typing import List, Optional, Tuple, Union
 
-from afang.database.ohlcv_database import OHLCVDatabase
+from afang.database.ohlcv_db.ohlcv_database import OHLCVDatabase
 from afang.exchanges.is_exchange import IsExchange
 from afang.strategies.is_strategy import IsStrategy
 from afang.utils.util import milliseconds_to_datetime

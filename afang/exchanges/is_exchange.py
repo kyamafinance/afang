@@ -41,7 +41,7 @@ class IsExchange(ABC):
         wss_url: str,
     ) -> None:
         self.name = name
-        self.display_name = name + "-testnet" if testnet else name
+        self.display_name = f"{name}-testnet" if testnet else name
         self.testnet = testnet
         self._base_url = base_url
         self._wss_url = wss_url
@@ -50,7 +50,7 @@ class IsExchange(ABC):
         self.trading_symbols: Dict[str, Symbol] = dict()
         self.trading_timeframe: Optional[Timeframe] = None
         self.trading_price_data: Dict[str, List[Candle]] = dict()
-        self.active_orders: Dict[str, Order] = dict()
+        self._active_orders: Dict[str, Order] = dict()
         self.trading_symbol_balance: Dict[str, SymbolBalance] = dict()
 
     @classmethod
@@ -81,9 +81,9 @@ class IsExchange(ABC):
         query_parameters: Dict,
         headers: Optional[Dict] = None,
     ) -> Any:
-        """Make an unauthenticated GET request to the exchange. If the request
-        is successful, a JSON object instance will be returned. If the request
-        in unsuccessful, None will be returned.
+        """Make an HTTP request to the exchange. If the request is successful,
+        a JSON object instance will be returned. If the request in
+        unsuccessful, None will be returned.
 
         :param method: HTTP method to be used to make the request.
         :param endpoint: the URL path of the associated GET request.
@@ -219,6 +219,34 @@ class IsExchange(ABC):
         pool.close()
         pool.join()
 
+    def get_exchange_order(self, symbol_name: str, order_id: str) -> Optional[Order]:
+        """Efficiently fetch an order from the exchange.
+
+        :param symbol_name: symbol name.
+        :param order_id: ID of the order to query.
+        :return: Optional[Order]
+        """
+
+        if not order_id:
+            return None
+
+        if order_id in self._active_orders:
+            return self._active_orders[order_id]
+
+        order = self.get_order_by_id(symbol_name, order_id)
+        if not order:
+            logger.warning(
+                "Unable to get %s %s order with id: %s",
+                self.display_name,
+                symbol_name,
+                order_id,
+            )
+            return None
+
+        self._active_orders[order_id] = order
+
+        return order
+
     @abstractmethod
     def get_historical_candles(
         self,
@@ -261,8 +289,8 @@ class IsExchange(ABC):
         :param price: optional. order price.
         :param _kwargs:
             post_only bool: order will only be allowed if it will enter the order book.
-                            NOTE: post_only orders may override the time in force if specified.
-            dydx_limit_fee: float: highest accepted fee for the trade on the dYdX exchange.
+                            NOTE: post_only orders may override the time in force if specified (Binance).
+            dydx_limit_fee: Optional[float]: highest accepted fee for the trade on the dYdX exchange.
         :return: Optional[str]
         """
 

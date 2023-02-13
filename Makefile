@@ -7,6 +7,9 @@ ARGS ?=
 all: $(VENV)/bin/activate
 
 $(VENV)/bin/activate: requirements.txt requirements-no-deps.txt
+ifeq ("$(wildcard .env)","")
+	cp .env.example .env
+endif
 	python3 -m venv $(VENV)
 	@# uninstall packages that were installed without dependencies to prevent conflicts.
 	./$(PIP) uninstall -y -r requirements-no-deps.txt

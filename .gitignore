@@ -9,6 +9,9 @@ data/ohlcv/*
 data/optimization/*
 !data/optimization/.gitkeep
 
+data/trades/*
+!data/trades/.gitkeep
+
 tests/testdata/database/ohlcv/*
 !tests/testdata/database/ohlcv/.gitkeep
 

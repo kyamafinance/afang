@@ -26,7 +26,7 @@ from afang.exchanges.models import (
     SymbolBalance,
 )
 from afang.models import Timeframe
-from afang.utils.util import get_float_precision
+from afang.utils.util import get_float_precision, round_float_to_precision
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -63,11 +63,23 @@ class DyDxExchange(IsExchange):
         super().__init__(name, testnet, base_url, wss_url)
 
         # dYdX exchange environment variables.
+        self._DYDX_NETWORK_ID = 1
         self._DYDX_API_KEY = os.environ.get("DYDX_API_KEY")
         self._DYDX_API_SECRET = os.environ.get("DYDX_API_SECRET")
         self._DYDX_API_PASSPHRASE = os.environ.get("DYDX_API_PASSPHRASE")
         self._DYDX_STARK_PRIVATE_KEY = os.environ.get("DYDX_STARK_PRIVATE_KEY")
         self._DYDX_ETHEREUM_ADDRESS = os.environ.get("DYDX_ETHEREUM_ADDRESS")
+        if testnet:
+            self._DYDX_NETWORK_ID = 5
+            self._DYDX_API_KEY = os.environ.get("DYDX_TESTNET_API_KEY")
+            self._DYDX_API_SECRET = os.environ.get("DYDX_TESTNET_API_SECRET")
+            self._DYDX_API_PASSPHRASE = os.environ.get("DYDX_TESTNET_API_PASSPHRASE")
+            self._DYDX_STARK_PRIVATE_KEY = os.environ.get(
+                "DYDX_TESTNET_STARK_PRIVATE_KEY"
+            )
+            self._DYDX_ETHEREUM_ADDRESS = os.environ.get(
+                "DYDX_TESTNET_ETHEREUM_ADDRESS"
+            )
 
         # dYdX API client.
         self._account_position_id: Optional[str] = None
@@ -207,7 +219,7 @@ class DyDxExchange(IsExchange):
         try:
             api_client = Client(
                 host=self._base_url,
-                network_id=3 if self.testnet else 1,
+                network_id=self._DYDX_NETWORK_ID,
                 api_key_credentials={
                     "key": self._DYDX_API_KEY,
                     "secret": self._DYDX_API_SECRET,
@@ -250,8 +262,7 @@ class DyDxExchange(IsExchange):
         the order ID if order placement was successful.
 
         NOTE: The `price` parameter is required even for MARKET orders.
-        However, if `self.trading_price_data[symbol_name]` is populated and a MARKET
-        order is attempted, the `price` will be set to the latest close price + 100.
+            The best way to handle this is to pass the price as the current symbol price + 100.
 
         :param symbol_name: name of symbol.
         :param side: order side.
@@ -260,7 +271,7 @@ class DyDxExchange(IsExchange):
         :param price: optional. order price.
         :param _kwargs:
             post_only bool: order will only be allowed if it will enter the order book.
-            dydx_limit_fee: float: highest accepted fee for the trade.
+            dydx_limit_fee: Optional[float]: highest accepted fee for the trade.
         :return: Optional[str]
         """
 
@@ -269,19 +280,35 @@ class DyDxExchange(IsExchange):
         order_params["market"] = symbol_name
         order_params["side"] = side.value
         order_params["order_type"] = order_type.value
-        order_params["size"] = str(quantity)
+
+        precise_order_qty = round_float_to_precision(
+            quantity,
+            self.exchange_symbols.get(symbol_name).step_size,
+        )
+        order_params["size"] = str(precise_order_qty)
+
+        if price:
+            precise_order_price = round_float_to_precision(
+                price,
+                self.exchange_symbols.get(symbol_name).tick_size,
+            )
+            order_params["price"] = str(precise_order_price)
         if (
             order_type.value == "MARKET"
             and symbol_name in self.trading_price_data
             and self.trading_price_data[symbol_name]
         ):
-            price_val = str(float(self.trading_price_data[symbol_name][-1].close) + 100)
-            order_params["price"] = price_val
-        if price:
-            order_params["price"] = str(price)
-        order_params["expiration_epoch_seconds"] = time.time() + 604800  # 1W
+            order_market_price = round_float_to_precision(
+                float(self.trading_price_data[symbol_name][-1].close) + 100,
+                self.exchange_symbols.get(symbol_name).tick_size,
+            )
+            order_params["price"] = str(order_market_price)
+
         order_params["post_only"] = _kwargs.get("post_only", False)
-        order_params["limit_fee"] = _kwargs.get("dydx_limit_fee", 0.0005)
+        order_params["expiration_epoch_seconds"] = time.time() + 604800  # 1W
+        order_params["limit_fee"] = (
+            _kwargs.get("dydx_limit_fee") if _kwargs.get("dydx_limit_fee") else 0.0005
+        )
 
         time_in_force = "GTT" if order_type.value != "MARKET" else "FOK"
         order_params["time_in_force"] = time_in_force
@@ -295,6 +322,8 @@ class DyDxExchange(IsExchange):
                 symbol_name,
                 dydx_api_err,
             )
+        except Exception as e:
+            logger.error("Failed to place new %s order: %s", symbol_name, str(e))
 
         return None
 
@@ -644,8 +673,8 @@ class DyDxExchange(IsExchange):
             prev_order_commission = 0.0
             prev_order_executed_qty = 0.0
             prev_order_average_price = 0.0
-            if order_id in self.active_orders:
-                prev_order = self.active_orders[order_id]
+            if order_id in self._active_orders:
+                prev_order = self._active_orders[order_id]
                 prev_order_commission = prev_order.commission
                 prev_order_average_price = prev_order.average_price
                 prev_order_executed_qty = prev_order.executed_quantity
@@ -682,7 +711,7 @@ class DyDxExchange(IsExchange):
                 time_in_force=order["timeInForce"],
                 commission=updated_commission,
             )
-            self.active_orders[order_id] = updated_order
+            self._active_orders[order_id] = updated_order
 
     def _wss_handle_candlestick_update(self, msg_data: Any) -> None:
         """Runs when exchange websocket receives message data that there has

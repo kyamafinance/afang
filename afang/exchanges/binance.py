@@ -22,7 +22,7 @@ from afang.exchanges.models import (
     SymbolBalance,
 )
 from afang.models import Timeframe
-from afang.utils.util import get_float_precision
+from afang.utils.util import get_float_precision, round_float_to_precision
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -62,6 +62,9 @@ class BinanceExchange(IsExchange):
         # Binance exchange environment variables.
         self._API_KEY = os.environ.get("BINANCE_API_KEY")
         self._SECRET_KEY = os.environ.get("BINANCE_SECRET_KEY")
+        if testnet:
+            self._API_KEY = os.environ.get("BINANCE_TESTNET_API_KEY")
+            self._SECRET_KEY = os.environ.get("BINANCE_TESTNET_SECRET_KEY")
 
         # Headers to be applied to authenticated requests.
         self._headers = {"X-MBX-APIKEY": self._API_KEY}
@@ -221,11 +224,21 @@ class BinanceExchange(IsExchange):
         params: Dict = dict()
         params["symbol"] = symbol_name
         params["side"] = side.value
-        params["quantity"] = str(quantity)
         params["type"] = order_type.value
 
+        precise_order_qty = round_float_to_precision(
+            quantity,
+            self.exchange_symbols.get(symbol_name).step_size,
+        )
+        params["quantity"] = str(precise_order_qty)
+
         if price and order_type != "MARKET":
-            params["price"] = str(price)
+            precise_order_price = round_float_to_precision(
+                price,
+                self.exchange_symbols.get(symbol_name).tick_size,
+            )
+            params["price"] = str(precise_order_price)
+
         if order_type.value != "MARKET":
             time_in_force = "GTX" if _kwargs.get("post_only", False) else "GTC"
             params["timeInForce"] = time_in_force
@@ -239,6 +252,38 @@ class BinanceExchange(IsExchange):
             return None
 
         return response["orderId"]
+
+    def get_user_commission_rate(
+        self, symbol_name: str, order_type: OrderType
+    ) -> Optional[float]:
+        """Get the user commission rate for a given symbol and a given order
+        type.
+
+        :param symbol_name: name of symbol.
+        :param order_type: order type of the trade in question.
+        :return: Optional[float]
+        """
+
+        params: Dict = dict()
+        params["symbol"] = symbol_name
+        params["timestamp"] = int(time.time() * 1000)
+        params["signature"] = self._generate_authed_request_signature(params)
+
+        endpoint = "/fapi/v1/commissionRate"
+        response = self._make_request(
+            HTTPMethod.GET, endpoint, params, headers=self._headers
+        )
+        if not response:
+            logger.error("Error while fetching user %s commission rate", symbol_name)
+            return None
+
+        if order_type == OrderType.MARKET:
+            return float(response["takerCommissionRate"])
+        elif order_type == OrderType.LIMIT:
+            return float(response["makerCommissionRate"])
+        else:
+            # Unknown order type specified.
+            return float()
 
     def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
         """Query an order by ID.
@@ -280,18 +325,24 @@ class BinanceExchange(IsExchange):
         elif response["type"] == "MARKET":
             order_type = OrderType.MARKET
 
+        average_price = float(response["avgPrice"])
+        executed_position_size = average_price * executed_quantity
+        commission_rate = self.get_user_commission_rate(symbol_name, order_type)
+        current_commission = executed_position_size * commission_rate
+
         return Order(
             symbol=symbol_name,
             order_id=order_id,
             side=order_side,
             original_price=float(response["price"]),
-            average_price=float(response["avgPrice"]),
+            average_price=average_price,
             original_quantity=order_quantity,
             executed_quantity=executed_quantity,
             remaining_quantity=remaining_quantity,
             order_type=order_type,
             order_status=response["status"],
             time_in_force=response["timeInForce"],
+            commission=current_commission,
         )
 
     def cancel_order(self, symbol_name: str, order_id: str) -> bool:
@@ -458,8 +509,8 @@ class BinanceExchange(IsExchange):
             order_type = OrderType.MARKET
 
         prev_order_commission = 0.0
-        if msg_order_id in self.active_orders:
-            prev_order = self.active_orders[msg_order_id]
+        if msg_order_id in self._active_orders:
+            prev_order = self._active_orders[msg_order_id]
             prev_order_commission = prev_order.commission
         current_order_commission = float(msg_order["n"]) if "n" in msg_order else 0.0
         current_commission_tally = prev_order_commission + current_order_commission
@@ -468,7 +519,7 @@ class BinanceExchange(IsExchange):
             symbol=msg_order["s"],
             order_id=msg_order_id,
             side=order_side,
-            original_price=float(msg_order["p"]) if float(msg_order["p"]) else None,
+            original_price=float(msg_order["p"]),
             average_price=float(msg_order["ap"]),
             original_quantity=order_quantity,
             executed_quantity=executed_quantity,
@@ -478,7 +529,7 @@ class BinanceExchange(IsExchange):
             time_in_force=msg_order["f"],
             commission=current_commission_tally,
         )
-        self.active_orders[msg_order_id] = updated_order
+        self._active_orders[msg_order_id] = updated_order
 
     def _wss_handle_candlestick_update(self, msg_data: Any) -> None:
         """Runs when exchange websocket receives message data that there has
