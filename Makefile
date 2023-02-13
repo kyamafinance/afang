@@ -26,7 +26,7 @@ lint:
 	pre-commit run --all-files
 
 test: $(VENV)/bin/activate
-	./$(PYTHON) -m pytest --cov=afang/ tests/
+	./$(PYTHON) -m pytest --cov=afang/ tests/ -W ignore::DeprecationWarning
 
 clean:
 	rm -rf $(VENV)/
