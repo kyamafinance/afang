@@ -512,11 +512,11 @@ class Trader(ABC):
 
         return order.average_price
 
-    def get_symbol_ohlcv_candles_df(self, symbol: str) -> Optional[pd.DataFrame]:
+    def get_symbol_ohlcv_candles_df(self, symbol: str) -> pd.DataFrame:
         """Get a symbol's OHLCV candles as a dataframe.
 
         :param symbol: symbol whose OHLCV candles are to be fetched.
-        :return: Optional[pd.Dataframe]
+        :return: pd.Dataframe
         """
 
         if (
@@ -530,7 +530,7 @@ class Trader(ABC):
                 symbol,
                 self.timeframe.value,
             )
-            return None
+            return pd.DataFrame()
 
         ohlcv_candles = self.exchange.trading_price_data[symbol]
         ohlcv_candles_df = pd.DataFrame(ohlcv_candles)
