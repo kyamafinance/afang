@@ -7,7 +7,6 @@ class FunctionGroup:
 
     def __init__(self) -> None:
         """Initialize FunctionGroup class."""
-
         self.funcs: List[Callable] = []
 
     def add(self, func) -> Callable:
@@ -16,7 +15,6 @@ class FunctionGroup:
         :param func: function to be added.
         :return: Callable
         """
-
         self.funcs.append(func)
         return func
 
@@ -25,5 +23,4 @@ class FunctionGroup:
 
         :return: List[Callable]
         """
-
         return [func(*args, **kwargs) for func in self.funcs]

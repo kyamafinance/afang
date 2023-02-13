@@ -15,7 +15,6 @@ class Logger:
 
     def __init__(self) -> None:
         """Initialize Logger class."""
-
         self.default_config = os.path.join(
             pathlib.Path(__file__).parents[2], "config/logging_config.yaml"
         )
@@ -26,7 +25,6 @@ class Logger:
 
         :return: RotatingFileHandler
         """
-
         rotating_file_handler = RotatingFileHandler(
             "logs/logs.log",
             maxBytes=10485760,
@@ -53,7 +51,6 @@ class Logger:
 
         :return: None
         """
-
         path = self.default_config
         if os.path.exists(path):
             with open(path) as file:

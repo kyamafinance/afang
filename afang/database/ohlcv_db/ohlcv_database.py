@@ -49,7 +49,6 @@ class OHLCVDatabase:
 
         :return: None
         """
-
         if symbol in self.hf.keys():
             return
 
@@ -91,7 +90,6 @@ class OHLCVDatabase:
 
         :return: None
         """
-
         if symbol not in self.hf.keys():
             logger.warning("%s: no dataset exists for symbol in database", symbol)
             return
@@ -211,7 +209,6 @@ class OHLCVDatabase:
 
         :return: bool
         """
-
         if symbol not in self.hf.keys():
             logger.warning("%s: no dataset exists for symbol in database", symbol)
             return False

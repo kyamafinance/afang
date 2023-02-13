@@ -21,7 +21,6 @@ def get_exchange_client(parsed_args: argparse.Namespace) -> Optional[IsExchange]
 
     :return: Optional[IsExchange]
     """
-
     exchange: Optional[IsExchange] = None
     if parsed_args.exchange == Exchange.binance.value:
         exchange = BinanceExchange(testnet=parsed_args.testnet)
@@ -38,7 +37,6 @@ def get_strategy_instance(strategy_name: str) -> Optional[Callable]:
     :param strategy_name: name of the user defined strategy.
     :return: Callable
     """
-
     if not strategy_name:
         return None
 
@@ -56,7 +54,6 @@ def main(args):
 
     :return: None
     """
-
     parsed_args = parse_args(args)
 
     # Get the exchange client.

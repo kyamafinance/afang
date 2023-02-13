@@ -10,7 +10,6 @@ def parse_args(args) -> argparse.Namespace:
 
     :return: argparse.Namespace
     """
-
     parser = argparse.ArgumentParser(
         description="A Python-based platform for backtesting and optimizing automated trading systems"
     )

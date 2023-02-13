@@ -13,7 +13,6 @@ def milliseconds_to_datetime(milliseconds: int) -> datetime:
     :param milliseconds: UNIX timestamp in milliseconds.
     :return: datetime
     """
-
     return datetime.utcfromtimestamp(milliseconds / 1000)
 
 
@@ -24,7 +23,6 @@ def time_str_to_milliseconds(time_str: str) -> int:
     :param time_str: time string in the format '%Y-%m-%d'.
     :return: int
     """
-
     try:
         date = datetime.strptime(time_str, "%Y-%m-%d")
         date = date.replace(tzinfo=timezone.utc)
@@ -45,7 +43,6 @@ def resample_timeframe(data: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     :param timeframe: desired timeframe to resample the price data into.
     :return: pd.DataFrame
     """
-
     tf_mapping = {
         "1m": "1Min",
         "5m": "5Min",
@@ -67,7 +64,6 @@ def get_float_precision(input_float: float) -> int:
     :param input_float: float.
     :return: int
     """
-
     input_float_str = f"{float(input_float):.8f}"
     while input_float_str[-1] == "0":
         input_float_str = input_float_str[:-1]
@@ -87,7 +83,6 @@ def round_float_to_precision(input_val: float, precision: float) -> float:
     :param precision: intended precision.
     :return: float
     """
-
     precision = int(round(-math.log(precision, 10), 0))
     precise_value = float(round(input_val, precision))
 

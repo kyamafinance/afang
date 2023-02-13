@@ -17,7 +17,6 @@ class BacktestProfile:
 
     def __init__(self) -> None:
         """Initialize BacktestProfile class."""
-
         self.backtest_analysis: List[dict] = []
         self.backtest_parameters: Dict = dict()
         self.front: int = 0
@@ -33,7 +32,6 @@ class BacktestProfile:
         :param other: another backtest profile.
         :return: bool.
         """
-
         if isinstance(other, BacktestProfile):
             return self.backtest_parameters == other.backtest_parameters
         return False
@@ -45,7 +43,6 @@ class BacktestProfile:
         :param objective: objective to check.
         :return: bool
         """
-
         try:
             return self.backtest_analysis[0][objective]["positive_optimization"]
         except IndexError:
@@ -59,7 +56,6 @@ class BacktestProfile:
         :param objective: objective whose value is to be retrieved.
         :return: Any
         """
-
         try:
             return self.backtest_analysis[0][objective]["all_trades"]
         except IndexError:
@@ -74,7 +70,6 @@ class BacktestProfile:
         :param value: value to use for the update.
         :return: None
         """
-
         try:
             self.backtest_analysis[0][objective]["all_trades"] = value
         except IndexError:
@@ -85,7 +80,6 @@ class BacktestProfile:
 
         :return: None
         """
-
         self.front = 0
         self.domination_count = 0
         self.crowding_distance = 0.0
@@ -132,11 +126,10 @@ class StrategyOptimizer:
 
         :return List[BacktestProfile]
         """
-
         population: List[BacktestProfile] = list()
         while len(population) < self.optimizer_config["population_size"]:
             backtest_profile = BacktestProfile()
-            for (param, settings) in self.optimizer_config["parameters"].items():
+            for param, settings in self.optimizer_config["parameters"].items():
                 if settings["type"] == "int":
                     backtest_profile.backtest_parameters[param] = random.randint(
                         settings["min"], settings["max"]
@@ -489,7 +482,6 @@ class StrategyOptimizer:
         :param persist: whether to persist the optimization run.
         :return: None
         """
-
         logger.info(
             "Started optimization on the %s strategy",
             self.strategy_instance.strategy_name,
