@@ -66,21 +66,6 @@ class TradesDatabase:
 
         self.session.add(trade_position)
 
-    def delete_position(self, position_id: int) -> None:
-        """Delete a trade position from the trades' database.
-
-        :param position_id: ID of the position to be deleted.
-        :return: None
-        """
-
-        trade_position = (
-            self.session.query(TradePosition)
-            .filter(TradePosition.id == position_id)
-            .first()
-        )
-        if trade_position:
-            self.session.delete(trade_position)
-
     def update_position(self, position_id: int, updated_fields: Dict) -> None:
         """Update a trade position in the trades' database.
 
@@ -156,19 +141,6 @@ class TradesDatabase:
         order = self.session.query(Order).filter(Order.id == db_order_id).first()
         if not order:
             logger.warning("Order not found in DB. id: %s", db_order_id)
-
-        return order
-
-    def fetch_order_by_exchange_id(self, order_id: str) -> Optional[Order]:
-        """Fetch an order by exchange order ID from the trades' database.
-
-        :param order_id: exchange order ID of the order to be fetched.
-        :return: Optional[Order]
-        """
-
-        order = self.session.query(Order).filter(Order.order_id == order_id).first()
-        if not order:
-            logger.warning("Order not found in DB. exchange order id: %s", order_id)
 
         return order
 

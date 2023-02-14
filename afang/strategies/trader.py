@@ -126,9 +126,8 @@ class Trader(ABC):
             stop_price=None,
         )
 
-    @classmethod
     def fetch_symbol_open_trade_positions(
-        cls, symbol: str, trades_database: TradesDatabase
+        self, symbol: str, trades_database: TradesDatabase
     ) -> List[DBTradePosition]:
         """Fetch a list of all open trade positions for a given symbol.
 
@@ -140,6 +139,7 @@ class Trader(ABC):
         filters = (
             DBTradePosition.symbol == symbol,
             DBTradePosition.open_position.__eq__(True),
+            DBTradePosition.exchange_display_name == self.exchange.display_name,
         )
 
         open_positions: List[DBTradePosition] = trades_database.fetch_positions(
@@ -147,6 +147,35 @@ class Trader(ABC):
         )
 
         return open_positions
+
+    def fetch_order_by_exchange_id(
+        self, order_id: str, trades_database: TradesDatabase
+    ) -> Optional[DBOrder]:
+        """Fetch an order by exchange order ID from the provided trades'
+        database.
+
+        :param order_id: exchange order ID of the order to be fetched.
+        :param trades_database: TradesDatabase instance.
+        :return: Optional[DBOrder]
+        """
+
+        filters = (
+            DBOrder.order_id == order_id,
+            DBOrder.exchange_display_name == self.exchange.display_name,
+        )
+
+        matching_orders: List[DBOrder] = trades_database.fetch_orders(
+            filters=filters, limit=1
+        )
+        if not matching_orders:
+            logger.warning(
+                "%s: order not found in DB. exchange order id: %s",
+                self.exchange.display_name,
+                order_id,
+            )
+            return None
+
+        return matching_orders[0]
 
     def get_next_trading_symbol(self, run_forever: bool = True) -> Optional[str]:
         """Get the next trading symbol from the execution queue to trade.
@@ -431,8 +460,8 @@ class Trader(ABC):
         :return: None
         """
 
-        db_position_order = trades_database.fetch_order_by_exchange_id(
-            exchange_order_id
+        db_position_order = self.fetch_order_by_exchange_id(
+            exchange_order_id, trades_database
         )
         if not db_position_order:
             logger.error(
@@ -682,8 +711,8 @@ class Trader(ABC):
         if not cost_adjusted:
             position_pnl += self.get_position_total_commission(position)
 
-        open_position_order = trades_database.fetch_order_by_exchange_id(
-            position.open_order_id
+        open_position_order = self.fetch_order_by_exchange_id(
+            position.open_order_id, trades_database
         )
         if not open_position_order:
             logger.error(
@@ -828,6 +857,7 @@ class Trader(ABC):
             target_price=target_price,
             stop_price=stop_price,
             initial_account_balance=quote_asset_balance.wallet_balance,
+            exchange_display_name=self.exchange.display_name,
         )
         self.create_new_db_position(new_trade_position, trades_database)
 
@@ -840,6 +870,7 @@ class Trader(ABC):
             original_price=desired_entry_price,
             original_quantity=intended_open_order_qty,
             order_type=self.open_order_type.value,
+            exchange_display_name=self.exchange.display_name,
             position=new_trade_position,
         )
         self.create_new_db_order(position_open_order, trades_database)
@@ -966,6 +997,7 @@ class Trader(ABC):
             original_price=close_price,
             original_quantity=close_order_quantity,
             order_type=self.close_order_type.value,
+            exchange_display_name=self.exchange.display_name,
             position=position,
         )
         self.create_new_db_order(new_close_order, trades_database)
@@ -1123,8 +1155,8 @@ class Trader(ABC):
             if not final_exchange_close_order:
                 return None
 
-            final_db_close_order = trades_database.fetch_order_by_exchange_id(
-                position.final_close_order_id
+            final_db_close_order = self.fetch_order_by_exchange_id(
+                position.final_close_order_id, trades_database
             )
             if not final_db_close_order:
                 return None
@@ -1221,6 +1253,20 @@ class Trader(ABC):
         time.sleep(2.0)
         self.trading_execution_queue.put(symbol)
 
+    def get_db_name(self) -> str:
+        """Get the appropriate database name.
+
+        :return: str
+        """
+
+        db_name = "trades.sqlite3"
+        if self.on_demo_mode:
+            db_name = "trades_on-demo-mode.sqlite3"
+        elif self.exchange.testnet:
+            db_name = "trades_on-testnet.sqlite3"
+
+        return db_name
+
     def run_trader(
         self,
         exchange: IsExchange,
@@ -1299,7 +1345,8 @@ class Trader(ABC):
 
         # Run trading loop.
         max_workers = multiprocessing.cpu_count() - 1
-        create_session_factory(engine_url=db_engine_url)
+        db_name = self.get_db_name()
+        create_session_factory(db_name=db_name, engine_url=db_engine_url)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             executor.map(
                 self.run_symbol_trader, iter(self.get_next_trading_symbol, None)

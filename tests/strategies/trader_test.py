@@ -33,6 +33,7 @@ def dummy_db_trade_positions() -> List[DBTradePosition]:
             target_price=20,
             stop_price=5,
             initial_account_balance=20,
+            exchange_display_name="test_exchange",
         ),
         DBTradePosition(
             symbol="BTCUSDT",
@@ -44,6 +45,7 @@ def dummy_db_trade_positions() -> List[DBTradePosition]:
             target_price=20,
             stop_price=5,
             initial_account_balance=20,
+            exchange_display_name="test_exchange",
         ),
     ]
 
@@ -63,6 +65,7 @@ def dummy_db_trade_orders() -> List[DBOrder]:
             executed_quantity=10,
             order_type=OrderType.LIMIT.value,
             commission=2,
+            exchange_display_name="test_exchange",
         ),
         DBOrder(
             symbol="BTCUSDT",
@@ -76,13 +79,18 @@ def dummy_db_trade_orders() -> List[DBOrder]:
             executed_quantity=10,
             order_type=OrderType.LIMIT.value,
             commission=4,
+            exchange_display_name="test_exchange",
         ),
     ]
 
 
 def test_fetch_symbol_open_trade_positions(
-    dummy_db_trade_positions, trades_db_test_engine_url, dummy_is_strategy
+    dummy_is_exchange,
+    dummy_db_trade_positions,
+    trades_db_test_engine_url,
+    dummy_is_strategy,
 ) -> None:
+    dummy_is_strategy.exchange = dummy_is_exchange
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
     for trade_position in dummy_db_trade_positions:
@@ -95,6 +103,32 @@ def test_fetch_symbol_open_trade_positions(
 
     assert len(open_trade_positions) == 2
     assert open_trade_positions == dummy_db_trade_positions
+
+
+@pytest.mark.parametrize("order_id, expected_found", [("12345", True), ("6789", False)])
+def test_fetch_order_by_exchange_id(
+    dummy_is_exchange,
+    dummy_db_trade_orders,
+    trades_db_test_engine_url,
+    dummy_is_strategy,
+    order_id,
+    expected_found,
+    caplog,
+) -> None:
+    dummy_is_strategy.exchange = dummy_is_exchange
+    create_session_factory(engine_url=trades_db_test_engine_url)
+    trades_db = TradesDatabase()
+
+    trades_db.create_new_order(dummy_db_trade_orders[0])
+    trades_db.session.commit()
+
+    order = dummy_is_strategy.fetch_order_by_exchange_id(order_id, trades_db)
+
+    if expected_found:
+        assert order == dummy_db_trade_orders[0]
+        return
+    assert caplog.records[0].levelname == "WARNING"
+    assert "order not found in DB" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -582,14 +616,12 @@ def test_cancel_position_order(
         if db_position_order_complete:
             dummy_position_order.complete = True
         mocker.patch.object(
-            TradesDatabase,
+            Trader,
             "fetch_order_by_exchange_id",
             return_value=dummy_position_order,
         )
     else:
-        mocker.patch.object(
-            TradesDatabase, "fetch_order_by_exchange_id", return_value=None
-        )
+        mocker.patch.object(Trader, "fetch_order_by_exchange_id", return_value=None)
 
     if exchange_position_order_found:
         dummy_exchange_order = ExchangeOrder(
@@ -947,7 +979,7 @@ def test_get_position_roe(
     dummy_db_position.orders = dummy_db_trade_orders
 
     mocker.patch.object(
-        TradesDatabase, "fetch_order_by_exchange_id", return_value=open_position_order
+        Trader, "fetch_order_by_exchange_id", return_value=open_position_order
     )
 
     roe = dummy_is_strategy.get_position_roe(
@@ -1094,6 +1126,7 @@ def test_place_close_trade_position_order(
             target_price=20,
             stop_price=5,
             initial_account_balance=20,
+            exchange_display_name="test_exchange",
         ),
     )
     mocker.patch.object(Trader, "is_order_filled", return_value=True)
@@ -1159,6 +1192,7 @@ def test_handle_open_trade_positions(
             target_price=20,
             stop_price=5,
             initial_account_balance=20,
+            exchange_display_name="test_exchange",
         )
     ]
 
@@ -1196,7 +1230,7 @@ def test_handle_finalized_trade_positions(
         ),
     )
     mocker.patch.object(
-        TradesDatabase,
+        Trader,
         "fetch_order_by_exchange_id",
         return_value=DBOrder(
             symbol="BTCUSDT",
@@ -1210,6 +1244,7 @@ def test_handle_finalized_trade_positions(
             executed_quantity=10,
             order_type=OrderType.LIMIT.value,
             commission=2,
+            exchange_display_name="test_exchange",
         ),
     )
     mocked_update_closed_order_in_db = mocker.patch.object(
@@ -1230,6 +1265,7 @@ def test_handle_finalized_trade_positions(
             target_price=20,
             stop_price=5,
             initial_account_balance=20,
+            exchange_display_name="test_exchange",
         )
     ]
 
@@ -1320,3 +1356,28 @@ def test_run_trader(
 
     assert mocked_setup_exchange_for_trading.called
     assert mocked_change_initial_leverage.called
+
+
+@pytest.mark.parametrize(
+    "on_demo_mode, is_exchange_testnet, expected_db_name",
+    [
+        (True, False, "trades_on-demo-mode.sqlite3"),
+        (True, True, "trades_on-demo-mode.sqlite3"),
+        (False, True, "trades_on-testnet.sqlite3"),
+        (False, False, "trades.sqlite3"),
+    ],
+)
+def test_get_db_name(
+    dummy_is_strategy,
+    dummy_is_exchange,
+    on_demo_mode,
+    is_exchange_testnet,
+    expected_db_name,
+) -> None:
+    dummy_is_strategy.exchange = dummy_is_exchange
+    dummy_is_strategy.exchange.testnet = is_exchange_testnet
+    dummy_is_strategy.on_demo_mode = on_demo_mode
+
+    db_name = dummy_is_strategy.get_db_name()
+
+    assert db_name == expected_db_name
