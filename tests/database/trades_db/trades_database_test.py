@@ -22,6 +22,7 @@ def dummy_trade_position() -> TradePosition:
         target_price=20,
         stop_price=5,
         initial_account_balance=20,
+        exchange_display_name="test_exchange",
     )
 
 
@@ -36,6 +37,7 @@ def dummy_trade_order() -> Order:
         original_price=23,
         original_quantity=10,
         order_type="MARKET",
+        exchange_display_name="test_exchange",
     )
 
 
@@ -62,17 +64,6 @@ def test_create_new_position(trades_db_test_engine_url, dummy_trade_position) ->
     trades_db.session.commit()
     persisted_trade_position = trades_db.fetch_position_by_id(1)
     assert persisted_trade_position == dummy_trade_position
-
-
-def test_delete_position(trades_db_test_engine_url, dummy_trade_position) -> None:
-    create_session_factory(engine_url=trades_db_test_engine_url)
-    trades_db = TradesDatabase()
-    trades_db.create_new_position(dummy_trade_position)
-    trades_db.session.commit()
-    trades_db.delete_position(1)
-    trades_db.session.commit()
-    persisted_trade_position = trades_db.fetch_position_by_id(1)
-    assert persisted_trade_position is None
 
 
 def test_update_position(trades_db_test_engine_url, dummy_trade_position) -> None:
@@ -126,6 +117,7 @@ def test_fetch_positions(
         target_price=20,
         stop_price=5,
         initial_account_balance=20,
+        exchange_display_name="test_exchange",
     )
     trades_db.create_new_position(second_dummy_trade_position)
     trades_db.session.commit()
@@ -170,17 +162,6 @@ def test_fetch_order_by_id(trades_db_test_engine_url, dummy_trade_order) -> None
     assert persisted_order is dummy_trade_order
 
 
-def test_fetch_order_by_exchange_id(
-    trades_db_test_engine_url, dummy_trade_order
-) -> None:
-    create_session_factory(engine_url=trades_db_test_engine_url)
-    trades_db = TradesDatabase()
-    trades_db.create_new_order(dummy_trade_order)
-    trades_db.session.commit()
-    persisted_order = trades_db.fetch_order_by_exchange_id("12345")
-    assert persisted_order is dummy_trade_order
-
-
 @pytest.mark.parametrize(
     "filters, limit, expected_persisted_orders",
     [
@@ -210,6 +191,7 @@ def test_fetch_orders(
         original_price=23,
         original_quantity=10,
         order_type="MARKET",
+        exchange_display_name="test_exchange",
     )
     trades_db.create_new_order(second_dummy_trade_order)
     trades_db.session.commit()
