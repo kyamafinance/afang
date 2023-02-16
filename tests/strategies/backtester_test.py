@@ -1,11 +1,11 @@
 import datetime
-import uuid
 from collections import namedtuple
 from typing import Any, Optional
 
 import pandas as pd
 import pytest
 
+import afang.strategies.backtester as backtester
 from afang.database.ohlcv_db.ohlcv_database import OHLCVDatabase
 from afang.exchanges.models import Symbol
 from afang.models import Timeframe
@@ -88,15 +88,8 @@ def ohlcv_db(ohlcv_root_db_dir, dummy_is_exchange, ohlcv_df) -> OHLCVDatabase:
     return DummyOHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
 
 
-def test_generate_uuid(dummy_is_strategy) -> None:
-    generated_uuid = dummy_is_strategy.generate_uuid()
-    uuid.UUID(str(generated_uuid))
-
-
 def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
-    mocker.patch(
-        "afang.strategies.backtester.Backtester.generate_uuid", side_effect=[1, 2, 3]
-    )
+    mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     dummy_is_strategy.open_long_backtest_position(
@@ -149,9 +142,7 @@ def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
 
 
 def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
-    mocker.patch(
-        "afang.strategies.backtester.Backtester.generate_uuid", side_effect=[1, 2, 3]
-    )
+    mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     dummy_is_strategy.open_short_backtest_position(
@@ -204,9 +195,7 @@ def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
 
 
 def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
-    mocker.patch(
-        "afang.strategies.backtester.Backtester.generate_uuid", side_effect=[1, 2, "3"]
-    )
+    mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, "3"])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     dummy_is_strategy.open_long_backtest_position(
@@ -231,10 +220,7 @@ def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
 
 
 def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
-    mocker.patch(
-        "afang.strategies.backtester.Backtester.generate_uuid",
-        side_effect=["1", "2", "3"],
-    )
+    mocker.patch.object(backtester, "generate_uuid", side_effect=["1", "2", "3"])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     trade_exit_time = datetime.datetime(2022, 1, 1, 2, 0)
@@ -350,10 +336,7 @@ def test_handle_open_backtest_positions(
     dummy_is_strategy.backtest_data["test_symbol"] = ohlcv_df
     dummy_is_strategy.max_holding_candles = max_holding_candles
 
-    mocker.patch(
-        "afang.strategies.backtester.Backtester.generate_uuid",
-        side_effect=["1"],
-    )
+    mocker.patch.object(backtester, "generate_uuid", side_effect=["1"])
     mocked_close_backtest_position = mocker.patch(
         "afang.strategies.backtester.Backtester.close_backtest_position",
         return_value=None,

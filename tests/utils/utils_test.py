@@ -1,9 +1,11 @@
+import uuid
 from datetime import datetime
 
 import pandas as pd
 import pytest
 
 from afang.utils.util import (
+    generate_uuid,
     get_float_precision,
     milliseconds_to_datetime,
     resample_timeframe,
@@ -84,3 +86,8 @@ def test_get_float_precision(input_float, expected_precision) -> None:
 def test_round_float_to_precision(input_val, precision, expected_val) -> None:
     output_val = round_float_to_precision(input_val, precision)
     assert output_val == expected_val
+
+
+def test_generate_uuid() -> None:
+    generated_uuid = generate_uuid()
+    assert type(uuid.UUID(str(generated_uuid))) == uuid.UUID

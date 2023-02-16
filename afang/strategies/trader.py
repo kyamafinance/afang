@@ -64,6 +64,8 @@ class Trader(ABC):
 
         # --Unique to Trader (not in Backtester)
         self.on_demo_mode: Optional[bool] = None
+        # exchange orders that are placed while on demo mode.
+        self.demo_mode_exchange_orders: Dict[str, ExchangeOrder] = dict()
         # execution queue that will run trader on present symbols FIFO.
         self.trading_execution_queue: queue.Queue = queue.Queue()
         # Order type to be used to open positions.
@@ -850,6 +852,7 @@ class Trader(ABC):
         new_trade_position = DBTradePosition(
             symbol=symbol,
             direction=direction,
+            entry_time=datetime.utcnow(),
             desired_entry_price=desired_entry_price,
             open_order_id=open_order_id,
             position_qty=intended_open_order_qty,
@@ -1006,7 +1009,6 @@ class Trader(ABC):
         updated_trade_position["final_close_order_id"] = close_order_id
         updated_trade_position["final_desired_close_price"] = close_price
         if not position.final_close_order_id:
-            updated_trade_position["entry_time"] = datetime.utcnow()
             updated_trade_position["entry_price"] = self.get_order_average_price(
                 position.symbol, position.open_order_id
             )

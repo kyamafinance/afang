@@ -1,7 +1,6 @@
 import logging
 import multiprocessing
 import time
-import uuid
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -14,7 +13,7 @@ from afang.exchanges import IsExchange
 from afang.models import Timeframe
 from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.models import TradeLevels, TradePosition
-from afang.utils.util import resample_timeframe, time_str_to_milliseconds
+from afang.utils.util import generate_uuid, resample_timeframe, time_str_to_milliseconds
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +64,6 @@ class Backtester(ABC):
         # backtest trade positions.
         self.trade_positions: Dict = dict()
 
-    @staticmethod
-    def generate_uuid() -> str:
-        """Generate a random UUID.
-
-        :return: str
-        """
-
-        return str(uuid.uuid4())
-
     @abstractmethod
     def plot_backtest_indicators(self) -> Dict:
         """Get the indicators to plot on the backtest analysis dashboard.
@@ -112,7 +102,7 @@ class Backtester(ABC):
 
         if not self.trade_positions.get(symbol, dict()):
             self.trade_positions[symbol] = dict()
-        self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
+        self.trade_positions[symbol][generate_uuid()] = new_position
 
     def open_short_backtest_position(
         self,
@@ -143,7 +133,7 @@ class Backtester(ABC):
 
         if not self.trade_positions.get(symbol, dict()):
             self.trade_positions[symbol] = dict()
-        self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
+        self.trade_positions[symbol][generate_uuid()] = new_position
 
     def fetch_open_symbol_backtest_positions(self, symbol: str) -> List[TradePosition]:
         """Fetch a list of all open backtest positions for a given symbol.

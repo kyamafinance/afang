@@ -1,5 +1,6 @@
 import logging
 import math
+import uuid
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -92,3 +93,12 @@ def round_float_to_precision(input_val: float, precision: float) -> float:
     precise_value = float(round(input_val, precision))
 
     return precise_value
+
+
+def generate_uuid() -> str:
+    """Generate a random UUID.
+
+    :return: str
+    """
+
+    return str(uuid.uuid4())
