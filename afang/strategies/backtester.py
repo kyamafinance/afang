@@ -265,6 +265,34 @@ class Backtester(ABC):
             stop_price=None,
         )
 
+    def generate_and_verify_backtest_trade_levels(
+        self, data: Any, trade_signal_direction: int
+    ) -> Optional[TradeLevels]:
+        """Generate price levels for an individual trade signal and verify that
+        they are valid.
+
+        :param data: the historical price dataframe row where the open trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+        :return: Optional[TradeLevels]
+        """
+
+        trade_levels = self.generate_trade_levels(data, trade_signal_direction)
+
+        if (trade_signal_direction == 1 and trade_levels.entry_price < data.close) or (
+            trade_signal_direction == -1 and trade_levels.entry_price > data.close
+        ):
+            logger.warning(
+                "Generated trade levels are invalid. direction: %s. candle open time: %s. "
+                "desired entry price: %s. current price: %s",
+                trade_signal_direction,
+                data.Index,
+                trade_levels.entry_price,
+                data.close,
+            )
+            return None
+
+        return trade_levels
+
     def handle_open_backtest_positions(self, symbol: str, data: Any) -> None:
         """Monitor and handle open positions for a given symbol and close them
         if they hit a trade barrier.
@@ -401,14 +429,17 @@ class Backtester(ABC):
                 ):
                     continue
 
-                trade_levels = self.generate_trade_levels(row, trade_signal_direction=1)
-                self.open_long_backtest_position(
-                    symbol=symbol,
-                    entry_price=trade_levels.entry_price,
-                    entry_time=row.Index,
-                    target_price=trade_levels.target_price,
-                    stop_price=trade_levels.stop_price,
+                trade_levels = self.generate_and_verify_backtest_trade_levels(
+                    row, trade_signal_direction=1
                 )
+                if trade_levels:
+                    self.open_long_backtest_position(
+                        symbol=symbol,
+                        entry_price=trade_levels.entry_price,
+                        entry_time=row.Index,
+                        target_price=trade_levels.target_price,
+                        stop_price=trade_levels.stop_price,
+                    )
 
             # open a short position if we get a short trading signal.
             if (
@@ -423,16 +454,17 @@ class Backtester(ABC):
                 ):
                     continue
 
-                trade_levels = self.generate_trade_levels(
+                trade_levels = self.generate_and_verify_backtest_trade_levels(
                     row, trade_signal_direction=-1
                 )
-                self.open_short_backtest_position(
-                    symbol=symbol,
-                    entry_price=trade_levels.entry_price,
-                    entry_time=row.Index,
-                    target_price=trade_levels.target_price,
-                    stop_price=trade_levels.stop_price,
-                )
+                if trade_levels:
+                    self.open_short_backtest_position(
+                        symbol=symbol,
+                        entry_price=trade_levels.entry_price,
+                        entry_time=row.Index,
+                        target_price=trade_levels.target_price,
+                        stop_price=trade_levels.stop_price,
+                    )
 
             # monitor and handle all open positions.
             self.handle_open_backtest_positions(symbol, row)

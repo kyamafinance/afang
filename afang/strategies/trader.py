@@ -21,7 +21,7 @@ from afang.exchanges.models import Order as ExchangeOrder
 from afang.exchanges.models import OrderSide, OrderType, Symbol, SymbolBalance
 from afang.models import Timeframe
 from afang.strategies.models import TradeLevels
-from afang.utils.util import round_float_to_precision
+from afang.utils.util import milliseconds_to_datetime, round_float_to_precision
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ class Trader(ABC):
         # --Unique to Trader (not in Backtester)
         self.on_demo_mode: Optional[bool] = None
         # exchange orders that are placed while on demo mode.
-        self.demo_mode_exchange_orders: Dict[str, ExchangeOrder] = dict()
+        self.demo_mode_exchange_orders: Dict[str, List[ExchangeOrder]] = dict()
         # execution queue that will run trader on present symbols FIFO.
         self.trading_execution_queue: queue.Queue = queue.Queue()
         # Order type to be used to open positions.
@@ -127,6 +127,34 @@ class Trader(ABC):
             target_price=None,
             stop_price=None,
         )
+
+    def generate_and_verify_trader_trade_levels(
+        self, data: Any, trade_signal_direction: int
+    ) -> Optional[TradeLevels]:
+        """Generate price levels for an individual trade signal and verify that
+        they are valid.
+
+        :param data: the candle where the open trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+        :return: Optional[TradeLevels]
+        """
+
+        trade_levels = self.generate_trade_levels(data, trade_signal_direction)
+
+        if (trade_signal_direction == 1 and trade_levels.entry_price < data.close) or (
+            trade_signal_direction == -1 and trade_levels.entry_price > data.close
+        ):
+            logger.warning(
+                "Generated trade levels are invalid. direction: %s. candle open time: %s. "
+                "desired entry price: %s. current price: %s",
+                trade_signal_direction,
+                milliseconds_to_datetime(data.open_time),
+                trade_levels.entry_price,
+                data.close,
+            )
+            return None
+
+        return trade_levels
 
     def fetch_symbol_open_trade_positions(
         self, symbol: str, trades_database: TradesDatabase
@@ -1228,19 +1256,20 @@ class Trader(ABC):
             # only open a position if multiple open positions are allowed or
             # there is no open position.
             if self.allow_multiple_open_positions or not len(symbol_open_positions):
-                trade_levels = self.generate_trade_levels(
+                trade_levels = self.generate_and_verify_trader_trade_levels(
                     current_candle_data, trade_signal_direction=new_position_direction
                 )
-                new_trade_position = self.open_trade_position(
-                    symbol=symbol,
-                    direction=new_position_direction,
-                    desired_entry_price=trade_levels.entry_price,
-                    trades_database=trades_database,
-                    target_price=trade_levels.target_price,
-                    stop_price=trade_levels.stop_price,
-                )
-                if new_trade_position:
-                    symbol_open_positions.append(new_trade_position)
+                if trade_levels:
+                    new_trade_position = self.open_trade_position(
+                        symbol=symbol,
+                        direction=new_position_direction,
+                        desired_entry_price=trade_levels.entry_price,
+                        trades_database=trades_database,
+                        target_price=trade_levels.target_price,
+                        stop_price=trade_levels.stop_price,
+                    )
+                    if new_trade_position:
+                        symbol_open_positions.append(new_trade_position)
 
         # monitor and handle all open symbol positions.
         self.handle_open_trade_positions(
