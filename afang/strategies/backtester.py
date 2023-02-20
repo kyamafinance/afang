@@ -286,8 +286,7 @@ class Backtester(ABC):
 
         # handle each open trade position.
         position: TradePosition
-        for (position_id, position) in self.trade_positions.get(symbol, dict()).items():
-
+        for position_id, position in self.trade_positions.get(symbol, dict()).items():
             # ensure that the trade position was not opened during the current candle.
             if position.entry_time == data.Index:
                 continue
