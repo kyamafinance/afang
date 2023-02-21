@@ -1091,7 +1091,7 @@ class StrategyAnalyzer:
 
         # Populate the analysis results dict.
         symbol_trades: dict
-        for (symbol, symbol_trades) in self.strategy.trade_positions.items():
+        for symbol, symbol_trades in self.strategy.trade_positions.items():
             self.analysis_results.append(
                 {"symbol": symbol, "trades": list(symbol_trades.values())}
             )

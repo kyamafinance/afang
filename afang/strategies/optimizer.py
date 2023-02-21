@@ -136,7 +136,7 @@ class StrategyOptimizer:
         population: List[BacktestProfile] = list()
         while len(population) < self.optimizer_config["population_size"]:
             backtest_profile = BacktestProfile()
-            for (param, settings) in self.optimizer_config["parameters"].items():
+            for param, settings in self.optimizer_config["parameters"].items():
                 if settings["type"] == "int":
                     backtest_profile.backtest_parameters[param] = random.randint(
                         settings["min"], settings["max"]

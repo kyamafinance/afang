@@ -10,7 +10,7 @@ from afang.strategies.SampleStrategy.SampleStrategy import SampleStrategy
 @pytest.fixture
 def sample_strategy(mocker) -> SampleStrategy:
     mocker.patch(
-        "afang.strategies.SampleStrategy.SampleStrategy.read_strategy_config",
+        "afang.strategies.SampleStrategy.SampleStrategy.SampleStrategy.read_strategy_config",
         return_value={
             "name": "test_strategy",
             "timeframe": "1h",

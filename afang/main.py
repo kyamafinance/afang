@@ -1,6 +1,5 @@
 import argparse
 import logging
-import operator
 import sys
 from typing import Callable, Optional
 
@@ -43,8 +42,13 @@ def get_strategy_instance(strategy_name: str) -> Optional[Callable]:
         return None
 
     try:
-        return operator.attrgetter(f"{strategy_name}.{strategy_name}")(strategies)
-    except AttributeError:
+        strategy_module = __import__(
+            f"{strategies.__name__}.{strategy_name}.{strategy_name}",
+            fromlist=[strategy_name],
+        )
+        strategy_instance = getattr(strategy_module, strategy_name)
+        return strategy_instance
+    except (ModuleNotFoundError, AttributeError):
         raise ValueError(f"Unknown strategy name provided: {strategy_name}")
 
 

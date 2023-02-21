@@ -30,7 +30,7 @@ class OHLCVDatabase:
         """
 
         if not root_db_dir:
-            root_db_dir = f"{pathlib.Path(__file__).parents[2]}/data/ohlcv"
+            root_db_dir = f"{pathlib.Path(__file__).parents[3]}/data/ohlcv"
 
         # Create exchange database directory if it does not exist.
         exchange_db_dir = f"{root_db_dir}/{exchange.display_name}"
