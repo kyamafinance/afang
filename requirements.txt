@@ -47,7 +47,7 @@ protobuf==3.20.3
 py==1.11.0
 pycryptodome==3.17
 pyparsing==3.0.9
-pyrsistent==0.18.1
+pyrsistent==0.19.3
 pytest==7.2.0
 pytest-cov==3.0.0
 pytest-mock==3.10.0
