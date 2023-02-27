@@ -70,5 +70,5 @@ varint==1.0.2
 virtualenv==20.17.1
 web3==5.30.0
 websocket-client==1.4.1
-websockets==9.1
+websockets==10.4
 yarl==1.8.2
