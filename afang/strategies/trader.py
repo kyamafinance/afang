@@ -18,10 +18,14 @@ from afang.database.trades_db.trades_database import (
 )
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Order as ExchangeOrder
-from afang.exchanges.models import OrderSide, OrderType, Symbol, SymbolBalance
+from afang.exchanges.models import OrderSide, OrderType, Symbol
 from afang.models import Timeframe
 from afang.strategies.models import TradeLevels
-from afang.utils.util import milliseconds_to_datetime, round_float_to_precision
+from afang.utils.util import (
+    generate_uuid,
+    milliseconds_to_datetime,
+    round_float_to_precision,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +50,6 @@ class Trader(ABC):
         self.leverage: int = 1
         # exchange order fee as a percentage of the trade principal to be used in demo mode.
         self.commission: float = 0.05
-        # expected trade slippage as a percentage of the trade principal to be used in demo mode.
-        self.expected_slippage: float = 0.05
         # number of indicator values to be discarded due to being potentially unstable.
         self.unstable_indicator_values: int = 0
         # maximum number of candles for a single trade.
@@ -66,6 +68,8 @@ class Trader(ABC):
         self.on_demo_mode: Optional[bool] = None
         # exchange orders that are placed while on demo mode.
         self.demo_mode_exchange_orders: Dict[str, List[ExchangeOrder]] = dict()
+        # cumulative PnL of demo mode closed positions per symbol.
+        self.demo_mode_symbol_cumulative_pnl: Dict[str, float] = dict()
         # execution queue that will run trader on present symbols FIFO.
         self.trading_execution_queue: queue.Queue = queue.Queue()
         # Order type to be used to open positions.
@@ -239,11 +243,11 @@ class Trader(ABC):
 
         return trading_symbol
 
-    def get_quote_asset_balance(self, symbol: str) -> Optional[SymbolBalance]:
-        """Get the quote asset balance of a given symbol.
+    def get_quote_asset_wallet_balance(self, symbol: str) -> Optional[float]:
+        """Get the quote asset wallet balance of a given symbol.
 
         :param symbol: trading symbol.
-        :return: Optional[SymbolBalance]
+        :return: Optional[float]
         """
 
         trading_symbol = self.get_trading_symbol(symbol)
@@ -263,18 +267,25 @@ class Trader(ABC):
             )
             return None
 
-        return quote_asset_balance
+        return quote_asset_balance.wallet_balance
 
-    def get_open_order_position_size(self, quote_asset_balance: SymbolBalance) -> float:
+    def get_open_order_position_size(
+        self, symbol: str, quote_asset_wallet_balance: float
+    ) -> float:
         """Get the intended position size for a position open order.
 
-        :param quote_asset_balance: quote asset balance.
+        :param symbol: symbol to get open order position size for.
+        :param quote_asset_wallet_balance: quote asset wallet balance.
         :return: float
         """
 
+        if self.on_demo_mode:
+            quote_asset_wallet_balance += self.demo_mode_symbol_cumulative_pnl.get(
+                symbol, float()
+            )
+
         intended_position_size = self.leverage * (
-            (self.percentage_risk_per_trade / 100.0)
-            * quote_asset_balance.wallet_balance
+            (self.percentage_risk_per_trade / 100.0) * quote_asset_wallet_balance
         )
         if (
             self.max_amount_per_trade
@@ -291,7 +302,7 @@ class Trader(ABC):
         :return: float
         """
 
-        position_open_order = self.exchange.get_exchange_order(
+        position_open_order = self.get_exchange_order(
             position.symbol, position.open_order_id
         )
         if not position_open_order:
@@ -305,7 +316,7 @@ class Trader(ABC):
             return float()
 
         close_order_quantity = position_open_order.executed_quantity
-        position_last_close_order = self.exchange.get_exchange_order(
+        position_last_close_order = self.get_exchange_order(
             position.symbol, position.final_close_order_id
         )
         if position_last_close_order:
@@ -505,7 +516,7 @@ class Trader(ABC):
         if db_position_order.complete:
             return None
 
-        exchange_position_order = self.exchange.get_exchange_order(
+        exchange_position_order = self.get_exchange_order(
             db_position_order.symbol, exchange_order_id
         )
         if not exchange_position_order:
@@ -526,9 +537,10 @@ class Trader(ABC):
                 exchange_position_order.symbol,
                 exchange_order_id,
             )
-            self.exchange.cancel_order(
-                exchange_position_order.symbol, order_id=exchange_order_id
-            )
+            if not self.on_demo_mode:
+                self.exchange.cancel_order(
+                    exchange_position_order.symbol, order_id=exchange_order_id
+                )
 
         self.update_closed_order_in_db(
             exchange_position_order, db_position_order, trades_database
@@ -544,7 +556,7 @@ class Trader(ABC):
         :return: bool
         """
 
-        order = self.exchange.get_exchange_order(symbol, order_exchange_id)
+        order = self.get_exchange_order(symbol, order_exchange_id)
         if order and order.executed_quantity:
             return True
 
@@ -558,7 +570,7 @@ class Trader(ABC):
         :return: float
         """
 
-        order = self.exchange.get_exchange_order(symbol, order_exchange_id)
+        order = self.get_exchange_order(symbol, order_exchange_id)
         if not order:
             logger.warning(
                 "%s %s: Could not get the order average price for %s order: %s",
@@ -771,20 +783,31 @@ class Trader(ABC):
         :return: None
         """
 
-        quote_asset_balance = self.get_quote_asset_balance(position.symbol)
-        if not quote_asset_balance:
+        quote_asset_wallet_balance = self.get_quote_asset_wallet_balance(
+            position.symbol
+        )
+        if not quote_asset_wallet_balance:
             return None
+
+        pnl = self.get_position_pnl(position)
+        if self.on_demo_mode:
+            current_cumulative_pnl = self.demo_mode_symbol_cumulative_pnl.get(
+                position.symbol, float()
+            )
+            self.demo_mode_symbol_cumulative_pnl[position.symbol] = (
+                current_cumulative_pnl + pnl
+            )
 
         trade_position: Dict[str, Any] = dict()
         trade_position["open_position"] = False
         trade_position["exit_time"] = datetime.utcnow()
-        trade_position["pnl"] = self.get_position_pnl(position)
+        trade_position["pnl"] = pnl
         trade_position["slippage"] = self.get_position_total_slippage(position)
         trade_position["close_price"] = self.get_position_close_price(position)
         trade_position["roe"] = self.get_position_roe(trades_database, position)
         trade_position["executed_qty"] = self.get_position_executed_qty(position)
         trade_position["commission"] = self.get_position_total_commission(position)
-        trade_position["final_account_balance"] = quote_asset_balance.wallet_balance
+        trade_position["final_account_balance"] = quote_asset_wallet_balance
         trade_position["cost_adjusted_roe"] = self.get_position_roe(
             trades_database, position, cost_adjusted=True
         )
@@ -794,6 +817,142 @@ class Trader(ABC):
             position.id,
             trade_position,
             trades_database,
+        )
+
+    def get_exchange_order(self, symbol: str, order_id: str) -> Optional[ExchangeOrder]:
+        """Get symbol exchange order.
+
+        :param symbol: symbol whose order is to be fetched.
+        :param order_id: exchange order ID.
+        :return: Optional[ExchangeOrder]
+        """
+
+        if not self.on_demo_mode:
+            return self.exchange.get_exchange_order(symbol, order_id)
+
+        for order in self.demo_mode_exchange_orders.get(symbol, list()):
+            if order.order_id == order_id:
+                return order
+
+        logger.warning(
+            "Unable to get %s %s demo order with id: %s",
+            self.exchange.display_name,
+            symbol,
+            order_id,
+        )
+        return None
+
+    def add_demo_mode_order(
+        self,
+        symbol_name: str,
+        side: OrderSide,
+        quantity: float,
+        order_type: OrderType,
+        price: float = float(),
+    ) -> str:
+        """Add a new demo mode order.
+
+        :param symbol_name: name of symbol.
+        :param side: order side.
+        :param quantity: order quantity.
+        :param order_type: order type.
+        :param price: optional. order price.
+        :return: str
+        """
+
+        order = ExchangeOrder(
+            symbol=symbol_name,
+            order_id=generate_uuid(),
+            side=side,
+            original_price=price,
+            average_price=float(),
+            original_quantity=quantity,
+            executed_quantity=float(),
+            remaining_quantity=quantity,
+            order_type=order_type,
+            order_status="DEMO_ORDER_STATUS",
+            time_in_force="DEMO_TIME_IN_FORCE",
+            commission=float(),
+        )
+
+        if symbol_name not in self.demo_mode_exchange_orders:
+            self.demo_mode_exchange_orders[symbol_name] = [order]
+            return order.order_id
+
+        self.demo_mode_exchange_orders[symbol_name].append(order)
+        return order.order_id
+
+    def update_symbol_demo_mode_orders(
+        self, symbol: str, current_trading_candle: Any
+    ) -> None:
+        """Update a symbol's demo mode orders depending on the current trading
+        candle.
+
+        :param symbol: symbol whose demo mode orders should be updated.
+        :param current_trading_candle: current trading candle.
+        :return: None
+        """
+
+        for order in self.demo_mode_exchange_orders.get(symbol, list()):
+            if not order.remaining_quantity:
+                continue
+
+            position_size = (
+                current_trading_candle.close * order.original_quantity * self.leverage
+            )
+            commission = 2 * (self.commission / 100.0) * position_size
+
+            if order.side == OrderSide.BUY and (
+                order.order_type == OrderType.MARKET
+                or current_trading_candle.close >= order.original_price
+            ):
+                order.average_price = current_trading_candle.close
+                order.executed_quantity = order.original_quantity
+                order.remaining_quantity = float()
+                order.commission = commission
+
+            elif order.side == OrderSide.SELL and (
+                order.order_type == OrderType.MARKET
+                or current_trading_candle.close <= order.original_price
+            ):
+                order.average_price = current_trading_candle.close
+                order.executed_quantity = order.original_quantity
+                order.remaining_quantity = float()
+                order.commission = commission
+
+    def place_order(
+        self,
+        symbol_name: str,
+        side: OrderSide,
+        quantity: float,
+        order_type: OrderType,
+        price: Optional[float] = None,
+    ) -> Optional[str]:
+        """Place a new order for a specified symbol on the exchange or
+        simulated when on demo mode.
+
+        :param symbol_name: name of symbol.
+        :param side: order side.
+        :param quantity: order quantity.
+        :param order_type: order type.
+        :param price: optional. order price.
+        :return: Optional[str]
+        """
+
+        if self.on_demo_mode:
+            order_id = self.add_demo_mode_order(
+                symbol_name, side, quantity, order_type, price
+            )
+            return order_id
+
+        return self.exchange.place_order(
+            symbol_name=symbol_name,
+            side=side,
+            quantity=quantity,
+            order_type=order_type,
+            price=price,
+            post_only=self.post_only_orders,
+            dydx_limit_fee=self.dydx_limit_fee,
         )
 
     def open_trade_position(
@@ -830,11 +989,13 @@ class Trader(ABC):
         if not trading_symbol:
             return None
 
-        quote_asset_balance = self.get_quote_asset_balance(symbol)
-        if not quote_asset_balance:
+        quote_asset_wallet_balance = self.get_quote_asset_wallet_balance(symbol)
+        if not quote_asset_wallet_balance:
             return None
 
-        intended_position_size = self.get_open_order_position_size(quote_asset_balance)
+        intended_position_size = self.get_open_order_position_size(
+            symbol, quote_asset_wallet_balance
+        )
         intended_open_order_qty = intended_position_size / desired_entry_price
         precise_open_order_qty = round_float_to_precision(
             intended_open_order_qty, trading_symbol.step_size
@@ -851,14 +1012,12 @@ class Trader(ABC):
         open_order_side = OrderSide.BUY if direction == 1 else OrderSide.SELL
 
         # Attempt to place an open position order on the exchange.
-        open_order_id = self.exchange.place_order(
+        open_order_id = self.place_order(
             symbol_name=symbol,
             side=open_order_side,
             quantity=precise_open_order_qty,
             order_type=self.open_order_type,
             price=precise_open_order_entry_price,
-            post_only=self.post_only_orders,
-            dydx_limit_fee=self.dydx_limit_fee,
         )
         if not open_order_id:
             logger.error(
@@ -887,7 +1046,7 @@ class Trader(ABC):
             position_size=intended_position_size,
             target_price=target_price,
             stop_price=stop_price,
-            initial_account_balance=quote_asset_balance.wallet_balance,
+            initial_account_balance=quote_asset_wallet_balance,
             exchange_display_name=self.exchange.display_name,
         )
         self.create_new_db_position(new_trade_position, trades_database)
@@ -986,14 +1145,12 @@ class Trader(ABC):
         close_order_side = OrderSide.SELL if direction == 1 else OrderSide.BUY
 
         # Attempt to place a close position order on the exchange.
-        close_order_id = self.exchange.place_order(
+        close_order_id = self.place_order(
             symbol_name=symbol,
             side=close_order_side,
             quantity=precise_close_order_qty,
             order_type=self.close_order_type,
             price=precise_close_order_price,
-            post_only=self.post_only_orders,
-            dydx_limit_fee=self.dydx_limit_fee,
         )
         if not close_order_id:
             logger.error(
@@ -1080,7 +1237,7 @@ class Trader(ABC):
                 and (
                     (
                         self.close_order_type == OrderType.MARKET
-                        and current_candle_data.high >= position.target_price
+                        and current_candle_data.close >= position.target_price
                     )
                     or (self.close_order_type == OrderType.LIMIT)
                 )
@@ -1096,7 +1253,7 @@ class Trader(ABC):
                 and (
                     (
                         self.close_order_type == OrderType.MARKET
-                        and current_candle_data.low <= position.stop_price
+                        and current_candle_data.close <= position.stop_price
                     )
                     or (self.close_order_type == OrderType.LIMIT)
                 )
@@ -1112,7 +1269,7 @@ class Trader(ABC):
                 and (
                     (
                         self.close_order_type == OrderType.MARKET
-                        and current_candle_data.low <= position.target_price
+                        and current_candle_data.close <= position.target_price
                     )
                     or (self.close_order_type == OrderType.LIMIT)
                 )
@@ -1128,7 +1285,7 @@ class Trader(ABC):
                 and (
                     (
                         self.close_order_type == OrderType.MARKET
-                        and current_candle_data.high >= position.stop_price
+                        and current_candle_data.close >= position.stop_price
                     )
                     or (self.close_order_type == OrderType.LIMIT)
                 )
@@ -1179,7 +1336,7 @@ class Trader(ABC):
             if not position.final_close_order_id:
                 continue
 
-            final_exchange_close_order = self.exchange.get_exchange_order(
+            final_exchange_close_order = self.get_exchange_order(
                 position.symbol, position.final_close_order_id
             )
             if not final_exchange_close_order:
@@ -1229,6 +1386,7 @@ class Trader(ABC):
         current_candle_data = self.get_symbol_current_trading_candle(
             symbol, populated_ohlcv_data
         )
+        self.update_symbol_demo_mode_orders(symbol, current_candle_data)
 
         trades_database = TradesDatabase()
         symbol_open_positions = self.fetch_symbol_open_trade_positions(
@@ -1357,6 +1515,13 @@ class Trader(ABC):
                 "timeframe": self.timeframe.value,
                 "exchange": self.exchange,
             }
+        )
+
+        logger.info(
+            "%s: running %s on %s mode",
+            self.exchange.display_name,
+            self.strategy_name,
+            "demo" if self.on_demo_mode else "live",
         )
 
         # Initialize trading execution queue.

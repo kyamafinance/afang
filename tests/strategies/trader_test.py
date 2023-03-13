@@ -195,7 +195,7 @@ def test_get_trading_symbol(
                 )
             },
             {"USDT": SymbolBalance(name="USDT", wallet_balance=100)},
-            SymbolBalance(name="USDT", wallet_balance=100),
+            100,
             True,
         ),
         (
@@ -217,7 +217,7 @@ def test_get_trading_symbol(
         (dict(), SymbolBalance(name="USDT", wallet_balance=100), None, True),
     ],
 )
-def test_get_quote_asset_balance(
+def test_get_quote_asset_wallet_balance(
     dummy_is_strategy,
     dummy_is_exchange,
     trading_symbols,
@@ -230,7 +230,7 @@ def test_get_quote_asset_balance(
     dummy_is_strategy.exchange.trading_symbols = trading_symbols
     dummy_is_strategy.exchange.trading_symbol_balance = trading_symbol_balance
 
-    quote_asset_balance = dummy_is_strategy.get_quote_asset_balance("BTCUSDT")
+    quote_asset_balance = dummy_is_strategy.get_quote_asset_wallet_balance("BTCUSDT")
     assert quote_asset_balance == expected_balance
     if not found_quote_balance:
         assert caplog.records[0].levelname == "ERROR"
@@ -243,8 +243,8 @@ def test_get_quote_asset_balance(
 @pytest.mark.parametrize(
     "quote_asset_balance, intended_position_size",
     [
-        (SymbolBalance(name="USDT", wallet_balance=1000), 100),
-        (SymbolBalance(name="USDT", wallet_balance=2000), 150),
+        (1000, 100),
+        (2000, 150),
     ],
 )
 def test_get_open_order_position_size(
@@ -253,7 +253,9 @@ def test_get_open_order_position_size(
     dummy_is_strategy.leverage = 5
     dummy_is_strategy.max_amount_per_trade = 150
 
-    position_size = dummy_is_strategy.get_open_order_position_size(quote_asset_balance)
+    position_size = dummy_is_strategy.get_open_order_position_size(
+        "BTCUSDT", quote_asset_balance
+    )
     assert position_size == intended_position_size
 
 
@@ -1151,14 +1153,13 @@ def test_place_close_trade_position_order(
 @pytest.mark.parametrize(
     "direction, close_order_type, current_candle_data",
     [
-        (1, OrderType.MARKET, {"high": 22}),
+        (1, OrderType.MARKET, {"close": 22}),
         (1, OrderType.LIMIT, {"high": 12}),
-        (1, OrderType.MARKET, {"high": 13, "low": 4.5}),
-        (1, OrderType.MARKET, {"high": 12, "low": 4.5}),
+        (1, OrderType.MARKET, {"close": 4.5}),
         (1, OrderType.LIMIT, {"high": 12, "low": 5.4}),
-        (-1, OrderType.MARKET, {"low": 19}),
+        (-1, OrderType.MARKET, {"close": 19}),
         (-1, OrderType.LIMIT, {"low": 21}),
-        (-1, OrderType.MARKET, {"low": 21, "high": 6}),
+        (-1, OrderType.MARKET, {"close": 6}),
         (-1, OrderType.LIMIT, {"low": 21, "high": 4}),
     ],
 )
