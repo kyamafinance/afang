@@ -902,19 +902,21 @@ class Trader(ABC):
             )
             commission = 2 * (self.commission / 100.0) * position_size
 
+            has_order_executed = False
+
             if order.side == OrderSide.BUY and (
                 order.order_type == OrderType.MARKET
                 or current_trading_candle.close >= order.original_price
             ):
-                order.average_price = current_trading_candle.close
-                order.executed_quantity = order.original_quantity
-                order.remaining_quantity = float()
-                order.commission = commission
+                has_order_executed = True
 
             elif order.side == OrderSide.SELL and (
                 order.order_type == OrderType.MARKET
                 or current_trading_candle.close <= order.original_price
             ):
+                has_order_executed = True
+
+            if has_order_executed:
                 order.average_price = current_trading_candle.close
                 order.executed_quantity = order.original_quantity
                 order.remaining_quantity = float()
@@ -1059,6 +1061,7 @@ class Trader(ABC):
             order_side=open_order_side.value,
             original_price=desired_entry_price,
             original_quantity=intended_open_order_qty,
+            remaining_quantity=intended_open_order_qty,
             order_type=self.open_order_type.value,
             exchange_display_name=self.exchange.display_name,
             position=new_trade_position,
@@ -1184,6 +1187,7 @@ class Trader(ABC):
             order_side=close_order_side.value,
             original_price=close_price,
             original_quantity=close_order_quantity,
+            remaining_quantity=close_order_quantity,
             order_type=self.close_order_type.value,
             exchange_display_name=self.exchange.display_name,
             position=position,

@@ -35,8 +35,6 @@ class TradePosition(Base):
     commission = Column(Float, nullable=True)
     slippage = Column(Float, nullable=True)
     final_account_balance = Column(Float, nullable=True)
-    system_cancelled_order = Column(Boolean, default=False)
-    user_cancelled_order = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow())
     orders = relationship("Order", back_populates="position", cascade="all, delete")
 
