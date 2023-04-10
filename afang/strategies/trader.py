@@ -35,7 +35,6 @@ class Trader(ABC):
 
         :param strategy_name: name of the trading strategy.
         """
-
         self.strategy_name: str = strategy_name
         self.allow_long_positions: bool = True
         self.allow_short_positions: bool = True
@@ -86,7 +85,6 @@ class Trader(ABC):
         :param data: OHLCV data for a trading symbol.
         :return: None
         """
-
         return data
 
     @abstractmethod
@@ -96,7 +94,6 @@ class Trader(ABC):
         :param data: the current trading candle.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -106,7 +103,6 @@ class Trader(ABC):
         :param data: the current trading candle.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -183,7 +179,6 @@ class Trader(ABC):
         :param run_forever: whether to continuously run the function. Used for testing purposes.
         :return: Optional[str]
         """
-
         while True:
             if not self.trading_execution_queue.empty():
                 return self.trading_execution_queue.get()
@@ -197,7 +192,6 @@ class Trader(ABC):
         :param symbol: name of symbol.
         :return: Optional[Symbol]
         """
-
         trading_symbol = self.exchange.trading_symbols.get(symbol, None)
         if not trading_symbol:
             logger.error(
@@ -215,7 +209,6 @@ class Trader(ABC):
         :param symbol: trading symbol.
         :return: Optional[SymbolBalance]
         """
-
         trading_symbol = self.get_trading_symbol(symbol)
         if not trading_symbol:
             return None
@@ -241,7 +234,6 @@ class Trader(ABC):
         :param quote_asset_balance: quote asset balance.
         :return: float
         """
-
         intended_position_size = self.leverage * (
             (self.percentage_risk_per_trade / 100.0)
             * quote_asset_balance.wallet_balance
@@ -260,7 +252,6 @@ class Trader(ABC):
         :param position: DB TradePosition.
         :return: float
         """
-
         position_open_order = self.exchange.get_exchange_order(
             position.symbol, position.open_order_id
         )
@@ -290,7 +281,6 @@ class Trader(ABC):
         :param order_qty: desired order quantity.
         :return: float
         """
-
         if order_qty <= 0:
             logger.error(
                 "%s %s: intended order qty is invalid. intended order qty: %s",
@@ -309,7 +299,6 @@ class Trader(ABC):
         :param order_price: desired order price.
         :return: float
         """
-
         if order_price <= 0:
             logger.error(
                 "%s %s: intended order price is invalid. intended order price: %s",
@@ -513,7 +502,6 @@ class Trader(ABC):
         :param order_exchange_id: exchange ID of the order to query.
         :return: bool
         """
-
         order = self.exchange.get_exchange_order(symbol, order_exchange_id)
         if order and order.executed_quantity:
             return True
@@ -527,7 +515,6 @@ class Trader(ABC):
         :param order_exchange_id: order exchange ID.
         :return: float
         """
-
         order = self.exchange.get_exchange_order(symbol, order_exchange_id)
         if not order:
             logger.warning(
@@ -547,7 +534,6 @@ class Trader(ABC):
         :param symbol: symbol whose OHLCV candles are to be fetched.
         :return: pd.Dataframe
         """
-
         if (
             symbol not in self.exchange.trading_price_data
             or not self.exchange.trading_price_data[symbol]
@@ -602,7 +588,6 @@ class Trader(ABC):
         :param position: database trade position.
         :return: float
         """
-
         total_commission = float()
 
         position_order: DBOrder
@@ -618,7 +603,6 @@ class Trader(ABC):
         :param position: database trade position.
         :return: float
         """
-
         total_slippage = float()
 
         position_order: DBOrder
@@ -642,7 +626,6 @@ class Trader(ABC):
         :param position: database trade position.
         :return: float
         """
-
         total_executed_qty = float()
 
         position_order: DBOrder
@@ -658,7 +641,6 @@ class Trader(ABC):
         :param position: database trade position.
         :return: float
         """
-
         position_close_price = float()
 
         position_executed_qty = self.get_position_executed_qty(position)
@@ -678,7 +660,6 @@ class Trader(ABC):
         :param position: database trade position.
         :return: float
         """
-
         position_pnl = float()
 
         position_order: DBOrder
@@ -1181,7 +1162,6 @@ class Trader(ABC):
         :param symbol: symbol to trade.
         :return: None
         """
-
         # ensure symbol is present in the exchange.
         if symbol not in self.exchange.exchange_symbols:
             logger.error(
@@ -1258,7 +1238,6 @@ class Trader(ABC):
 
         :return: str
         """
-
         db_name = "trades.sqlite3"
         if self.on_demo_mode:
             db_name = "trades_on-demo-mode.sqlite3"

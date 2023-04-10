@@ -47,7 +47,6 @@ class TradesDatabase:
 
     def __init__(self) -> None:
         """Initialize the TradesDatabase class."""
-
         global Session
         if not Session:
             # create_session_factory needs to be called before possible concurrent calls to
@@ -63,7 +62,6 @@ class TradesDatabase:
         :param trade_position: trade position to add to the trades' database.
         :return: None
         """
-
         self.session.add(trade_position)
 
     def update_position(self, position_id: int, updated_fields: Dict) -> None:
@@ -73,7 +71,6 @@ class TradesDatabase:
         :param updated_fields: dict containing fields to be updated and their new values.
         :return: None
         """
-
         self.session.query(TradePosition).filter(
             TradePosition.id == position_id
         ).update(updated_fields)
@@ -84,7 +81,6 @@ class TradesDatabase:
         :param position_id: ID of the position to be fetched.
         :return: Optional[TradePosition]
         """
-
         trade_position = (
             self.session.query(TradePosition)
             .filter(TradePosition.id == position_id)
@@ -118,7 +114,6 @@ class TradesDatabase:
         :param order: trade order to add to the trades' database.
         :return: None
         """
-
         self.session.add(order)
 
     def update_order(self, order_id: int, updated_fields: Dict) -> None:
@@ -128,7 +123,6 @@ class TradesDatabase:
         :param updated_fields: dict containing fields to be updated and their new values.
         :return: None
         """
-
         self.session.query(Order).filter(Order.id == order_id).update(updated_fields)
 
     def fetch_order_by_id(self, db_order_id: int) -> Optional[Order]:
@@ -137,7 +131,6 @@ class TradesDatabase:
         :param db_order_id: DB ID of the order to be fetched.
         :return: Optional[Order]
         """
-
         order = self.session.query(Order).filter(Order.id == db_order_id).first()
         if not order:
             logger.warning("Order not found in DB. id: %s", db_order_id)
@@ -151,6 +144,5 @@ class TradesDatabase:
         :param limit: max number of orders to be returned. defaults to returning all matching orders.
         :return: List[Order]
         """
-
         orders = self.session.query(Order).filter(*filters).limit(limit).all()
         return orders

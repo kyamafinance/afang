@@ -23,7 +23,6 @@ class StrategyAnalyzer:
 
         :param strategy: user defined strategy instance.
         """
-
         self.strategy = strategy
         self.analysis_results: List[dict] = list()
 
@@ -33,7 +32,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             total_net_profit = sum(trade.pnl for trade in symbol_backtest["trades"])
             total_net_profit_long = sum(
@@ -61,7 +59,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             gross_profit = sum(
                 trade.pnl for trade in symbol_backtest["trades"] if trade.pnl > 0
@@ -93,7 +90,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             gross_loss = sum(
                 trade.pnl for trade in symbol_backtest["trades"] if trade.pnl < 0
@@ -124,7 +120,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             commission = sum(trade.commission for trade in symbol_backtest["trades"])
             commission_long = sum(
@@ -153,7 +148,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             slippage = sum(trade.slippage for trade in symbol_backtest["trades"])
             slippage_long = sum(
@@ -184,7 +178,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             profit_factor = (
                 symbol_backtest["gross_profit"]["all_trades"]
@@ -221,7 +214,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         def get_max_drawdown(_returns: List) -> float:
             _max_drawdown: float = 0
             _temp_max_val = 0
@@ -269,7 +261,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             total_trades = len(symbol_backtest["trades"])
             total_trades_long = len(
@@ -295,7 +286,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             winning_trades = len(
                 [trade for trade in symbol_backtest["trades"] if trade.pnl > 0]
@@ -331,7 +321,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             losing_trades = len(
                 [trade for trade in symbol_backtest["trades"] if trade.pnl < 0]
@@ -366,7 +355,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             even_trades = len(
                 [trade for trade in symbol_backtest["trades"] if trade.pnl == 0]
@@ -404,7 +392,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             percent_profitable = (
                 (
@@ -461,7 +448,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             average_roe = (
                 sum(trade.cost_adjusted_roe for trade in symbol_backtest["trades"])
@@ -508,7 +494,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             average_trade = (
                 sum(trade.pnl for trade in symbol_backtest["trades"])
@@ -555,7 +540,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             average_winning_trade = (
                 sum(trade.pnl for trade in symbol_backtest["trades"] if trade.pnl >= 0)
@@ -602,7 +586,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             average_losing_trade = (
                 sum(trade.pnl for trade in symbol_backtest["trades"] if trade.pnl < 0)
@@ -649,7 +632,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             take_profit_ratio = (
                 symbol_backtest["average_winning_trade"]["all_trades"]
@@ -689,7 +671,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             trade_expectancy = (
                 (symbol_backtest["percent_profitable"]["all_trades"] / 100.0)
@@ -729,7 +710,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         def get_max_consecutive_winners(_pnl_series: List[float]) -> int:
             count = 0
             max_val = 0
@@ -777,7 +757,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         def get_max_consecutive_losers(_pnl_series: List[float]) -> int:
             count = 0
             max_val = 0
@@ -824,7 +803,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             largest_winning_trade = max(
                 (trade.pnl for trade in symbol_backtest["trades"]), default=0
@@ -861,7 +839,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             largest_losing_trade = min(
                 (trade.pnl for trade in symbol_backtest["trades"]), default=0
@@ -900,7 +877,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             average_holding_time = (
                 sum(trade.holding_time for trade in symbol_backtest["trades"])
@@ -944,7 +920,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             maximum_holding_time = max(
                 (trade.holding_time for trade in symbol_backtest["trades"]),
@@ -982,7 +957,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         def get_monthly_pnl(_trades: List[TradePosition]) -> Dict:
             _monthly_pnl: Dict = dict()
             trade: TradePosition
@@ -1017,7 +991,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_backtest in self.analysis_results:
             average_monthly_pnl = (
                 sum(symbol_backtest["monthly_pnl"]["all_trades"].values())
@@ -1053,7 +1026,6 @@ class StrategyAnalyzer:
 
         :return: List[dict]
         """
-
         logger.info(
             "%s %s: started analysis on the %s strategy",
             self.strategy.config["exchange"].display_name,

@@ -28,7 +28,6 @@ class Backtester(ABC):
 
         :param strategy_name: name of the trading strategy.
         """
-
         self.strategy_name: str = strategy_name
         self.allow_long_positions: bool = True
         self.allow_short_positions: bool = True
@@ -71,7 +70,6 @@ class Backtester(ABC):
 
         :return: str
         """
-
         return str(uuid.uuid4())
 
     @abstractmethod
@@ -80,7 +78,6 @@ class Backtester(ABC):
 
         :return: Dict
         """
-
         return dict()
 
     def open_long_backtest_position(
@@ -151,7 +148,6 @@ class Backtester(ABC):
         :param symbol: symbol to fetch open positions for.
         :return: List[TradePosition]
         """
-
         open_positions = list()
         position: TradePosition
         for position in self.trade_positions.get(symbol, dict()).values():
@@ -235,7 +231,6 @@ class Backtester(ABC):
         :param data: OHLCV data for a trading symbol.
         :return: None
         """
-
         return data
 
     @abstractmethod
@@ -245,7 +240,6 @@ class Backtester(ABC):
         :param data: the historical price dataframe row at the current time in backtest.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -255,7 +249,6 @@ class Backtester(ABC):
         :param data: the historical price dataframe row at the current time in backtest.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -283,7 +276,6 @@ class Backtester(ABC):
         :param data: the historical price dataframe row at the current time in backtest.
         :return: None
         """
-
         # handle each open trade position.
         position: TradePosition
         for position_id, position in self.trade_positions.get(symbol, dict()).items():
@@ -356,7 +348,6 @@ class Backtester(ABC):
         :param symbol: symbol to run backtest for.
         :return: None
         """
-
         if symbol not in self.exchange.exchange_symbols:
             logger.error(
                 "%s %s: provided symbol not present in the exchange",
