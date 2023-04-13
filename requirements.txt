@@ -38,7 +38,7 @@ netaddr==0.8.0
 nodeenv==1.7.0
 numpy==1.23.3
 packaging==23.0
-pandas==1.5.3
+pandas==2.0.0
 parsimonious==0.8.1
 platformdirs==3.2.0
 pluggy==1.0.0
