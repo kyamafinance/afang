@@ -61,7 +61,7 @@ rlp==2.0.1
 six==1.16.0
 SQLAlchemy==2.0.9
 sympy==1.11.1
-TA-Lib==0.4.25
+TA-Lib==0.4.26
 toml==0.10.2
 tomli==2.0.1
 toolz==0.12.0
