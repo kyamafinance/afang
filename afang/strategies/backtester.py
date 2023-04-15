@@ -1,8 +1,7 @@
 import logging
 import multiprocessing
-import threading
 import time
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -14,12 +13,13 @@ from afang.exchanges import IsExchange
 from afang.models import Timeframe
 from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.models import TradeLevels, TradePosition
+from afang.strategies.root import Root
 from afang.utils.util import generate_uuid, resample_timeframe, time_str_to_milliseconds
 
 logger = logging.getLogger(__name__)
 
 
-class Backtester(ABC):
+class Backtester(Root):
     """Base interface for strategy backtests."""
 
     @abstractmethod
@@ -29,43 +29,7 @@ class Backtester(ABC):
         :param strategy_name: name of the trading strategy.
         """
 
-        self.strategy_name: str = strategy_name
-        self.allow_long_positions: bool = True
-        self.allow_short_positions: bool = True
-        self.timeframe: Optional[Timeframe] = None
-        self.symbols: Optional[List[str]] = None
-        self.exchange: Optional[IsExchange] = None
-        # leverage to use per trade.
-        self.leverage: int = 1
-        # exchange order fee as a percentage of the trade principal.
-        self.commission: float = 0.05
-        # expected trade slippage as a percentage of the trade principal.
-        self.expected_slippage: float = 0.05
-        # number of indicator values to be discarded due to being potentially unstable.
-        self.unstable_indicator_values: int = 0
-        # maximum number of candles for a single trade.
-        self.max_holding_candles: int = 100
-        # percentage of current account balance to risk per trade.
-        self.percentage_risk_per_trade: float = 2
-        # maximum amount to invest per trade.
-        # If `None`, the maximum amount to invest per trade will be the current account balance.
-        self.max_amount_per_trade: Optional[int] = None
-        # Whether to allow for multiple open positions per symbol at a time.
-        self.allow_multiple_open_positions: bool = True
-        # strategy configuration parameters i.e. contents of strategy `config.yaml`.
-        self.config: Dict = dict()
-        # test account initial balance - will be constantly updated to match current account balance.
-        self.initial_test_account_balance: float = 10000
-        # shared threading lock to prevent race conditions.
-        self.shared_lock: threading.Lock = threading.Lock()
-
-        # --Unique to Backtester (not in Trader)
-        self.backtest_to_time: Optional[int] = None
-        self.backtest_from_time: Optional[int] = None
-        # backtest data that initially contains OHLCV data.
-        self.backtest_data: Dict = dict()
-        # backtest trade positions.
-        self.trade_positions: Dict = dict()
+        Root.__init__(self, strategy_name=strategy_name)
 
     @abstractmethod
     def plot_backtest_indicators(self) -> Dict:

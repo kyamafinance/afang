@@ -1,13 +1,10 @@
 import logging
 import multiprocessing
-import queue
-import threading
 import time
-from abc import ABC, abstractmethod
-from collections import defaultdict
+from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -23,6 +20,7 @@ from afang.exchanges.models import Order as ExchangeOrder
 from afang.exchanges.models import OrderSide, OrderType, Symbol
 from afang.models import Timeframe
 from afang.strategies.models import TradeLevels
+from afang.strategies.root import Root
 from afang.utils.util import (
     generate_uuid,
     milliseconds_to_datetime,
@@ -32,7 +30,7 @@ from afang.utils.util import (
 logger = logging.getLogger(__name__)
 
 
-class Trader(ABC):
+class Trader(Root):
     """Base interface for strategy live/demo trading."""
 
     @abstractmethod
@@ -41,57 +39,7 @@ class Trader(ABC):
 
         :param strategy_name: name of the trading strategy.
         """
-
-        self.strategy_name: str = strategy_name
-        self.allow_long_positions: bool = True
-        self.allow_short_positions: bool = True
-        self.timeframe: Optional[Timeframe] = None
-        self.symbols: Optional[List[str]] = None
-        self.exchange: Optional[IsExchange] = None
-        # leverage to use per trade.
-        self.leverage: int = 1
-        # exchange order fee as a percentage of the trade principal to be used in demo mode.
-        self.commission: float = 0.05
-        # number of indicator values to be discarded due to being potentially unstable.
-        self.unstable_indicator_values: int = 0
-        # maximum number of candles for a single trade.
-        self.max_holding_candles: int = 100
-        # percentage of current account balance to risk per trade.
-        self.percentage_risk_per_trade: float = 2
-        # maximum amount to invest per trade.
-        # If `None`, the maximum amount to invest per trade will be the current account balance.
-        self.max_amount_per_trade: Optional[int] = None
-        # Whether to allow for multiple open positions per symbol at a time.
-        self.allow_multiple_open_positions: bool = True
-        # strategy configuration parameters i.e. contents of strategy `config.yaml`.
-        self.config: Dict = dict()
-        # test account initial balance - will be constantly updated to match current account balance.
-        self.initial_test_account_balance: float = 10000
-        # shared threading lock to prevent race conditions.
-        self.shared_lock: threading.Lock = threading.Lock()
-
-        # --Unique to Trader (not in Backtester)
-        self.on_demo_mode: Optional[bool] = None
-        # exchange orders that are placed while on demo mode.
-        self.demo_mode_exchange_orders: Dict[str, List[ExchangeOrder]] = defaultdict(
-            list
-        )
-        # execution queue that will run trader on present symbols FIFO.
-        self.trading_execution_queue: queue.Queue = queue.Queue()
-        # Order type to be used to open positions.
-        self.open_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
-        # Order type to be used to place take profit orders.
-        self.take_profit_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
-        # Order type to be used to place stop loss orders.
-        self.stop_loss_order_type: Literal[OrderType.MARKET] = OrderType.MARKET
-        # Orders will only be placed if they enter the order book. May not be supported by all exchanges.
-        self.post_only_orders: bool = False
-        # Highest accepted fee for a trade on the dYdX exchange. Note that this is specific to dYdX.
-        self.dydx_limit_fee: Optional[float] = None
+        Root.__init__(self, strategy_name=strategy_name)
 
     @abstractmethod
     def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:

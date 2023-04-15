@@ -12,7 +12,7 @@ class SampleStrategy(IsStrategy):
     def __init__(self) -> None:
         """Initialize SampleStrategy class."""
 
-        super().__init__(strategy_name="SampleStrategy")
+        IsStrategy.__init__(self, strategy_name="SampleStrategy")
 
         self.leverage = 5
         # hold an open position for a max of 48 hrs.
