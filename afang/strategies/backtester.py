@@ -1,5 +1,6 @@
 import logging
 import multiprocessing
+import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -53,12 +54,14 @@ class Backtester(ABC):
         self.allow_multiple_open_positions: bool = True
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
         self.config: Dict = dict()
+        # test account initial balance - will be constantly updated to match current account balance.
+        self.initial_test_account_balance: float = 10000
+        # shared threading lock to prevent race conditions.
+        self.shared_lock: threading.Lock = threading.Lock()
 
         # --Unique to Backtester (not in Trader)
         self.backtest_to_time: Optional[int] = None
         self.backtest_from_time: Optional[int] = None
-        # account initial balance - will be constantly updated to match current account balance.
-        self.current_backtest_balance: float = 10000
         # backtest data that initially contains OHLCV data.
         self.backtest_data: Dict = dict()
         # backtest trade positions.
@@ -176,13 +179,13 @@ class Backtester(ABC):
 
         position.exit_time = exit_time
         position.close_price = close_price
-        position.initial_account_balance = self.current_backtest_balance
+        position.initial_account_balance = self.initial_test_account_balance
 
         roe = ((close_price / position.entry_price - 1) * position.direction) * 100.0
         position.roe = round(roe, 4)
 
         position.position_size = self.leverage * (
-            (self.percentage_risk_per_trade / 100.0) * self.current_backtest_balance
+            (self.percentage_risk_per_trade / 100.0) * self.initial_test_account_balance
         )
         if (
             self.max_amount_per_trade
@@ -195,7 +198,7 @@ class Backtester(ABC):
         )
         position.cost_adjusted_roe = round(cost_adjusted_roe, 4)
 
-        if self.current_backtest_balance <= 0:
+        if self.initial_test_account_balance <= 0:
             position.roe = 0
             position.position_size = 0
             position.cost_adjusted_roe = 0
@@ -207,10 +210,10 @@ class Backtester(ABC):
         slippage = position.position_size * (self.expected_slippage / 100.0)
         position.slippage = round(slippage, 4)
 
-        self.current_backtest_balance += position.pnl
+        self.initial_test_account_balance += position.pnl
 
         position.open_position = False
-        position.final_account_balance = self.current_backtest_balance
+        position.final_account_balance = self.initial_test_account_balance
 
         return position
 

@@ -239,7 +239,7 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
     dummy_is_strategy.close_backtest_position("test_symbol", "2", 150, trade_exit_time)
 
     # set current account balance to <=0.
-    dummy_is_strategy.current_backtest_balance = -1
+    dummy_is_strategy.initial_test_account_balance = -1
 
     dummy_is_strategy.open_short_backtest_position(
         "test_symbol", 100, trade_entry_time, 50, 150
