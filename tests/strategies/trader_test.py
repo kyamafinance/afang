@@ -17,6 +17,7 @@ from afang.exchanges.models import Order as ExchangeOrder
 from afang.exchanges.models import OrderSide, OrderType, Symbol, SymbolBalance
 from afang.models import Timeframe
 from afang.strategies.is_strategy import IsStrategy
+from afang.strategies.models import TradeLevels
 from afang.strategies.trader import Trader
 
 
@@ -84,11 +85,13 @@ def dummy_db_trade_orders() -> List[DBOrder]:
     ]
 
 
+@pytest.mark.parametrize("symbol", [None, "BTCUSDT"])
 def test_fetch_symbol_open_trade_positions(
     dummy_is_exchange,
     dummy_db_trade_positions,
     trades_db_test_engine_url,
     dummy_is_strategy,
+    symbol,
 ) -> None:
     dummy_is_strategy.exchange = dummy_is_exchange
     create_session_factory(engine_url=trades_db_test_engine_url)
@@ -97,8 +100,8 @@ def test_fetch_symbol_open_trade_positions(
         trades_db.create_new_position(trade_position)
     trades_db.session.commit()
 
-    open_trade_positions = dummy_is_strategy.fetch_symbol_open_trade_positions(
-        "BTCUSDT", trades_db
+    open_trade_positions = dummy_is_strategy.fetch_open_trade_positions(
+        trades_db, symbol
     )
 
     assert len(open_trade_positions) == 2
@@ -180,9 +183,17 @@ def test_get_trading_symbol(
 
 
 @pytest.mark.parametrize(
-    "trading_symbols, trading_symbol_balance, expected_balance, found_quote_balance",
+    "on_demo_mode, trading_symbols, trading_symbol_balance, expected_balance, found_quote_balance",
     [
         (
+            True,
+            None,
+            None,
+            1000,
+            True,
+        ),
+        (
+            False,
             {
                 "BTCUSDT": Symbol(
                     name="BTCUSDT",
@@ -195,10 +206,11 @@ def test_get_trading_symbol(
                 )
             },
             {"USDT": SymbolBalance(name="USDT", wallet_balance=100)},
-            SymbolBalance(name="USDT", wallet_balance=100),
+            100,
             True,
         ),
         (
+            False,
             {
                 "BTCUSDT": Symbol(
                     name="BTCUSDT",
@@ -214,12 +226,13 @@ def test_get_trading_symbol(
             None,
             False,
         ),
-        (dict(), SymbolBalance(name="USDT", wallet_balance=100), None, True),
+        (False, dict(), SymbolBalance(name="USDT", wallet_balance=100), None, True),
     ],
 )
-def test_get_quote_asset_balance(
+def test_get_quote_asset_wallet_balance(
     dummy_is_strategy,
     dummy_is_exchange,
+    on_demo_mode,
     trading_symbols,
     trading_symbol_balance,
     expected_balance,
@@ -229,8 +242,10 @@ def test_get_quote_asset_balance(
     dummy_is_strategy.exchange = dummy_is_exchange
     dummy_is_strategy.exchange.trading_symbols = trading_symbols
     dummy_is_strategy.exchange.trading_symbol_balance = trading_symbol_balance
+    dummy_is_strategy.on_demo_mode = on_demo_mode
+    dummy_is_strategy.initial_test_account_balance = 1000
 
-    quote_asset_balance = dummy_is_strategy.get_quote_asset_balance("BTCUSDT")
+    quote_asset_balance = dummy_is_strategy.get_quote_asset_wallet_balance("BTCUSDT")
     assert quote_asset_balance == expected_balance
     if not found_quote_balance:
         assert caplog.records[0].levelname == "ERROR"
@@ -243,8 +258,8 @@ def test_get_quote_asset_balance(
 @pytest.mark.parametrize(
     "quote_asset_balance, intended_position_size",
     [
-        (SymbolBalance(name="USDT", wallet_balance=1000), 100),
-        (SymbolBalance(name="USDT", wallet_balance=2000), 150),
+        (1000, 100),
+        (2000, 150),
     ],
 )
 def test_get_open_order_position_size(
@@ -258,9 +273,8 @@ def test_get_open_order_position_size(
 
 
 @pytest.mark.parametrize(
-    "exchange_order_return_vals, expected_output, expected_log",
+    "exchange_order_return_vals, db_order_return_vals, expected_output",
     [
-        ([None, None], 0.0, True),
         (
             [
                 ExchangeOrder(
@@ -277,10 +291,26 @@ def test_get_open_order_position_size(
                     time_in_force="GTC",
                     commission=1,
                 ),
-                None,
+            ],
+            [
+                DBOrder(
+                    symbol="BTCUSDT",
+                    order_id="12345",
+                    is_open_order=True,
+                ),
             ],
             6,
-            False,
+        ),
+        (
+            [None],
+            [
+                DBOrder(
+                    symbol="BTCUSDT",
+                    order_id="12345",
+                    is_open_order=True,
+                ),
+            ],
+            0.0,
         ),
         (
             [
@@ -304,18 +334,47 @@ def test_get_open_order_position_size(
                     side=OrderSide.BUY,
                     original_price=100,
                     average_price=100,
-                    original_quantity=20,
-                    executed_quantity=12,
+                    original_quantity=10,
+                    executed_quantity=1,
                     remaining_quantity=8,
                     order_type=OrderType.LIMIT,
                     order_status="PARTIAL",
                     time_in_force="GTC",
                     commission=1,
                 ),
-                None,
+                ExchangeOrder(
+                    symbol="BTCUSDT",
+                    order_id="94332",
+                    side=OrderSide.BUY,
+                    original_price=100,
+                    average_price=100,
+                    original_quantity=10,
+                    executed_quantity=2,
+                    remaining_quantity=8,
+                    order_type=OrderType.LIMIT,
+                    order_status="PARTIAL",
+                    time_in_force="GTC",
+                    commission=1,
+                ),
             ],
-            8,
-            False,
+            [
+                DBOrder(
+                    symbol="BTCUSDT",
+                    order_id="12345",
+                    is_open_order=True,
+                ),
+                DBOrder(
+                    symbol="BTCUSDT",
+                    order_id="67892",
+                    is_open_order=False,
+                ),
+                DBOrder(
+                    symbol="BTCUSDT",
+                    order_id="94332",
+                    is_open_order=False,
+                ),
+            ],
+            3,
         ),
     ],
 )
@@ -325,22 +384,29 @@ def test_get_close_order_qty(
     dummy_is_exchange,
     dummy_db_trade_positions,
     exchange_order_return_vals,
+    db_order_return_vals,
+    trades_db_test_engine_url,
     expected_output,
-    expected_log,
     caplog,
 ) -> None:
     dummy_is_strategy.exchange = dummy_is_exchange
+
+    create_session_factory(engine_url=trades_db_test_engine_url)
+    trades_db = TradesDatabase()
+
+    mocked_get_db_orders = mocker.patch.object(
+        TradesDatabase, "fetch_orders", return_value=db_order_return_vals
+    )
     mocked_get_exchange_order = mocker.patch.object(
         IsExchange, "get_exchange_order", side_effect=exchange_order_return_vals
     )
 
-    close_order_qty = dummy_is_strategy.get_close_order_qty(dummy_db_trade_positions[0])
+    close_order_qty = dummy_is_strategy.get_close_order_qty(
+        dummy_db_trade_positions[0], trades_db
+    )
     assert close_order_qty == expected_output
+    assert mocked_get_db_orders.assert_called
     assert mocked_get_exchange_order.assert_called
-
-    if expected_log:
-        assert caplog.records[0].levelname == "ERROR"
-        assert "could not find position open order" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -671,8 +737,7 @@ def test_cancel_position_order(
         assert mocked_exchange_cancel_order.assert_called
         assert caplog.records[0].levelname == "INFO"
         assert (
-            "attempting to cancel position order due to partly un-executed qty."
-            in caplog.text
+            "attempting to cancel position order due to un-executed qty." in caplog.text
         )
         return
 
@@ -1070,7 +1135,10 @@ def test_open_trade_position(
     )
 
     trade_position = dummy_is_strategy.open_trade_position(
-        "BTCUSDT", 1, 10, trades_db, 12, 5
+        "BTCUSDT",
+        1,
+        TradeLevels(entry_price=10, target_price=12, stop_price=5),
+        trades_db,
     )
 
     assert mocked_place_order.assert_called
@@ -1083,9 +1151,10 @@ def test_open_trade_position(
     assert caplog.records[1].levelname == "INFO"
     assert "open order successfully placed on the exchange" in caplog.text
     assert trade_position == trades_db.fetch_position_by_id(1)
+    assert len(trade_position.orders) == 1
 
 
-@pytest.mark.parametrize("is_position_open", [False, True])
+@pytest.mark.parametrize("is_position_open", [True, False])
 def test_place_close_trade_position_order(
     mocker,
     dummy_is_strategy,
@@ -1112,29 +1181,25 @@ def test_place_close_trade_position_order(
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
 
-    mocker.patch.object(
-        TradesDatabase,
-        "fetch_position_by_id",
-        return_value=DBTradePosition(
-            open_position=is_position_open,
-            symbol="BTCUSDT",
-            direction=1,
-            desired_entry_price=10,
-            open_order_id="12345",
-            position_qty=10,
-            position_size=10,
-            target_price=20,
-            stop_price=5,
-            initial_account_balance=20,
-            exchange_display_name="test_exchange",
-        ),
-    )
     mocker.patch.object(Trader, "is_order_filled", return_value=True)
     mocker.patch.object(IsExchange, "place_order", return_value="11111")
     mocker.patch.object(Trader, "get_close_order_qty", return_value=20)
     mocker.patch.object(Trader, "cancel_position_order")
 
-    dummy_is_strategy.place_close_trade_position_order("BTCUSDT", 1, 1, 20, trades_db)
+    db_position = DBTradePosition(
+        open_position=is_position_open,
+        symbol="BTCUSDT",
+        direction=1,
+        desired_entry_price=10,
+        open_order_id="12345",
+        position_qty=10,
+        position_size=10,
+        target_price=20,
+        stop_price=5,
+        initial_account_balance=20,
+        exchange_display_name="test_exchange",
+    )
+    dummy_is_strategy.place_close_trade_position_order(db_position, 20, True, trades_db)
 
     assert caplog.records[0].levelname == "INFO"
     assert "attempting to place a close trade position order" in caplog.text
@@ -1144,22 +1209,20 @@ def test_place_close_trade_position_order(
         assert "trade position is already closed" in caplog.text
         return
 
-    assert caplog.records[-3].levelname == "INFO"
+    assert caplog.records[-1].levelname == "INFO"
     assert "close order successfully placed on the exchange" in caplog.text
+    assert db_position.take_profit_order_active is True
 
 
 @pytest.mark.parametrize(
     "direction, close_order_type, current_candle_data",
     [
-        (1, OrderType.MARKET, {"high": 22}),
-        (1, OrderType.LIMIT, {"high": 12}),
-        (1, OrderType.MARKET, {"high": 13, "low": 4.5}),
-        (1, OrderType.MARKET, {"high": 12, "low": 4.5}),
-        (1, OrderType.LIMIT, {"high": 12, "low": 5.4}),
-        (-1, OrderType.MARKET, {"low": 19}),
-        (-1, OrderType.LIMIT, {"low": 21}),
-        (-1, OrderType.MARKET, {"low": 21, "high": 6}),
-        (-1, OrderType.LIMIT, {"low": 21, "high": 4}),
+        (1, OrderType.MARKET, {"close": 22}),
+        (1, OrderType.LIMIT, {"close": 12}),
+        (1, OrderType.MARKET, {"close": 4.5}),
+        (-1, OrderType.MARKET, {"close": 19}),
+        (-1, OrderType.LIMIT, {"close": 21}),
+        (-1, OrderType.MARKET, {"close": 6}),
     ],
 )
 def test_handle_open_trade_positions(
@@ -1193,15 +1256,49 @@ def test_handle_open_trade_positions(
             stop_price=5,
             initial_account_balance=20,
             exchange_display_name="test_exchange",
+            take_profit_order_active=False,
         )
     ]
 
-    dummy_is_strategy.close_order_type = close_order_type
+    dummy_is_strategy.take_profit_order_type = close_order_type
+    dummy_is_strategy.stop_loss_order_type = close_order_type
     dummy_is_strategy.handle_open_trade_positions(
         SimpleNamespace(**current_candle_data), symbol_open_positions, trades_db
     )
 
     assert mocked_place_close_trade_position_order.called
+
+
+@pytest.mark.parametrize(
+    "direction, candle_data, is_valid",
+    [
+        (1, {"close": 16, "open_time": 1}, False),
+        (1, {"close": 10, "open_time": 1}, True),
+        (-1, {"close": 16, "open_time": 1}, False),
+        (-1, {"close": 10, "open_time": 1}, True),
+    ],
+)
+def test_generate_and_verify_trader_trade_levels(
+    caplog, dummy_is_strategy, direction, candle_data, is_valid
+) -> None:
+    dummy_trade_levels = TradeLevels(entry_price=10, stop_price=5, target_price=20)
+
+    def dummy_generate_trade_levels(_data, _trade_signal_direction) -> TradeLevels:
+        return dummy_trade_levels
+
+    dummy_is_strategy.generate_trade_levels = dummy_generate_trade_levels
+
+    trade_levels = dummy_is_strategy.generate_and_verify_trader_trade_levels(
+        SimpleNamespace(**candle_data), 1
+    )
+
+    if not is_valid:
+        assert not trade_levels
+        assert caplog.records[-1].levelname == "WARNING"
+        assert "Generated trade levels are invalid" in caplog.text
+        return
+
+    assert trade_levels == dummy_trade_levels
 
 
 def test_handle_finalized_trade_positions(
@@ -1211,46 +1308,82 @@ def test_handle_finalized_trade_positions(
     create_session_factory(engine_url=trades_db_test_engine_url)
     trades_db = TradesDatabase()
 
+    mocker.patch.object(Trader, "is_order_filled", return_value=True)
+
+    mocked_cancel_position_order = mocker.patch.object(Trader, "cancel_position_order")
+
+    mocked_close_trade_position = mocker.patch.object(Trader, "close_trade_position")
+
     mocker.patch.object(
         IsExchange,
         "get_exchange_order",
-        return_value=ExchangeOrder(
-            symbol="BTCUSDT",
-            order_id="12345",
-            side=OrderSide.BUY,
-            original_price=100,
-            average_price=100,
-            original_quantity=10,
-            executed_quantity=10,
-            remaining_quantity=0,
-            order_type=OrderType.LIMIT,
-            order_status="PARTIAL",
-            time_in_force="GTC",
-            commission=1,
-        ),
+        side_effect=[
+            ExchangeOrder(
+                symbol="BTCUSDT",
+                order_id="1234",
+                side=OrderSide.BUY,
+                original_price=100,
+                average_price=100,
+                original_quantity=10,
+                executed_quantity=10,
+                remaining_quantity=0,
+                order_type=OrderType.LIMIT,
+                order_status="PARTIAL",
+                time_in_force="GTC",
+                commission=1,
+            ),
+            ExchangeOrder(
+                symbol="BTCUSDT",
+                order_id="6789",
+                side=OrderSide.SELL,
+                original_price=100,
+                average_price=100,
+                original_quantity=10,
+                executed_quantity=6,
+                remaining_quantity=0,
+                order_type=OrderType.LIMIT,
+                order_status="PARTIAL",
+                time_in_force="GTC",
+                commission=1,
+            ),
+            ExchangeOrder(
+                symbol="BTCUSDT",
+                order_id="9843",
+                side=OrderSide.SELL,
+                original_price=100,
+                average_price=100,
+                original_quantity=10,
+                executed_quantity=4,
+                remaining_quantity=0,
+                order_type=OrderType.LIMIT,
+                order_status="PARTIAL",
+                time_in_force="GTC",
+                commission=1,
+            ),
+        ],
     )
+
     mocker.patch.object(
-        Trader,
-        "fetch_order_by_exchange_id",
-        return_value=DBOrder(
-            symbol="BTCUSDT",
-            direction=1,
-            is_open_order=True,
-            order_id="12345",
-            order_side=OrderSide.BUY.value,
-            original_price=100,
-            average_price=120,
-            original_quantity=10,
-            executed_quantity=10,
-            order_type=OrderType.LIMIT.value,
-            commission=2,
-            exchange_display_name="test_exchange",
-        ),
+        TradesDatabase,
+        "fetch_orders",
+        return_value=[
+            DBOrder(
+                symbol="BTCUSDT",
+                is_open_order=True,
+                order_id="1234",
+            ),
+            DBOrder(
+                symbol="BTCUSDT",
+                is_open_order=False,
+                order_id="6789",
+            ),
+            DBOrder(
+                symbol="BTCUSDT",
+                is_open_order=False,
+                order_id="9843",
+            ),
+        ],
     )
-    mocked_update_closed_order_in_db = mocker.patch.object(
-        Trader, "update_closed_order_in_db"
-    )
-    mocked_close_trade_position = mocker.patch.object(Trader, "close_trade_position")
 
     symbol_open_positions = [
         DBTradePosition(
@@ -1258,7 +1391,6 @@ def test_handle_finalized_trade_positions(
             symbol="BTCUSDT",
             direction=1,
             desired_entry_price=10,
-            final_close_order_id="1",
             open_order_id="12345",
             position_qty=10,
             position_size=10,
@@ -1271,8 +1403,8 @@ def test_handle_finalized_trade_positions(
 
     dummy_is_strategy.handle_finalized_trade_positions(symbol_open_positions, trades_db)
 
-    assert mocked_update_closed_order_in_db.called
     assert mocked_close_trade_position.called
+    assert mocked_cancel_position_order.called
 
 
 @pytest.mark.parametrize("exchange_symbol_present", [False, True])
@@ -1381,3 +1513,283 @@ def test_get_db_name(
     db_name = dummy_is_strategy.get_db_name()
 
     assert db_name == expected_db_name
+
+
+def test_add_demo_mode_order(dummy_is_strategy) -> None:
+    demo_order_id = dummy_is_strategy.add_demo_mode_order(
+        "BTCUSDT", OrderSide.BUY, 10, OrderType.LIMIT, 21.4
+    )
+
+    assert len(dummy_is_strategy.demo_mode_exchange_orders["BTCUSDT"]) == 1
+    assert (
+        dummy_is_strategy.demo_mode_exchange_orders["BTCUSDT"][0].order_id
+        == demo_order_id
+    )
+
+
+def test_initialize_demo_mode_orders(
+    mocker, dummy_is_strategy, dummy_is_exchange, trades_db_test_engine_url
+) -> None:
+    create_session_factory(engine_url=trades_db_test_engine_url)
+    dummy_is_strategy.exchange = dummy_is_exchange
+
+    mocker.patch.object(
+        TradesDatabase,
+        "fetch_orders",
+        return_value=[
+            DBOrder(
+                symbol="BTCUSDT",
+                direction=1,
+                is_open_order=True,
+                order_id="12345",
+                order_side=OrderSide.BUY.value,
+                original_price=100,
+                average_price=120,
+                original_quantity=10,
+                executed_quantity=10,
+                order_type=OrderType.LIMIT.value,
+                commission=2,
+                exchange_display_name="test_exchange",
+            ),
+            DBOrder(
+                symbol="BTCUSDT",
+                direction=1,
+                is_open_order=True,
+                order_id="34567",
+                order_side=OrderSide.BUY.value,
+                original_price=100,
+                average_price=120,
+                original_quantity=10,
+                executed_quantity=10,
+                order_type=OrderType.LIMIT.value,
+                commission=2,
+                exchange_display_name="test_exchange",
+            ),
+        ],
+    )
+
+    dummy_is_strategy.initialize_demo_mode_orders(["BTCUSDT"])
+    assert len(dummy_is_strategy.demo_mode_exchange_orders["BTCUSDT"]) == 2
+
+
+def test_update_executed_demo_order_in_db(
+    dummy_is_strategy, dummy_is_exchange, trades_db_test_engine_url
+) -> None:
+    create_session_factory(engine_url=trades_db_test_engine_url)
+    trades_db = TradesDatabase()
+
+    dummy_is_strategy.exchange = dummy_is_exchange
+
+    trades_db.create_new_order(
+        DBOrder(
+            symbol="BTCUSDT",
+            direction=1,
+            is_open_order=True,
+            order_id="1234",
+            order_side=OrderSide.BUY.value,
+            original_price=100,
+            average_price=120,
+            original_quantity=10,
+            executed_quantity=0,
+            order_type=OrderType.LIMIT.value,
+            commission=2,
+            exchange_display_name="test_exchange",
+        )
+    )
+    trades_db.session.commit()
+
+    demo_order = ExchangeOrder(
+        symbol="BTCUSDT",
+        order_id="1234",
+        side=OrderSide.BUY,
+        original_price=100,
+        average_price=100,
+        original_quantity=10,
+        executed_quantity=10,
+        remaining_quantity=0,
+        order_type=OrderType.LIMIT,
+        order_status="PARTIAL",
+        time_in_force="GTC",
+        commission=2,
+    )
+
+    dummy_is_strategy.update_executed_demo_order_in_db(demo_order, trades_db)
+    assert (
+        dummy_is_strategy.fetch_order_by_exchange_id(
+            "1234", trades_db
+        ).executed_quantity
+        == 10
+    )
+
+
+def test_update_symbol_demo_mode_orders(
+    mocker,
+    dummy_is_strategy,
+    dummy_is_exchange,
+    dummy_db_trade_positions,
+    trades_db_test_engine_url,
+) -> None:
+    create_session_factory(engine_url=trades_db_test_engine_url)
+    trades_db = TradesDatabase()
+
+    dummy_is_strategy.exchange = dummy_is_exchange
+    dummy_is_strategy.leverage = 5
+    dummy_is_strategy.commission = 0.05
+    dummy_is_strategy.demo_mode_exchange_orders = {
+        "BTCUSDT": [
+            ExchangeOrder(
+                symbol="BTCUSDT",
+                order_id="1234",
+                side=OrderSide.BUY,
+                original_price=100,
+                average_price=0,
+                original_quantity=10,
+                executed_quantity=0,
+                remaining_quantity=10,
+                order_type=OrderType.MARKET,
+                order_status="PARTIAL",
+                time_in_force="GTC",
+                commission=2,
+            )
+        ]
+    }
+
+    mocked_update_executed_demo_order_in_db = mocker.patch.object(
+        Trader, "update_executed_demo_order_in_db"
+    )
+
+    mocker.patch.object(
+        TradesDatabase,
+        "fetch_orders",
+        return_value=[
+            DBOrder(
+                symbol="BTCUSDT",
+                direction=1,
+                is_open_order=True,
+                order_id="1234",
+                order_side=OrderSide.BUY.value,
+                original_price=100,
+                average_price=120,
+                original_quantity=10,
+                executed_quantity=0,
+                order_type=OrderType.MARKET.value,
+                commission=2,
+                exchange_display_name="test_exchange",
+            )
+        ],
+    )
+
+    mocker.patch.object(
+        TradesDatabase, "fetch_position_by_id", return_value=dummy_db_trade_positions[0]
+    )
+
+    dummy_is_strategy.update_symbol_demo_mode_orders(
+        "BTCUSDT", SimpleNamespace(**{"close": 20}), trades_db
+    )
+
+    assert mocked_update_executed_demo_order_in_db.called
+
+
+def test_calibrate_position_order_quantities(
+    mocker,
+    dummy_is_strategy,
+    trades_db_test_engine_url,
+    dummy_is_exchange,
+    dummy_db_trade_positions,
+) -> None:
+    create_session_factory(engine_url=trades_db_test_engine_url)
+    trades_db = TradesDatabase()
+
+    dummy_is_strategy.exchange = dummy_is_exchange
+
+    mocker.patch.object(
+        TradesDatabase,
+        "fetch_orders",
+        return_value=[
+            DBOrder(
+                symbol="BTCUSDT",
+                direction=1,
+                is_open_order=True,
+                order_id="1234",
+                original_quantity=10,
+                executed_quantity=10,
+            ),
+            DBOrder(
+                symbol="BTCUSDT",
+                direction=1,
+                is_open_order=False,
+                order_id="5678",
+                original_quantity=10,
+                executed_quantity=2,
+            ),
+            DBOrder(
+                symbol="BTCUSDT",
+                direction=1,
+                is_open_order=False,
+                order_id="9876",
+                original_quantity=10,
+                executed_quantity=1,
+            ),
+        ],
+    )
+
+    mocker.patch.object(
+        Trader,
+        "get_exchange_order",
+        side_effect=[
+            ExchangeOrder(
+                symbol="BTCUSDT",
+                order_id="1234",
+                side=OrderSide.BUY,
+                original_price=100,
+                average_price=0,
+                original_quantity=10,
+                executed_quantity=10,
+                remaining_quantity=10,
+                order_type=OrderType.MARKET,
+                order_status="PARTIAL",
+                time_in_force="GTC",
+                commission=2,
+            ),
+            ExchangeOrder(
+                symbol="BTCUSDT",
+                order_id="5678",
+                side=OrderSide.BUY,
+                original_price=100,
+                average_price=0,
+                original_quantity=10,
+                executed_quantity=2,
+                remaining_quantity=8,
+                order_type=OrderType.MARKET,
+                order_status="PARTIAL",
+                time_in_force="GTC",
+                commission=2,
+            ),
+            ExchangeOrder(
+                symbol="BTCUSDT",
+                order_id="9876",
+                side=OrderSide.BUY,
+                original_price=100,
+                average_price=0,
+                original_quantity=10,
+                executed_quantity=1,
+                remaining_quantity=9,
+                order_type=OrderType.MARKET,
+                order_status="PARTIAL",
+                time_in_force="GTC",
+                commission=2,
+            ),
+        ],
+    )
+
+    mocked_cancel_position_order = mocker.patch.object(Trader, "cancel_position_order")
+    mocked_place_close_trade_position_order = mocker.patch.object(
+        Trader, "place_close_trade_position_order"
+    )
+
+    dummy_is_strategy.calibrate_position_order_quantities(
+        dummy_db_trade_positions[0], trades_db
+    )
+
+    assert mocked_cancel_position_order.called
+    assert mocked_place_close_trade_position_order.called

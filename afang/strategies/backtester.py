@@ -1,8 +1,7 @@
 import logging
 import multiprocessing
 import time
-import uuid
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -14,12 +13,13 @@ from afang.exchanges import IsExchange
 from afang.models import Timeframe
 from afang.strategies.analyzer import StrategyAnalyzer
 from afang.strategies.models import TradeLevels, TradePosition
-from afang.utils.util import resample_timeframe, time_str_to_milliseconds
+from afang.strategies.root import Root
+from afang.utils.util import generate_uuid, resample_timeframe, time_str_to_milliseconds
 
 logger = logging.getLogger(__name__)
 
 
-class Backtester(ABC):
+class Backtester(Root):
     """Base interface for strategy backtests."""
 
     @abstractmethod
@@ -29,50 +29,7 @@ class Backtester(ABC):
         :param strategy_name: name of the trading strategy.
         """
 
-        self.strategy_name: str = strategy_name
-        self.allow_long_positions: bool = True
-        self.allow_short_positions: bool = True
-        self.timeframe: Optional[Timeframe] = None
-        self.symbols: Optional[List[str]] = None
-        self.exchange: Optional[IsExchange] = None
-        # leverage to use per trade.
-        self.leverage: int = 1
-        # exchange order fee as a percentage of the trade principal.
-        self.commission: float = 0.05
-        # expected trade slippage as a percentage of the trade principal.
-        self.expected_slippage: float = 0.05
-        # number of indicator values to be discarded due to being potentially unstable.
-        self.unstable_indicator_values: int = 0
-        # maximum number of candles for a single trade.
-        self.max_holding_candles: int = 100
-        # percentage of current account balance to risk per trade.
-        self.percentage_risk_per_trade: float = 2
-        # maximum amount to invest per trade.
-        # If `None`, the maximum amount to invest per trade will be the current account balance.
-        self.max_amount_per_trade: Optional[int] = None
-        # Whether to allow for multiple open positions per symbol at a time.
-        self.allow_multiple_open_positions: bool = True
-        # strategy configuration parameters i.e. contents of strategy `config.yaml`.
-        self.config: Dict = dict()
-
-        # --Unique to Backtester (not in Trader)
-        self.backtest_to_time: Optional[int] = None
-        self.backtest_from_time: Optional[int] = None
-        # account initial balance - will be constantly updated to match current account balance.
-        self.current_backtest_balance: float = 10000
-        # backtest data that initially contains OHLCV data.
-        self.backtest_data: Dict = dict()
-        # backtest trade positions.
-        self.trade_positions: Dict = dict()
-
-    @staticmethod
-    def generate_uuid() -> str:
-        """Generate a random UUID.
-
-        :return: str
-        """
-
-        return str(uuid.uuid4())
+        Root.__init__(self, strategy_name=strategy_name)
 
     @abstractmethod
     def plot_backtest_indicators(self) -> Dict:
@@ -112,7 +69,7 @@ class Backtester(ABC):
 
         if not self.trade_positions.get(symbol, dict()):
             self.trade_positions[symbol] = dict()
-        self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
+        self.trade_positions[symbol][generate_uuid()] = new_position
 
     def open_short_backtest_position(
         self,
@@ -143,7 +100,7 @@ class Backtester(ABC):
 
         if not self.trade_positions.get(symbol, dict()):
             self.trade_positions[symbol] = dict()
-        self.trade_positions[symbol][Backtester.generate_uuid()] = new_position
+        self.trade_positions[symbol][generate_uuid()] = new_position
 
     def fetch_open_symbol_backtest_positions(self, symbol: str) -> List[TradePosition]:
         """Fetch a list of all open backtest positions for a given symbol.
@@ -186,13 +143,13 @@ class Backtester(ABC):
 
         position.exit_time = exit_time
         position.close_price = close_price
-        position.initial_account_balance = self.current_backtest_balance
+        position.initial_account_balance = self.initial_test_account_balance
 
         roe = ((close_price / position.entry_price - 1) * position.direction) * 100.0
         position.roe = round(roe, 4)
 
         position.position_size = self.leverage * (
-            (self.percentage_risk_per_trade / 100.0) * self.current_backtest_balance
+            (self.percentage_risk_per_trade / 100.0) * self.initial_test_account_balance
         )
         if (
             self.max_amount_per_trade
@@ -205,7 +162,7 @@ class Backtester(ABC):
         )
         position.cost_adjusted_roe = round(cost_adjusted_roe, 4)
 
-        if self.current_backtest_balance <= 0:
+        if self.initial_test_account_balance <= 0:
             position.roe = 0
             position.position_size = 0
             position.cost_adjusted_roe = 0
@@ -217,10 +174,10 @@ class Backtester(ABC):
         slippage = position.position_size * (self.expected_slippage / 100.0)
         position.slippage = round(slippage, 4)
 
-        self.current_backtest_balance += position.pnl
+        self.initial_test_account_balance += position.pnl
 
         position.open_position = False
-        position.final_account_balance = self.current_backtest_balance
+        position.final_account_balance = self.initial_test_account_balance
 
         return position
 
@@ -274,6 +231,34 @@ class Backtester(ABC):
             target_price=None,
             stop_price=None,
         )
+
+    def generate_and_verify_backtest_trade_levels(
+        self, data: Any, trade_signal_direction: int
+    ) -> Optional[TradeLevels]:
+        """Generate price levels for an individual trade signal and verify that
+        they are valid.
+
+        :param data: the historical price dataframe row where the open trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+        :return: Optional[TradeLevels]
+        """
+
+        trade_levels = self.generate_trade_levels(data, trade_signal_direction)
+
+        if (trade_signal_direction == 1 and trade_levels.entry_price < data.close) or (
+            trade_signal_direction == -1 and trade_levels.entry_price > data.close
+        ):
+            logger.warning(
+                "Generated trade levels are invalid. direction: %s. candle open time: %s. "
+                "desired entry price: %s. current price: %s",
+                trade_signal_direction,
+                data.Index,
+                trade_levels.entry_price,
+                data.close,
+            )
+            return None
+
+        return trade_levels
 
     def handle_open_backtest_positions(self, symbol: str, data: Any) -> None:
         """Monitor and handle open positions for a given symbol and close them
@@ -410,14 +395,17 @@ class Backtester(ABC):
                 ):
                     continue
 
-                trade_levels = self.generate_trade_levels(row, trade_signal_direction=1)
-                self.open_long_backtest_position(
-                    symbol=symbol,
-                    entry_price=trade_levels.entry_price,
-                    entry_time=row.Index,
-                    target_price=trade_levels.target_price,
-                    stop_price=trade_levels.stop_price,
+                trade_levels = self.generate_and_verify_backtest_trade_levels(
+                    row, trade_signal_direction=1
                 )
+                if trade_levels:
+                    self.open_long_backtest_position(
+                        symbol=symbol,
+                        entry_price=trade_levels.entry_price,
+                        entry_time=row.Index,
+                        target_price=trade_levels.target_price,
+                        stop_price=trade_levels.stop_price,
+                    )
 
             # open a short position if we get a short trading signal.
             if (
@@ -432,16 +420,17 @@ class Backtester(ABC):
                 ):
                     continue
 
-                trade_levels = self.generate_trade_levels(
+                trade_levels = self.generate_and_verify_backtest_trade_levels(
                     row, trade_signal_direction=-1
                 )
-                self.open_short_backtest_position(
-                    symbol=symbol,
-                    entry_price=trade_levels.entry_price,
-                    entry_time=row.Index,
-                    target_price=trade_levels.target_price,
-                    stop_price=trade_levels.stop_price,
-                )
+                if trade_levels:
+                    self.open_short_backtest_position(
+                        symbol=symbol,
+                        entry_price=trade_levels.entry_price,
+                        entry_time=row.Index,
+                        target_price=trade_levels.target_price,
+                        stop_price=trade_levels.stop_price,
+                    )
 
             # monitor and handle all open positions.
             self.handle_open_backtest_positions(symbol, row)

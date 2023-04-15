@@ -53,6 +53,13 @@ def parse_args(args) -> argparse.Namespace:
         choices=[timeframe.value for timeframe in Timeframe],
     )
     parser.add_argument(
+        "--demo",
+        type=bool,
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="whether to use the trader in demo mode or in live mode",
+    )
+    parser.add_argument(
         "--from-time",
         type=str,
         help="backtest from time. format: (yyyy-mm-dd). if not provided, backtest will start from the beginning of "

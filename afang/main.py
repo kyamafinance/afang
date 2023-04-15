@@ -102,7 +102,10 @@ def main(args):
     elif parsed_args.mode == Mode.trade.value:
         # Run the trader on the provided strategy.
         strategy().run_trader(
-            exchange, parsed_args.symbols, parsed_args.timeframe, demo_mode=True
+            exchange,
+            parsed_args.symbols,
+            parsed_args.timeframe,
+            demo_mode=parsed_args.demo,
         )
 
     else:
