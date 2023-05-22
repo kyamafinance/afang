@@ -103,7 +103,8 @@ class TradesDatabase:
         """Fetch multiple trade positions from the trades' database.
 
         :param filters: optional. tuple of logical filters to filter trade positions.
-        :param limit: max number of positions to return. defaults to returning all matching positions.
+        :param limit: max number of positions to return. defaults to
+                returning all matching positions.
         :return: List[TradePosition]
         """
 
@@ -148,7 +149,8 @@ class TradesDatabase:
         """Fetch multiple orders from the trades' database.
 
         :param filters: optional. tuple of logical filters to filter orders.
-        :param limit: max number of orders to be returned. defaults to returning all matching orders.
+        :param limit: max number of orders to be returned. defaults to
+                returning all matching orders.
         :return: List[Order]
         """
 

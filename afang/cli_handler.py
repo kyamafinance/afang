@@ -7,7 +7,6 @@ def parse_args(args) -> argparse.Namespace:
     """Parse application command line arguments.
 
     :param args: command line arguments to parse.
-
     :return: argparse.Namespace
     """
 

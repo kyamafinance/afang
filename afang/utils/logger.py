@@ -49,8 +49,8 @@ class Logger:
         config/logging_config.yaml. If the configuration yaml file does not
         exist, the logger defaults to a basic config.
 
-        :param default_level: the default logging level to be set if the configuration file is unavailable.
-
+        :param default_level: the default logging level to be set if the
+                configuration file is unavailable.
         :return: None
         """
 

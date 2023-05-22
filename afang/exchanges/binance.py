@@ -46,9 +46,8 @@ class BinanceExchange(IsExchange):
     """Interface to run exchange functions on Binance USDT Futures."""
 
     def __init__(self, testnet: bool = False) -> None:
-        """
-        :param testnet: whether to use the testnet version of the exchange.
-        """
+        """:param testnet: whether to use the testnet version of the
+        exchange."""
 
         name = "binance"
         base_url = "https://fapi.binance.com"
@@ -132,10 +131,11 @@ class BinanceExchange(IsExchange):
         klines are returned.
 
         :param symbol: symbol to fetch historical candlestick bars for.
-        :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
-        :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param start_time: optional. the start time to begin fetching
+                candlestick bars as a UNIX timestamp in ms.
+        :param end_time: optional. the end time to begin fetching
+                candlestick bars as a UNIX timestamp in ms.
         :param timeframe: optional. timeframe to download historical candles.
-
         :return: Optional[List[Candle]]
         """
 
@@ -609,7 +609,8 @@ class BinanceExchange(IsExchange):
     def _keep_wss_alive(self, run_forever: bool = True) -> None:
         """Periodically extend the validity period of the wss listen key.
 
-        :param run_forever: whether to continuously keep the wss alive. used for testing purposes.
+        :param run_forever: whether to continuously keep the wss alive.
+                used for testing purposes.
         :return: None
         """
 
