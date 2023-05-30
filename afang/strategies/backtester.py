@@ -199,7 +199,8 @@ class Backtester(Root):
     def is_long_trade_signal_present(self, data: Any) -> bool:
         """Check if a long trade signal exists.
 
-        :param data: the historical price dataframe row at the current time in backtest.
+        :param data: the historical price dataframe row at the current
+                time in backtest.
         :return: bool
         """
 
@@ -209,7 +210,8 @@ class Backtester(Root):
     def is_short_trade_signal_present(self, data: Any) -> bool:
         """Check if a short trade signal exists.
 
-        :param data: the historical price dataframe row at the current time in backtest.
+        :param data: the historical price dataframe row at the current
+                time in backtest.
         :return: bool
         """
 
@@ -221,7 +223,8 @@ class Backtester(Root):
     ) -> TradeLevels:
         """Generate price levels for an individual trade signal.
 
-        :param data: the historical price dataframe row where the open trade signal was detected.
+        :param data: the historical price dataframe row where the open
+                trade signal was detected.
         :param trade_signal_direction: 1 for a long position. -1 for a short position.
         :return: TradeLevels
         """
@@ -238,7 +241,8 @@ class Backtester(Root):
         """Generate price levels for an individual trade signal and verify that
         they are valid.
 
-        :param data: the historical price dataframe row where the open trade signal was detected.
+        :param data: the historical price dataframe row where the open
+                trade signal was detected.
         :param trade_signal_direction: 1 for a long position. -1 for a short position.
         :return: Optional[TradeLevels]
         """
@@ -265,7 +269,8 @@ class Backtester(Root):
         if they hit a trade barrier.
 
         :param symbol: symbol to monitor open positions for.
-        :param data: the historical price dataframe row at the current time in backtest.
+        :param data: the historical price dataframe row at the current
+                time in backtest.
         :return: None
         """
 

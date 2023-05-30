@@ -89,7 +89,6 @@ class IsExchange(ABC):
         :param endpoint: the URL path of the associated GET request.
         :param query_parameters: a dictionary of parameters to pass within the query.
         :param headers: optional headers to send with the request.
-
         :return: Any
         """
 
@@ -260,10 +259,11 @@ class IsExchange(ABC):
         returned.
 
         :param symbol: symbol to fetch historical candlestick bars for.
-        :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
-        :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param start_time: optional. the start time to begin fetching
+                candlestick bars as a UNIX timestamp in ms.
+        :param end_time: optional. the end time to begin fetching
+                candlestick bars as a UNIX timestamp in ms.
         :param timeframe: optional. timeframe to download historical candles.
-
         :return: Optional[List[Candle]]
         """
 

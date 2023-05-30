@@ -19,10 +19,10 @@ def fetch_initial_data(
     """Fetch the most recent historical price data for a symbol from a given
     exchange and store this data in the provided ohlcv database.
 
-    :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
+    :param exchange: an instance of an interface of the exchange to use
+        to fetch historical price data.
     :param symbol: name of the symbol whose historical price data should be fetched.
     :param ohlcv_db: an instance of an interface of an ohlcv database.
-
     :return: Union[Tuple[None, None], Tuple[float, float]]
     """
 
@@ -68,13 +68,14 @@ def fetch_most_recent_data(
     """Fetch a symbol's most recent historical price data from an exchange
     after a given timestamp and store this data in the database.
 
-    :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
+    :param exchange: an instance of an interface of the exchange to use
+        to fetch historical price data.
     :param symbol: name of the symbol whose historical price data should be fetched.
     :param ohlcv_db: an instance of an interface to an OHLCV database.
-    :param most_recent_timestamp: UNIX timestamp in ms after which historical price data will be fetched.
+    :param most_recent_timestamp: UNIX timestamp in ms after which
+        historical price data will be fetched.
     :param query_limit: rate limit of how long to sleep between HTTP requests.
     :param write_limit: threshold of how many candles to fetch before saving them to the DB.
-
     :return: Optional[float]
     """
 
@@ -143,13 +144,14 @@ def fetch_older_data(
     """Fetch a symbol's historical price data from an exchange before a given
     timestamp and store this data in the database.
 
-    :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
+    :param exchange: an instance of an interface of the exchange to use
+        to fetch historical price data.
     :param symbol: name of the symbol whose historical price data should be fetched.
     :param ohlcv_db: an instance of an interface to an OHLCV database.
-    :param oldest_timestamp: UNIX timestamp in ms before which historical price data will be fetched.
+    :param oldest_timestamp: UNIX timestamp in ms before which
+        historical price data will be fetched.
     :param query_limit: rate limit of how long to sleep between HTTP requests.
     :param write_limit: threshold of how many candles to fetch before saving them to the DB.
-
     :return: Optional[float]
     """
 
@@ -217,10 +219,10 @@ def fetch_symbol_data(
     exchange and store this data in the database. Returns an optional bool on
     whether the symbol dataset contains valid data.
 
-    :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
+    :param exchange: an instance of an interface of the exchange to use
+        to fetch historical price data.
     :param symbol: name of the symbol whose historical price data should be fetched.
     :param root_db_dir: path to the intended root OHLCV database directory.
-
     :return: Optional[bool]
     """
 
@@ -286,10 +288,10 @@ def fetch_historical_price_data(
 ) -> None:
     """Fetch historical price data for the parsed symbols.
 
-    :param exchange: an instance of an interface of the exchange to use to fetch historical price data.
+    :param exchange: an instance of an interface of the exchange to use
+        to fetch historical price data.
     :param symbols: symbol names to fetch historical price data for.
     :param strategy: optional strategy instance.
-
     :return: None
     """
 

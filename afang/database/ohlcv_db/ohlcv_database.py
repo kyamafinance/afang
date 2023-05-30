@@ -46,7 +46,6 @@ class OHLCVDatabase:
         price data information if one does not already exist.
 
         :param symbol: symbol to create a dataset for.
-
         :return: None
         """
 
@@ -66,7 +65,6 @@ class OHLCVDatabase:
         symbol, (None, None) will be returned.
 
         :param symbol: name of symbol to use.
-
         :return: Union[Tuple[None, None], Tuple[float, float]]
         """
 
@@ -88,7 +86,6 @@ class OHLCVDatabase:
 
         :param symbol: symbol whose price data is to be stored.
         :param data: list of OHLCV candles to be stored into the symbol's dataset.
-
         :return: None
         """
 
@@ -140,9 +137,10 @@ class OHLCVDatabase:
         timestamps and within the from_time and to_time parameters.
 
         :param symbol: name of symbol whose data is to be retrieved.
-        :param from_time: UNIX timestamp in ms which retrieved price data should not be older than.
-        :param to_time: UNIX timestamp in ms which retrieved price data should not be newer than.
-
+        :param from_time: UNIX timestamp in ms which retrieved price
+                data should not be older than.
+        :param to_time: UNIX timestamp in ms which retrieved price data
+                should not be newer than.
         :return: Optional[pd.DataFrame]
         """
 
@@ -188,7 +186,6 @@ class OHLCVDatabase:
         :param df_col: dataframe column.
         :param allowed_vals: dict of values allowed in the pandas' series.
         :param astype: type to cast disallowed values to.
-
         :return: List[str]
         """
 
@@ -208,7 +205,6 @@ class OHLCVDatabase:
         timestamps are strictly 1 or 2 minute(s) apart.
 
         :param symbol: name of symbol whose data is to be validated.
-
         :return: bool
         """
 

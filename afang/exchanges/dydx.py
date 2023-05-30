@@ -49,9 +49,8 @@ class DyDxExchange(IsExchange):
     """Interface to run exchange functions on DyDx Futures."""
 
     def __init__(self, testnet: bool = False) -> None:
-        """
-        :param testnet: whether to use the testnet version of the exchange.
-        """
+        """:param testnet: whether to use the testnet version of the
+        exchange."""
 
         name = "dydx"
         base_url = "https://api.dydx.exchange"
@@ -143,10 +142,11 @@ class DyDxExchange(IsExchange):
         klines are returned.
 
         :param symbol: symbol to fetch historical candlestick bars for.
-        :param start_time: optional. the start time to begin fetching candlestick bars as a UNIX timestamp in ms.
-        :param end_time: optional. the end time to begin fetching candlestick bars as a UNIX timestamp in ms.
+        :param start_time: optional. the start time to begin fetching
+                candlestick bars as a UNIX timestamp in ms.
+        :param end_time: optional. the end time to begin fetching
+                candlestick bars as a UNIX timestamp in ms.
         :param timeframe: optional. timeframe to download historical candles.
-
         :return: Optional[List[Candle]]
         """
 

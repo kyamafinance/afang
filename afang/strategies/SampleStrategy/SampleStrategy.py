@@ -68,7 +68,8 @@ class SampleStrategy(IsStrategy):
     def is_long_trade_signal_present(self, data: Any) -> bool:
         """Check if a long trade signal exists.
 
-        :param data: the historical price dataframe row at the current time in backtest.
+        :param data: the historical price dataframe row at the current
+                time in backtest.
         :return: bool
         """
 
@@ -91,7 +92,8 @@ class SampleStrategy(IsStrategy):
     def is_short_trade_signal_present(self, data: Any) -> bool:
         """Check if a short trade signal exists.
 
-        :param data: the historical price dataframe row at the current time in backtest.
+        :param data: the historical price dataframe row at the current
+                time in backtest.
         :return: bool
         """
 
@@ -116,7 +118,8 @@ class SampleStrategy(IsStrategy):
     ) -> TradeLevels:
         """Generate price levels for an individual trade signal.
 
-        :param data: the historical price dataframe row where the open trade signal was detected.
+        :param data: the historical price dataframe row where the open
+                trade signal was detected.
         :param trade_signal_direction: 1 for a long position. -1 for a short position.
         :return: TradeLevels
         """
@@ -146,10 +149,11 @@ class SampleStrategy(IsStrategy):
         generation while optimizing the strategy. Should return a dict that
         contains possible mutated parameters.
 
-        :param parameters: parameters generated for strategy optimization. These parameters
-        will follow the specification provided in `config.yaml`. This dict will not contain parameters
-        that are not to be optimized.
-
+        :param parameters: parameters generated for strategy
+                optimization. These parameters         will follow the
+                specification provided in `config.yaml`. This dict will
+                not contain parameters         that are not to be
+                optimized.
         :return: Dict
         """
 
