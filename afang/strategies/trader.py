@@ -163,7 +163,8 @@ class Trader(Root):
     def get_next_trading_symbol(self, run_forever: bool = True) -> Optional[str]:
         """Get the next trading symbol from the execution queue to trade.
 
-        :param run_forever: whether to continuously run the function. Used for testing purposes.
+        :param run_forever: whether to continuously run the function.
+                Used for testing purposes.
         :return: Optional[str]
         """
 
@@ -573,7 +574,8 @@ class Trader(Root):
         """Get the ROE of a given trade position.
 
         :param position: database trade position.
-        :param cost_adjusted: whether to calculate the cost adjusted ROE i.e. inclusive of commission.
+        :param cost_adjusted: whether to calculate the cost adjusted ROE
+                i.e. inclusive of commission.
         :return: float
         """
 
@@ -891,7 +893,8 @@ class Trader(Root):
         """Open a LONG or SHORT trade position for a given symbol.
 
         :param symbol: symbol to open a trade position for.
-        :param direction: whether to open a LONG/SHORT trade position. 1 for LONG. -1 for SHORT.
+        :param direction: whether to open a LONG/SHORT trade position. 1
+                for LONG. -1 for SHORT.
         :param trade_levels: desired trade levels.
         :return: None
         """
@@ -1002,7 +1005,8 @@ class Trader(Root):
 
         :param position: DB position to place a close trade order for.
         :param close_price: price at which the trade should be closed at.
-        :param is_take_profit_order: True if the order is intended to be a take profit order; False if stop loss order.
+        :param is_take_profit_order: True if the order is intended to be
+                a take profit order; False if stop loss order.
         :return: None
         """
 

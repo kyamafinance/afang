@@ -17,7 +17,6 @@ def get_exchange_client(parsed_args: argparse.Namespace) -> Optional[IsExchange]
     """Get the proper exchange client given the exchange's name.
 
     :param parsed_args: arguments parsed from the CLI.
-
     :return: Optional[IsExchange]
     """
 
@@ -57,7 +56,6 @@ def main(args):
     the provided application mode.
 
     :param args: command line arguments to parse.
-
     :return: None
     """
 
