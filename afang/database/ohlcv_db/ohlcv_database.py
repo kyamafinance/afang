@@ -171,7 +171,7 @@ class OHLCVDatabase:
 
         logger.info(
             "Retrieved %s %s data candles from the database in %s seconds",
-            len(df.index),
+            f"{len(df.index):,}",
             symbol,
             query_time,
         )
