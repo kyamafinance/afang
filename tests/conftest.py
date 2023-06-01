@@ -3,6 +3,7 @@ import pathlib
 import shutil
 from abc import ABC
 from collections.abc import Generator
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
 import pandas as pd
@@ -63,17 +64,13 @@ def delete_optimization_records(optimization_root_dir) -> Generator:
             shutil.rmtree(file_path)
 
 
+def trades_db_base_path() -> str:
+    return f"{pathlib.Path(__file__).parent}/testdata/database/trades/"
+
+
 @pytest.fixture()
 def trades_db_filepath() -> str:
-    filepath = (
-        f"{pathlib.Path(__file__).parent}/testdata/database/trades/trades.sqlite3"
-    )
-    return filepath
-
-
-@pytest.fixture()
-def trades_db_test_engine_url(trades_db_filepath) -> str:
-    return f"sqlite:///{trades_db_filepath}"
+    return f"{trades_db_base_path()}trades.sqlite3"
 
 
 @pytest.fixture(autouse=True)
@@ -81,6 +78,10 @@ def delete_trades_database(trades_db_filepath) -> Generator:
     yield
     if os.path.exists(trades_db_filepath):
         os.unlink(trades_db_filepath)
+        for path in Path(trades_db_base_path()).glob("*-shm"):
+            path.unlink()
+        for path in Path(trades_db_base_path()).glob("*-wal"):
+            path.unlink()
 
 
 @pytest.fixture

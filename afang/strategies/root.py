@@ -3,6 +3,7 @@ import threading
 from collections import defaultdict
 from typing import Dict, List, Literal, Optional
 
+from afang.database.trades_db.trades_database import TradesDatabase
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Order as ExchangeOrder
 from afang.exchanges.models import OrderType
@@ -64,6 +65,8 @@ class Root:
         self.demo_mode_exchange_orders: Dict[str, List[ExchangeOrder]] = defaultdict(
             list
         )
+        # trades' database instance.
+        self.trades_database: Optional[TradesDatabase] = None
         # execution queue that will run trader on present symbols FIFO.
         self.trading_execution_queue: queue.Queue = queue.Queue()
         # Order type to be used to open positions.
