@@ -61,7 +61,7 @@ requests==2.31.0
 requests-mock==1.10.0
 rlp==2.0.1
 six==1.16.0
-sympy==1.11.1
+sympy==1.12
 TA-Lib==0.4.26
 toml==0.10.2
 tomli==2.0.1
