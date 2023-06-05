@@ -34,6 +34,7 @@ class TradesDatabase:
             },
         )
 
+        self.models = [TradePosition, Order]
         self.database: SqliteDatabase = database
         with self.database:
-            self.database.create_tables([TradePosition, Order])
+            self.database.create_tables(self.models, safe=True)

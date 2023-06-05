@@ -117,23 +117,6 @@ class Trader(Root):
 
         return trade_levels
 
-    def fetch_open_trade_positions(
-        self, symbols: Optional[List[str]] = None
-    ) -> List[DBTradePosition]:
-        """Fetch a list of all open trade positions for a list of symbols.
-
-        :param symbols: symbols to fetch open positions for. optional.
-        :return: List[DBTradePosition]
-        """
-
-        open_positions: List[DBTradePosition] = DBTradePosition.select().where(
-            DBTradePosition.is_open.__eq__(True),
-            DBTradePosition.symbol.in_(symbols),
-            DBTradePosition.exchange_display_name == self.exchange.display_name,
-        )
-
-        return open_positions
-
     def fetch_order_by_exchange_id(self, order_id: str) -> Optional[DBOrder]:
         """Fetch an order by its exchange order ID.
 
@@ -617,7 +600,7 @@ class Trader(Root):
         pnl = self.get_position_pnl(position)
         if self.on_demo_mode:
             with self.shared_lock:
-                self.initial_test_account_balance -= pnl
+                self.initial_test_account_balance += pnl
 
         query = DBTradePosition.update(
             {
@@ -698,7 +681,9 @@ class Trader(Root):
             commission=float(),
         )
 
-        self.demo_mode_exchange_orders[symbol_name].append(order)
+        with self.shared_lock:
+            self.demo_mode_exchange_orders[symbol_name].append(order)
+
         return order.order_id
 
     def initialize_demo_mode_orders(self, symbols: List[str]) -> None:
@@ -730,7 +715,9 @@ class Trader(Root):
                 time_in_force="DEMO_TIME_IN_FORCE",
                 commission=order.commission,
             )
-            self.demo_mode_exchange_orders[order.symbol].append(demo_exchange_order)
+
+            with self.shared_lock:
+                self.demo_mode_exchange_orders[order.symbol].append(demo_exchange_order)
 
         self.trades_database.database.close()
 

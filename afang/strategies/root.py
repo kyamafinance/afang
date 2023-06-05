@@ -3,6 +3,7 @@ import threading
 from collections import defaultdict
 from typing import Dict, List, Literal, Optional
 
+from afang.database.trades_db.trades_database import TradePosition as DBTradePosition
 from afang.database.trades_db.trades_database import TradesDatabase
 from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Order as ExchangeOrder
@@ -48,6 +49,10 @@ class Root:
         self.initial_test_account_balance: float = 10000
         # shared threading lock to prevent race conditions.
         self.shared_lock: threading.Lock = threading.Lock()
+        # Order type to be used to open positions.
+        self.open_order_type: Literal[
+            OrderType.LIMIT, OrderType.MARKET
+        ] = OrderType.MARKET
 
         # --Unique to Backtester (not in Trader)
         self.backtest_to_time: Optional[int] = None
@@ -69,10 +74,6 @@ class Root:
         self.trades_database: Optional[TradesDatabase] = None
         # execution queue that will run trader on present symbols FIFO.
         self.trading_execution_queue: queue.Queue = queue.Queue()
-        # Order type to be used to open positions.
-        self.open_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
         # Order type to be used to place take profit orders.
         self.take_profit_order_type: Literal[
             OrderType.LIMIT, OrderType.MARKET
@@ -83,3 +84,20 @@ class Root:
         self.post_only_orders: bool = False
         # Highest accepted fee for a trade on the dYdX exchange. Note that this is specific to dYdX.
         self.dydx_limit_fee: Optional[float] = None
+
+    def fetch_open_trade_positions(
+        self, symbols: Optional[List[str]] = None
+    ) -> List[DBTradePosition]:
+        """Fetch a list of all open trade positions for a list of symbols.
+
+        :param symbols: symbols to fetch open positions for. optional.
+        :return: List[DBTradePosition]
+        """
+
+        open_positions: List[DBTradePosition] = DBTradePosition.select().where(
+            DBTradePosition.is_open.__eq__(True),
+            DBTradePosition.symbol.in_(symbols),
+            DBTradePosition.exchange_display_name == self.exchange.display_name,
+        )
+
+        return open_positions
