@@ -40,11 +40,12 @@ class Backtester(Root):
 
         return dict()
 
-    def open_long_backtest_position(
+    def open_backtest_position(
         self,
         symbol: str,
         entry_price: float,
         entry_time: datetime,
+        direction: int,
         target_price: Optional[float] = None,
         stop_price: Optional[float] = None,
     ) -> None:
@@ -53,44 +54,14 @@ class Backtester(Root):
         :param symbol: symbol to open a long trade position for.
         :param entry_price: price to enter the long trade.
         :param entry_time: time at which the long trade was entered.
+        :param direction: new position trade direction. 1 for LONG. -1 for SHORT.
         :param target_price: price at which the long trade should take profit.
         :param stop_price: price at which the long trade should cut losses.
         :return: None
         """
 
         new_position = TradePosition(
-            direction=1,
-            entry_price=entry_price,
-            entry_time=entry_time,
-            trade_count=len(self.trade_positions.get(symbol, {})) + 1,
-            target_price=target_price,
-            stop_price=stop_price,
-        )
-
-        if not self.trade_positions.get(symbol, dict()):
-            self.trade_positions[symbol] = dict()
-        self.trade_positions[symbol][generate_uuid()] = new_position
-
-    def open_short_backtest_position(
-        self,
-        symbol: str,
-        entry_price: float,
-        entry_time: datetime,
-        target_price: Optional[float] = None,
-        stop_price: Optional[float] = None,
-    ) -> None:
-        """Open a short trade position for a given symbol.
-
-        :param symbol: symbol to open a short trade position for.
-        :param entry_price: price to enter the short trade.
-        :param entry_time: time at which the short trade was entered.
-        :param target_price: price at which the short trade should take profit.
-        :param stop_price: price at which the short trade should cut losses.
-        :return: None
-        """
-
-        new_position = TradePosition(
-            direction=-1,
+            direction=direction,
             entry_price=entry_price,
             entry_time=entry_time,
             trade_count=len(self.trade_positions.get(symbol, {})) + 1,
@@ -387,6 +358,9 @@ class Backtester(Root):
         self.backtest_data[symbol] = populated_ohlcv_data.iloc[idx:]
 
         for row in self.backtest_data[symbol].itertuples():
+            should_open_new_position = False
+            new_position_direction = None
+
             # open a long position if we get a long trading signal.
             if (
                 self.allow_long_positions
@@ -400,20 +374,11 @@ class Backtester(Root):
                 ):
                     continue
 
-                trade_levels = self.generate_and_verify_backtest_trade_levels(
-                    row, trade_signal_direction=1
-                )
-                if trade_levels:
-                    self.open_long_backtest_position(
-                        symbol=symbol,
-                        entry_price=trade_levels.entry_price,
-                        entry_time=row.Index,
-                        target_price=trade_levels.target_price,
-                        stop_price=trade_levels.stop_price,
-                    )
+                should_open_new_position = True
+                new_position_direction = 1
 
             # open a short position if we get a short trading signal.
-            if (
+            elif (
                 self.allow_short_positions
                 and self.is_short_trade_signal_present(row)
                 and row.Index != self.backtest_data[symbol].index.values[-1]
@@ -425,14 +390,19 @@ class Backtester(Root):
                 ):
                     continue
 
+                should_open_new_position = True
+                new_position_direction = -1
+
+            if should_open_new_position:
                 trade_levels = self.generate_and_verify_backtest_trade_levels(
-                    row, trade_signal_direction=-1
+                    row, trade_signal_direction=new_position_direction
                 )
                 if trade_levels:
-                    self.open_short_backtest_position(
+                    self.open_backtest_position(
                         symbol=symbol,
                         entry_price=trade_levels.entry_price,
                         entry_time=row.Index,
+                        direction=new_position_direction,
                         target_price=trade_levels.target_price,
                         stop_price=trade_levels.stop_price,
                     )

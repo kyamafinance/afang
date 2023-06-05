@@ -92,14 +92,14 @@ def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
     mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
-    dummy_is_strategy.open_long_backtest_position(
-        "test_symbol", 10, trade_entry_time, 100, 5
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 10, trade_entry_time, 1, 100, 5
     )
-    dummy_is_strategy.open_long_backtest_position(
-        "test_symbol", 10, trade_entry_time, None, None
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 10, trade_entry_time, 1, None, None
     )
-    dummy_is_strategy.open_long_backtest_position(
-        "test_symbol_2", 87, trade_entry_time, 890, None
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol_2", 87, trade_entry_time, 1, 890, None
     )
 
     open_trades = dummy_is_strategy.trade_positions
@@ -145,14 +145,14 @@ def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
     mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
-    dummy_is_strategy.open_short_backtest_position(
-        "test_symbol", 100, trade_entry_time, 10, 1000
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 100, trade_entry_time, -1, 10, 1000
     )
-    dummy_is_strategy.open_short_backtest_position(
-        "test_symbol", 100, trade_entry_time, None, None
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 100, trade_entry_time, -1, None, None
     )
-    dummy_is_strategy.open_short_backtest_position(
-        "test_symbol_2", 890, trade_entry_time, 87, None
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol_2", 890, trade_entry_time, -1, 87, None
     )
 
     open_trades = dummy_is_strategy.trade_positions
@@ -198,14 +198,14 @@ def test_fetch_open_backtest_positions(mocker, dummy_is_strategy) -> None:
     mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, "3"])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
-    dummy_is_strategy.open_long_backtest_position(
-        "test_symbol", 10, trade_entry_time, 100, 5
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 10, trade_entry_time, 1, 100, 5
     )
-    dummy_is_strategy.open_short_backtest_position(
-        "test_symbol", 100, trade_entry_time, 10, 1000
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 100, trade_entry_time, -1, 10, 1000
     )
-    dummy_is_strategy.open_short_backtest_position(
-        "test_symbol", 890, trade_entry_time, 87, None
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 890, trade_entry_time, -1, 87, None
     )
 
     dummy_is_strategy.close_backtest_position("test_symbol", "3", 50, trade_entry_time)
@@ -225,24 +225,24 @@ def test_close_backtest_position(mocker, dummy_is_strategy) -> None:
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     trade_exit_time = datetime.datetime(2022, 1, 1, 2, 0)
 
-    dummy_is_strategy.open_long_backtest_position(
-        "test_symbol", 100, trade_entry_time, 150, 50
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 100, trade_entry_time, 1, 150, 50
     )
     dummy_is_strategy.close_backtest_position("test_symbol", "1", 150, trade_exit_time)
 
     # set a max amount per trade.
     dummy_is_strategy.max_amount_per_trade = 100
 
-    dummy_is_strategy.open_short_backtest_position(
-        "test_symbol", 100, trade_entry_time, 50, 150
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 100, trade_entry_time, -1, 50, 150
     )
     dummy_is_strategy.close_backtest_position("test_symbol", "2", 150, trade_exit_time)
 
     # set current account balance to <=0.
     dummy_is_strategy.initial_test_account_balance = -1
 
-    dummy_is_strategy.open_short_backtest_position(
-        "test_symbol", 100, trade_entry_time, 50, 150
+    dummy_is_strategy.open_backtest_position(
+        "test_symbol", 100, trade_entry_time, -1, 50, 150
     )
     dummy_is_strategy.close_backtest_position("test_symbol", "3", 150, trade_exit_time)
 
@@ -344,12 +344,12 @@ def test_handle_open_backtest_positions(
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     if direction == 1:
-        dummy_is_strategy.open_long_backtest_position(
-            "test_symbol", entry_price, trade_entry_time, target_price, stop_price
+        dummy_is_strategy.open_backtest_position(
+            "test_symbol", entry_price, trade_entry_time, 1, target_price, stop_price
         )
     else:
-        dummy_is_strategy.open_short_backtest_position(
-            "test_symbol", entry_price, trade_entry_time, target_price, stop_price
+        dummy_is_strategy.open_backtest_position(
+            "test_symbol", entry_price, trade_entry_time, -1, target_price, stop_price
         )
 
     dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
@@ -370,9 +370,7 @@ def test_handle_open_backtest_positions_same_candle(
 ) -> None:
     dummy_is_strategy.backtest_data["test_symbol"] = ohlcv_df
     dummy_is_strategy.max_holding_candles = 2
-    dummy_is_strategy.open_long_backtest_position(
-        "test_symbol", 1, ohlcv_row.Index, 1, 1
-    )
+    dummy_is_strategy.open_backtest_position("test_symbol", 1, ohlcv_row.Index, 1, 1, 1)
     dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
 
     assert (
@@ -394,17 +392,14 @@ def test_run_symbol_backtest(
     mocked_generate_trade_levels = mocker.patch(
         "afang.strategies.backtester.Backtester.generate_trade_levels"
     )
-    mocked_open_long_backtest_position = mocker.patch(
-        "afang.strategies.backtester.Backtester.open_long_backtest_position"
+    mocked_open_backtest_position = mocker.patch(
+        "afang.strategies.backtester.Backtester.open_backtest_position"
     )
     mocked_is_short_trade_signal_present = mocker.patch(
         "afang.strategies.backtester.Backtester.is_short_trade_signal_present"
     )
     mocked_fetch_open_backtest_positions = mocker.patch(
         "afang.strategies.backtester.Backtester.fetch_open_symbol_backtest_positions"
-    )
-    mocked_open_short_backtest_position = mocker.patch(
-        "afang.strategies.backtester.Backtester.open_short_backtest_position"
     )
     mocked_handle_open_backtest_positions = mocker.patch(
         "afang.strategies.backtester.Backtester.handle_open_backtest_positions"
@@ -430,9 +425,8 @@ def test_run_symbol_backtest(
     assert mocked_is_long_trade_signal_present.assert_called
     assert mocked_fetch_open_backtest_positions.assert_called
     assert mocked_generate_trade_levels.assert_called
-    assert mocked_open_long_backtest_position.assert_called
+    assert mocked_open_backtest_position.assert_called
     assert mocked_is_short_trade_signal_present.assert_called
-    assert mocked_open_short_backtest_position.assert_called
     assert mocked_handle_open_backtest_positions.assert_called
     assert len(dummy_is_strategy.backtest_data["test_symbol"].index) == 2
 
