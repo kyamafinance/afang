@@ -47,7 +47,7 @@ pluggy==1.0.0
 pre-commit==3.3.2
 protobuf==3.20.3
 py==1.11.0
-pycryptodome==3.17
+pycryptodome==3.18.0
 pyparsing==3.0.9
 pyrsistent==0.19.3
 pytest==7.3.1
