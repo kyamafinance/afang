@@ -598,9 +598,13 @@ class Trader(Root):
             return None
 
         pnl = self.get_position_pnl(position)
+        final_account_balance = quote_asset_wallet_balance
         if self.on_demo_mode:
             with self.shared_lock:
+                position_margin = position.position_size / self.leverage
+                self.initial_test_account_balance += position_margin
                 self.initial_test_account_balance += pnl
+                final_account_balance = self.initial_test_account_balance
 
         query = DBTradePosition.update(
             {
@@ -614,7 +618,7 @@ class Trader(Root):
                 DBTradePosition.commission: self.get_position_total_commission(
                     position
                 ),
-                DBTradePosition.final_account_balance: quote_asset_wallet_balance,
+                DBTradePosition.final_account_balance: final_account_balance,
                 DBTradePosition.entry_price: self.get_order_average_price(
                     position.symbol, position.open_order_id
                 ),
@@ -779,6 +783,9 @@ class Trader(Root):
                 )
                 continue
 
+            position_entry_price = self.get_order_average_price(
+                db_position.symbol, db_position.open_order_id
+            )
             position_size = (
                 current_trading_candle.close * order.original_quantity * self.leverage
             )
@@ -792,8 +799,8 @@ class Trader(Root):
                     (
                         (order.side == OrderSide.BUY and db_order.is_open_order)
                         or (
-                            db_position.entry_price
-                            and db_position.entry_price <= order.original_price
+                            position_entry_price
+                            and position_entry_price <= order.original_price
                         )
                     )
                     and order.average_price
@@ -806,8 +813,8 @@ class Trader(Root):
                     (
                         (order.side == OrderSide.SELL and db_order.is_open_order)
                         or (
-                            db_position.entry_price
-                            and db_position.entry_price >= order.original_price
+                            position_entry_price
+                            and position_entry_price >= order.original_price
                         )
                     )
                     and order.average_price
@@ -827,11 +834,17 @@ class Trader(Root):
             # help determine whether the order should be executed in future iterations.
             if not order.average_price:
                 order.average_price = current_trading_candle.close
-            if order.side == OrderSide.BUY:
+            # is a LONG entry order/LONG take profit order/SHORT stop loss order.
+            if (order.side == OrderSide.BUY and db_order.is_open_order) or (
+                position_entry_price and position_entry_price <= order.original_price
+            ):
                 order.average_price = min(
                     order.average_price, current_trading_candle.close
                 )
-            elif order.side == OrderSide.SELL:
+            # is a SHORT entry order/SHORT take profit order/LONG stop loss order.
+            elif (order.side == OrderSide.SELL and db_order.is_open_order) or (
+                position_entry_price and position_entry_price >= order.original_price
+            ):
                 order.average_price = max(
                     order.average_price, current_trading_candle.close
                 )
@@ -951,6 +964,11 @@ class Trader(Root):
             symbol,
             open_order_id,
         )
+
+        if self.on_demo_mode:
+            with self.shared_lock:
+                position_margin = precise_position_size / self.leverage
+                self.initial_test_account_balance -= position_margin
 
         new_trade_position = DBTradePosition.create(
             symbol=symbol,
@@ -1111,7 +1129,7 @@ class Trader(Root):
         :return: None
         """
 
-        position_order_executions = dict()
+        remaining_order_quantities = dict()
         total_remaining_qty: float = float()
         position_db_orders: List[DBOrder] = position.orders
 
@@ -1121,18 +1139,15 @@ class Trader(Root):
                 total_remaining_qty += exchange_order.executed_quantity
             else:
                 total_remaining_qty -= exchange_order.executed_quantity
-                position_order_executions[
+                remaining_order_quantities[
                     db_order.order_id
-                ] = exchange_order.executed_quantity
+                ] = exchange_order.remaining_quantity
 
         for db_order in position_db_orders:
             if (not db_order.is_open) or db_order.is_open_order:
                 continue
 
-            remaining_order_qty = (
-                db_order.original_quantity
-                - position_order_executions[db_order.order_id]
-            )
+            remaining_order_qty = remaining_order_quantities[db_order.order_id]
             if remaining_order_qty != total_remaining_qty:
                 # cancel position order.
                 self.cancel_position_order(db_order.symbol, db_order.order_id)
@@ -1149,10 +1164,11 @@ class Trader(Root):
                 query.execute()
 
                 # place an updated close position order.
+                is_take_profit_order = True if db_order.is_take_profit_order else False
                 self.place_close_trade_position_order(
-                    position,
-                    db_order.original_price,
-                    db_order.is_take_profit_order,
+                    position=position,
+                    close_price=db_order.original_price,
+                    is_take_profit_order=is_take_profit_order,
                 )
 
     def handle_open_trade_positions(
@@ -1195,10 +1211,13 @@ class Trader(Root):
                     )
                 )
             ):
+                close_price = position.target_price
+                if self.take_profit_order_type == OrderType.MARKET:
+                    close_price = current_candle_data.close
                 self.place_close_trade_position_order(
-                    position,
-                    position.target_price,
-                    True,
+                    position=position,
+                    close_price=close_price,
+                    is_take_profit_order=True,
                 )
 
             # check if the lower horizontal barrier has been hit for long positions.
@@ -1211,9 +1230,9 @@ class Trader(Root):
                 and current_candle_data.close <= position.stop_price
             ):
                 self.place_close_trade_position_order(
-                    position,
-                    position.stop_price,
-                    False,
+                    position=position,
+                    close_price=current_candle_data.close,
+                    is_take_profit_order=False,
                 )
 
             # check if lower horizontal barrier has been hit for short positions.
@@ -1233,10 +1252,13 @@ class Trader(Root):
                     )
                 )
             ):
+                close_price = position.target_price
+                if self.take_profit_order_type == OrderType.MARKET:
+                    close_price = current_candle_data.close
                 self.place_close_trade_position_order(
-                    position,
-                    position.target_price,
-                    True,
+                    position=position,
+                    close_price=close_price,
+                    is_take_profit_order=True,
                 )
 
             # check if upper horizontal barrier has been hit for short positions.
@@ -1249,9 +1271,9 @@ class Trader(Root):
                 and current_candle_data.close >= position.stop_price
             ):
                 self.place_close_trade_position_order(
-                    position,
-                    position.stop_price,
-                    False,
+                    position=position,
+                    close_price=current_candle_data.close,
+                    is_take_profit_order=False,
                 )
 
             # check if vertical barrier has been hit.

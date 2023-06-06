@@ -1028,6 +1028,8 @@ def test_calibrate_position_order_quantities(
     dummy_exchange_orders,
     dummy_db_trade_positions,
 ) -> None:
+    dummy_exchange_orders[0].executed_quantity = 9
+    dummy_exchange_orders[0].remaining_quantity = 6
     mocker.patch.object(
         Trader,
         "get_exchange_order",

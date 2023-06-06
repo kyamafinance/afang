@@ -601,7 +601,7 @@ class Backtester(Root):
         )
 
         # Initialize backtest trades database.
-        self.trades_database = TradesDatabase(db_name="trades_backtest")
+        self.trades_database = TradesDatabase(db_name="trades_backtest.sqlite3")
         with self.trades_database.database:
             self.trades_database.database.drop_tables(
                 self.trades_database.models, safe=True
