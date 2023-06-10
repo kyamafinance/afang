@@ -1165,11 +1165,12 @@ class Trader(Root):
 
                 # place an updated close position order.
                 is_take_profit_order = True if db_order.is_take_profit_order else False
-                self.place_close_trade_position_order(
-                    position=position,
-                    close_price=db_order.original_price,
-                    is_take_profit_order=is_take_profit_order,
-                )
+                if total_remaining_qty:
+                    self.place_close_trade_position_order(
+                        position=position,
+                        close_price=db_order.original_price,
+                        is_take_profit_order=is_take_profit_order,
+                    )
 
     def handle_open_trade_positions(
         self,
@@ -1221,7 +1222,7 @@ class Trader(Root):
                 )
 
             # check if the lower horizontal barrier has been hit for long positions.
-            if (
+            elif (
                 is_open_order_filled
                 and not position.is_sl_order_active
                 and position.stop_price
@@ -1236,7 +1237,7 @@ class Trader(Root):
                 )
 
             # check if lower horizontal barrier has been hit for short positions.
-            if (
+            elif (
                 is_open_order_filled
                 and not position.is_tp_order_active
                 and position.target_price
@@ -1262,7 +1263,7 @@ class Trader(Root):
                 )
 
             # check if upper horizontal barrier has been hit for short positions.
-            if (
+            elif (
                 is_open_order_filled
                 and not position.is_sl_order_active
                 and position.stop_price

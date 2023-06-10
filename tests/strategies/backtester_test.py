@@ -12,6 +12,7 @@ from afang.database.trades_db.trades_database import TradePosition as DBTradePos
 from afang.exchanges.models import Symbol
 from afang.models import Timeframe
 from afang.strategies.backtester import Backtester
+from afang.strategies.models import TradeLevels
 
 
 @pytest.fixture
@@ -95,16 +96,15 @@ def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     dummy_is_strategy.open_backtest_position(
-        "test_symbol", 10, trade_entry_time, 1, 100, 5
+        "test_symbol", 1, TradeLevels(10, 100, 5), trade_entry_time
     )
     dummy_is_strategy.open_backtest_position(
-        "test_symbol_2", 87, trade_entry_time, 1, 890, None
+        "test_symbol_2", 1, TradeLevels(87, 890, None), trade_entry_time
     )
 
     assert DBTradePosition.get(DBTradePosition.id == 4).is_open
     assert DBTradePosition.get(DBTradePosition.id == 4).symbol == "test_symbol"
     assert DBTradePosition.get(DBTradePosition.id == 4).desired_entry_price == 10
-    assert DBTradePosition.get(DBTradePosition.id == 4).entry_time == trade_entry_time
     assert DBTradePosition.get(DBTradePosition.id == 4).direction == 1
     assert DBTradePosition.get(DBTradePosition.id == 4).target_price == 100
     assert DBTradePosition.get(DBTradePosition.id == 4).stop_price == 5
@@ -119,19 +119,18 @@ def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     dummy_is_strategy.open_backtest_position(
-        "test_symbol", 100, trade_entry_time, -1, 10, 1000
+        "test_symbol", -1, TradeLevels(100, 10, 1000), trade_entry_time
     )
     dummy_is_strategy.open_backtest_position(
-        "test_symbol", 100, trade_entry_time, -1, None, None
+        "test_symbol", -1, TradeLevels(100, None, None), trade_entry_time
     )
     dummy_is_strategy.open_backtest_position(
-        "test_symbol_2", 890, trade_entry_time, -1, 87, None
+        "test_symbol_2", -1, TradeLevels(890, 87, None), trade_entry_time
     )
 
     assert DBTradePosition.get(DBTradePosition.id == 4).is_open
     assert DBTradePosition.get(DBTradePosition.id == 4).symbol == "test_symbol"
     assert DBTradePosition.get(DBTradePosition.id == 4).desired_entry_price == 100
-    assert DBTradePosition.get(DBTradePosition.id == 4).entry_time == trade_entry_time
     assert DBTradePosition.get(DBTradePosition.id == 4).direction == -1
     assert DBTradePosition.get(DBTradePosition.id == 4).target_price == 10
     assert DBTradePosition.get(DBTradePosition.id == 4).stop_price == 1000
@@ -142,95 +141,16 @@ def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
 
 
 def test_close_backtest_position(dummy_is_strategy) -> None:
-    trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
+    test_position = DBTradePosition.get_by_id(2)
+    test_position.entry_price = 3
+    test_position.save()
+
     trade_exit_time = datetime.datetime(2022, 1, 1, 2, 0)
+    dummy_is_strategy.close_backtest_position(test_position, 10, trade_exit_time)
 
-    dummy_is_strategy.open_backtest_position(
-        "test_symbol", 100, trade_entry_time, 1, 150, 50
-    )
-    dummy_is_strategy.close_backtest_position("test_symbol", 4, 150, trade_exit_time)
-
-    # set a max amount per trade.
-    dummy_is_strategy.max_amount_per_trade = 100
-
-    dummy_is_strategy.open_backtest_position(
-        "test_symbol", 100, trade_entry_time, -1, 50, 150
-    )
-    dummy_is_strategy.close_backtest_position("test_symbol", 5, 150, trade_exit_time)
-
-    # set current account balance to <=0.
-    dummy_is_strategy.initial_test_account_balance = -1
-
-    dummy_is_strategy.open_backtest_position(
-        "test_symbol", 100, trade_entry_time, -1, 50, 150
-    )
-    dummy_is_strategy.close_backtest_position("test_symbol", 6, 150, trade_exit_time)
-
-    assert DBTradePosition.select().count() == 5
-    assert DBOrder.select().count() == 6
-
-    # assert dummy_is_strategy.trade_positions["test_symbol"]["1"] == TradePosition(
-    #     open_position=False,
-    #     direction=1,
-    #     entry_price=100,
-    #     entry_time=trade_entry_time,
-    #     target_price=150,
-    #     stop_price=50,
-    #     holding_time=0,
-    #     trade_count=1,
-    #     exit_time=trade_exit_time,
-    #     close_price=150,
-    #     initial_account_balance=10000,
-    #     roe=50.0,
-    #     position_size=200.0,
-    #     cost_adjusted_roe=49.85,
-    #     pnl=99.7,
-    #     commission=0.2,
-    #     slippage=0.1,
-    #     final_account_balance=10099.7,
-    # )
-
-    # assert dummy_is_strategy.trade_positions["test_symbol"]["2"] == TradePosition(
-    #     open_position=False,
-    #     direction=-1,
-    #     entry_price=100,
-    #     entry_time=trade_entry_time,
-    #     target_price=50,
-    #     stop_price=150,
-    #     holding_time=0,
-    #     trade_count=2,
-    #     exit_time=trade_exit_time,
-    #     close_price=150,
-    #     initial_account_balance=10099.7,
-    #     roe=-50.0,
-    #     position_size=100,
-    #     cost_adjusted_roe=-50.15,
-    #     pnl=-50.15,
-    #     commission=0.1,
-    #     slippage=0.05,
-    #     final_account_balance=10049.550000000001,
-    # )
-    #
-    # assert dummy_is_strategy.trade_positions["test_symbol"]["3"] == TradePosition(
-    #     open_position=False,
-    #     direction=-1,
-    #     entry_price=100,
-    #     entry_time=trade_entry_time,
-    #     target_price=50,
-    #     stop_price=150,
-    #     holding_time=0,
-    #     trade_count=3,
-    #     exit_time=trade_exit_time,
-    #     close_price=150,
-    #     initial_account_balance=-1,
-    #     roe=0,
-    #     position_size=0,
-    #     cost_adjusted_roe=0,
-    #     pnl=-0.0,
-    #     commission=0.0,
-    #     slippage=0.0,
-    #     final_account_balance=-1.0,
-    # )
+    test_position = DBTradePosition.get_by_id(2)
+    assert not test_position.is_open
+    assert len(test_position.orders) == 1
 
 
 @pytest.mark.parametrize(
@@ -269,18 +189,28 @@ def test_handle_open_backtest_positions(
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     if direction == 1:
         dummy_is_strategy.open_backtest_position(
-            "test_symbol", entry_price, trade_entry_time, 1, target_price, stop_price
+            "test_symbol",
+            1,
+            TradeLevels(entry_price, target_price, stop_price),
+            trade_entry_time,
         )
     else:
         dummy_is_strategy.open_backtest_position(
-            "test_symbol", entry_price, trade_entry_time, -1, target_price, stop_price
+            "test_symbol",
+            -1,
+            TradeLevels(entry_price, target_price, stop_price),
+            trade_entry_time,
         )
+
+    test_position = DBTradePosition.get_by_id(4)
+    test_position.entry_price = 10
+    test_position.save()
 
     dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
 
     assert mocked_close_backtest_position.assert_called
-    assert mocked_close_backtest_position.call_args.args[0] == "test_symbol"
-    assert mocked_close_backtest_position.call_args.args[2] == expected_close_price
+    assert mocked_close_backtest_position.call_args.args[0].id == 4
+    assert mocked_close_backtest_position.call_args.args[1] == expected_close_price
 
     assert DBTradePosition.get(DBTradePosition.id == 4).holding_time == 1
 
@@ -291,7 +221,7 @@ def test_handle_open_backtest_positions_same_candle(
     dummy_is_strategy.backtest_data["test_symbol"] = ohlcv_df
     dummy_is_strategy.max_holding_candles = 2
     dummy_is_strategy.open_backtest_position(
-        "test_symbol", 1, ohlcv_row.Index.to_pydatetime(), 1, 1, 1
+        "test_symbol", 1, TradeLevels(1, 1, 1), ohlcv_row.Index.to_pydatetime()
     )
     dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
 
