@@ -109,8 +109,10 @@ class StrategyOptimizer:
         :param strategy: user defined strategy instance.
         :param exchange: exchange to use in the strategy optimization.
         :param symbols: exchange symbols to optimization backtests on.
-        :param timeframe: timeframe to run the optimization backtests on.
-        :param from_time: desired begin time of the optimization backtests.
+        :param timeframe: timeframe to run the optimization backtests
+            on.
+        :param from_time: desired begin time of the optimization
+            backtests.
         :param to_time: desired end time of the optimization backtests.
         """
 
@@ -200,7 +202,8 @@ class StrategyOptimizer:
         return a population that reflects this calculation. Note that the
         population must already be evaluated.
 
-        :param population: population to calculate and sort based on crowding distance.
+        :param population: population to calculate and sort based on
+            crowding distance.
         :return: List[BacktestProfile]
         """
 
@@ -445,7 +448,8 @@ class StrategyOptimizer:
         persisted must have already been evaluated.
 
         :param final_population: population to persist.
-        :param filepath: directory filepath to store optimization results.
+        :param filepath: directory filepath to store optimization
+            results.
         :return: str
         """
 

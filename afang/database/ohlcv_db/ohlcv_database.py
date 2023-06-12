@@ -85,7 +85,8 @@ class OHLCVDatabase:
         HDF5 database.
 
         :param symbol: symbol whose price data is to be stored.
-        :param data: list of OHLCV candles to be stored into the symbol's dataset.
+        :param data: list of OHLCV candles to be stored into the
+            symbol's dataset.
         :return: None
         """
 
@@ -138,9 +139,9 @@ class OHLCVDatabase:
 
         :param symbol: name of symbol whose data is to be retrieved.
         :param from_time: UNIX timestamp in ms which retrieved price
-                data should not be older than.
+            data should not be older than.
         :param to_time: UNIX timestamp in ms which retrieved price data
-                should not be newer than.
+            should not be newer than.
         :return: Optional[pd.DataFrame]
         """
 
@@ -184,7 +185,8 @@ class OHLCVDatabase:
         set. This function will return a list of disallowed items.
 
         :param df_col: dataframe column.
-        :param allowed_vals: dict of values allowed in the pandas' series.
+        :param allowed_vals: dict of values allowed in the pandas'
+            series.
         :param astype: type to cast disallowed values to.
         :return: List[str]
         """

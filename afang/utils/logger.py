@@ -50,7 +50,7 @@ class Logger:
         exist, the logger defaults to a basic config.
 
         :param default_level: the default logging level to be set if the
-                configuration file is unavailable.
+            configuration file is unavailable.
         :return: None
         """
 
