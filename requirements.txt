@@ -41,7 +41,7 @@ numpy==1.24.3
 packaging==23.1
 pandas==1.5.3
 parsimonious==0.8.1
-peewee==3.16.0
+peewee==3.16.2
 platformdirs==3.5.1
 pluggy==1.0.0
 pre-commit==3.3.2
