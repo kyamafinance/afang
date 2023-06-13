@@ -87,7 +87,8 @@ class IsExchange(ABC):
 
         :param method: HTTP method to be used to make the request.
         :param endpoint: the URL path of the associated GET request.
-        :param query_parameters: a dictionary of parameters to pass within the query.
+        :param query_parameters: a dictionary of parameters to pass
+            within the query.
         :param headers: optional headers to send with the request.
         :return: Any
         """
@@ -173,8 +174,10 @@ class IsExchange(ABC):
     ) -> None:
         """Populate initial trading price data for a single symbol.
 
-        :param symbol: name of symbol whose initial price data is being populated.
-        :param num_iterations: number of candle batches to fetch for the trading symbol.
+        :param symbol: name of symbol whose initial price data is being
+            populated.
+        :param num_iterations: number of candle batches to fetch for the
+            trading symbol.
         :return: None
         """
 
@@ -204,7 +207,8 @@ class IsExchange(ABC):
     def _populate_initial_trading_price_data(self, num_iterations: int) -> None:
         """Populate initial trading price data for all trading symbols.
 
-        :param num_iterations: number of candle batches to fetch for each trading symbol.
+        :param num_iterations: number of candle batches to fetch for
+            each trading symbol.
         :return: None
         """
 
@@ -260,10 +264,11 @@ class IsExchange(ABC):
 
         :param symbol: symbol to fetch historical candlestick bars for.
         :param start_time: optional. the start time to begin fetching
-                candlestick bars as a UNIX timestamp in ms.
+            candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching
-                candlestick bars as a UNIX timestamp in ms.
-        :param timeframe: optional. timeframe to download historical candles.
+            candlestick bars as a UNIX timestamp in ms.
+        :param timeframe: optional. timeframe to download historical
+            candles.
         :return: Optional[List[Candle]]
         """
 

@@ -96,8 +96,10 @@ class IsStrategy(Backtester, Trader):
     ) -> TradeLevels:
         """Generate price levels for an individual trade signal.
 
-        :param data: the candle where the open trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+        :param data: the candle where the open trade signal was
+            detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: TradeLevels
         """
 

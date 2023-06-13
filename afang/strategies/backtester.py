@@ -53,8 +53,10 @@ class Backtester(Root):
         :param symbol: symbol to open a long trade position for.
         :param entry_price: price to enter the long trade.
         :param entry_time: time at which the long trade was entered.
-        :param target_price: price at which the long trade should take profit.
-        :param stop_price: price at which the long trade should cut losses.
+        :param target_price: price at which the long trade should take
+            profit.
+        :param stop_price: price at which the long trade should cut
+            losses.
         :return: None
         """
 
@@ -84,8 +86,10 @@ class Backtester(Root):
         :param symbol: symbol to open a short trade position for.
         :param entry_price: price to enter the short trade.
         :param entry_time: time at which the short trade was entered.
-        :param target_price: price at which the short trade should take profit.
-        :param stop_price: price at which the short trade should cut losses.
+        :param target_price: price at which the short trade should take
+            profit.
+        :param stop_price: price at which the short trade should cut
+            losses.
         :return: None
         """
 
@@ -200,7 +204,7 @@ class Backtester(Root):
         """Check if a long trade signal exists.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :return: bool
         """
 
@@ -211,7 +215,7 @@ class Backtester(Root):
         """Check if a short trade signal exists.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :return: bool
         """
 
@@ -224,8 +228,9 @@ class Backtester(Root):
         """Generate price levels for an individual trade signal.
 
         :param data: the historical price dataframe row where the open
-                trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+            trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: TradeLevels
         """
 
@@ -242,8 +247,9 @@ class Backtester(Root):
         they are valid.
 
         :param data: the historical price dataframe row where the open
-                trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+            trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: Optional[TradeLevels]
         """
 
@@ -270,7 +276,7 @@ class Backtester(Root):
 
         :param symbol: symbol to monitor open positions for.
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :return: None
         """
 
