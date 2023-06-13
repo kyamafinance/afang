@@ -1051,8 +1051,10 @@ class Trader(Root):
         """Place a close trade position order for a given symbol.
 
         :param position: DB position to place a close trade order for.
-        :param close_price: price at which the trade should be closed at.
-        :param close_order_type: order type to use for the close position order.
+        :param close_price: price at which the trade should be closed
+            at.
+        :param close_order_type: order type to use for the close
+            position order.
         :return: None
         """
 

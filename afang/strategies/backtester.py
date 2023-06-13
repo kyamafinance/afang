@@ -55,10 +55,10 @@ class Backtester(Root):
         """Open a trade position for a given symbol.
 
         :param symbol: symbol to open a long trade position for.
-        :param direction: new position trade direction. 1 for LONG. -1 for SHORT.
+        :param direction: new position trade direction. 1 for LONG. -1
+            for SHORT.
         :param trade_levels: desired trade levels.
         :param entry_time: time at which the long trade was entered.
-
         :return: Optional[DBTradePosition]
         """
 
@@ -126,8 +126,9 @@ class Backtester(Root):
         """Update database orders for a closed backtest trade position.
 
         :param position: DB trade position whose close position orders
-                need to be updated.
-        :param close_order_type: order type to use for the close position order.
+            need to be updated.
+        :param close_order_type: order type to use for the close
+            position order.
         :return: None
         """
 
@@ -173,7 +174,8 @@ class Backtester(Root):
         :param position: DB trade position to close.
         :param close_price: price at which the trade exited.
         :param exit_time: time at which the trade exited.
-        :param close_order_type: order type to use for the close position order.
+        :param close_order_type: order type to use for the close
+            position order.
         :return: Optional[DBTradePosition]
         """
 
@@ -320,7 +322,7 @@ class Backtester(Root):
         requirements.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :param open_symbol_positions: open symbol trade positions.
         :return: None
         """
@@ -363,7 +365,7 @@ class Backtester(Root):
         closed.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :param open_symbol_positions: open symbol trade positions.
         :return: None
         """
