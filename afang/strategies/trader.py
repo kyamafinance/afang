@@ -79,7 +79,8 @@ class Trader(Root):
         """Generate price levels for an individual trade signal.
 
         :param data: the current trading candle.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: TradeLevels
         """
 
@@ -95,8 +96,10 @@ class Trader(Root):
         """Generate price levels for an individual trade signal and verify that
         they are valid.
 
-        :param data: the candle where the open trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+        :param data: the candle where the open trade signal was
+            detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: Optional[TradeLevels]
         """
 
@@ -147,7 +150,7 @@ class Trader(Root):
         """Get the next trading symbol from the execution queue to trade.
 
         :param run_forever: whether to continuously run the function.
-                Used for testing purposes.
+            Used for testing purposes.
         :return: Optional[str]
         """
 
@@ -317,8 +320,10 @@ class Trader(Root):
         """Cancel a position order if some/all of its quantity is un-executed
         and mark the order as completed in the DB.
 
-        :param symbol: name of symbol whose position order is to be cancelled.
-        :param exchange_order_id: exchange order ID of the order to be canceled.
+        :param symbol: name of symbol whose position order is to be
+            cancelled.
+        :param exchange_order_id: exchange order ID of the order to be
+            canceled.
         :return: None
         """
 
@@ -432,8 +437,10 @@ class Trader(Root):
         """Get a symbol's current trading candle from a dataframe that contains
         OHLCV data.
 
-        :param symbol: symbol whose current trading candle is being fetched.
-        :param ohlcv_data: dataframe that contains a symbol's OHLCV data.
+        :param symbol: symbol whose current trading candle is being
+            fetched.
+        :param ohlcv_data: dataframe that contains a symbol's OHLCV
+            data.
         :return: Any
         """
 
@@ -558,7 +565,7 @@ class Trader(Root):
 
         :param position: database trade position.
         :param cost_adjusted: whether to calculate the cost adjusted ROE
-                i.e. inclusive of commission.
+            i.e. inclusive of commission.
         :return: float
         """
 
@@ -726,7 +733,8 @@ class Trader(Root):
     def initialize_demo_mode_orders(self, symbols: List[str]) -> None:
         """Initialize demo mode orders.
 
-        :param symbols: symbols whose demo mode orders should be initialized.
+        :param symbols: symbols whose demo mode orders should be
+            initialized.
         :return: None
         """
 
@@ -927,7 +935,7 @@ class Trader(Root):
 
         :param symbol: symbol to open a trade position for.
         :param direction: whether to open a LONG/SHORT trade position. 1
-                for LONG. -1 for SHORT.
+            for LONG. -1 for SHORT.
         :param trade_levels: desired trade levels.
         :return: None
         """
@@ -1149,7 +1157,8 @@ class Trader(Root):
         """Ensure that the remaining order quantities of all close position
         orders are valid.
 
-        :param position: position whose close position orders are to be calibrated.
+        :param position: position whose close position orders are to be
+            calibrated.
         :return: None
         """
 
@@ -1194,7 +1203,8 @@ class Trader(Root):
         trade position orders if they hit a trade barrier.
 
         :param current_candle_data: the current trading candle data.
-        :param open_symbol_positions: open positions for the given symbol.
+        :param open_symbol_positions: open positions for the given
+            symbol.
         :return: None
         """
 
@@ -1312,7 +1322,8 @@ class Trader(Root):
         """Monitor and handle trade positions that have been finalized on the
         exchange but have not been marked as completed in the trade database.
 
-        :param open_symbol_positions: open positions for the given symbol.
+        :param open_symbol_positions: open positions for the given
+            symbol.
         :return: None
         """
 

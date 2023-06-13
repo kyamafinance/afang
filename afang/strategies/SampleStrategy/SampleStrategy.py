@@ -69,7 +69,7 @@ class SampleStrategy(IsStrategy):
         """Check if a long trade signal exists.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :return: bool
         """
 
@@ -93,7 +93,7 @@ class SampleStrategy(IsStrategy):
         """Check if a short trade signal exists.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :return: bool
         """
 
@@ -119,8 +119,9 @@ class SampleStrategy(IsStrategy):
         """Generate price levels for an individual trade signal.
 
         :param data: the historical price dataframe row where the open
-                trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+            trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: TradeLevels
         """
 

@@ -58,6 +58,7 @@ class Backtester(Root):
         :param direction: new position trade direction. 1 for LONG. -1 for SHORT.
         :param trade_levels: desired trade levels.
         :param entry_time: time at which the long trade was entered.
+
         :return: Optional[DBTradePosition]
         """
 
@@ -246,7 +247,7 @@ class Backtester(Root):
         """Check if a long trade signal exists.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :return: bool
         """
 
@@ -257,7 +258,7 @@ class Backtester(Root):
         """Check if a short trade signal exists.
 
         :param data: the historical price dataframe row at the current
-                time in backtest.
+            time in backtest.
         :return: bool
         """
 
@@ -270,8 +271,9 @@ class Backtester(Root):
         """Generate price levels for an individual trade signal.
 
         :param data: the historical price dataframe row where the open
-                trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+            trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: TradeLevels
         """
 
@@ -288,8 +290,9 @@ class Backtester(Root):
         they are valid.
 
         :param data: the historical price dataframe row where the open
-                trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a short position.
+            trade signal was detected.
+        :param trade_signal_direction: 1 for a long position. -1 for a
+            short position.
         :return: Optional[TradeLevels]
         """
 

@@ -132,10 +132,11 @@ class BinanceExchange(IsExchange):
 
         :param symbol: symbol to fetch historical candlestick bars for.
         :param start_time: optional. the start time to begin fetching
-                candlestick bars as a UNIX timestamp in ms.
+            candlestick bars as a UNIX timestamp in ms.
         :param end_time: optional. the end time to begin fetching
-                candlestick bars as a UNIX timestamp in ms.
-        :param timeframe: optional. timeframe to download historical candles.
+            candlestick bars as a UNIX timestamp in ms.
+        :param timeframe: optional. timeframe to download historical
+            candles.
         :return: Optional[List[Candle]]
         """
 
@@ -620,7 +621,7 @@ class BinanceExchange(IsExchange):
         """Periodically extend the validity period of the wss listen key.
 
         :param run_forever: whether to continuously keep the wss alive.
-                used for testing purposes.
+            used for testing purposes.
         :return: None
         """
 

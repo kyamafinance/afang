@@ -21,7 +21,8 @@ def fetch_initial_data(
 
     :param exchange: an instance of an interface of the exchange to use
         to fetch historical price data.
-    :param symbol: name of the symbol whose historical price data should be fetched.
+    :param symbol: name of the symbol whose historical price data should
+        be fetched.
     :param ohlcv_db: an instance of an interface of an ohlcv database.
     :return: Union[Tuple[None, None], Tuple[float, float]]
     """
@@ -70,12 +71,15 @@ def fetch_most_recent_data(
 
     :param exchange: an instance of an interface of the exchange to use
         to fetch historical price data.
-    :param symbol: name of the symbol whose historical price data should be fetched.
+    :param symbol: name of the symbol whose historical price data should
+        be fetched.
     :param ohlcv_db: an instance of an interface to an OHLCV database.
     :param most_recent_timestamp: UNIX timestamp in ms after which
         historical price data will be fetched.
-    :param query_limit: rate limit of how long to sleep between HTTP requests.
-    :param write_limit: threshold of how many candles to fetch before saving them to the DB.
+    :param query_limit: rate limit of how long to sleep between HTTP
+        requests.
+    :param write_limit: threshold of how many candles to fetch before
+        saving them to the DB.
     :return: Optional[float]
     """
 
@@ -146,12 +150,15 @@ def fetch_older_data(
 
     :param exchange: an instance of an interface of the exchange to use
         to fetch historical price data.
-    :param symbol: name of the symbol whose historical price data should be fetched.
+    :param symbol: name of the symbol whose historical price data should
+        be fetched.
     :param ohlcv_db: an instance of an interface to an OHLCV database.
     :param oldest_timestamp: UNIX timestamp in ms before which
         historical price data will be fetched.
-    :param query_limit: rate limit of how long to sleep between HTTP requests.
-    :param write_limit: threshold of how many candles to fetch before saving them to the DB.
+    :param query_limit: rate limit of how long to sleep between HTTP
+        requests.
+    :param write_limit: threshold of how many candles to fetch before
+        saving them to the DB.
     :return: Optional[float]
     """
 
@@ -221,8 +228,10 @@ def fetch_symbol_data(
 
     :param exchange: an instance of an interface of the exchange to use
         to fetch historical price data.
-    :param symbol: name of the symbol whose historical price data should be fetched.
-    :param root_db_dir: path to the intended root OHLCV database directory.
+    :param symbol: name of the symbol whose historical price data should
+        be fetched.
+    :param root_db_dir: path to the intended root OHLCV database
+        directory.
     :return: Optional[bool]
     """
 
