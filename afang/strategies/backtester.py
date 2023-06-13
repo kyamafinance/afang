@@ -108,6 +108,7 @@ class Backtester(Root):
             direction=direction,
             order_id=open_order_id,
             order_side=open_order_side.value,
+            raw_price=trade_levels.entry_price,
             original_price=trade_levels.entry_price,
             original_quantity=position_qty,
             remaining_quantity=position_qty,
@@ -140,6 +141,7 @@ class Backtester(Root):
                 is_open=False,
                 order_id=close_order_id,
                 order_side=close_order_side.value,
+                raw_price=position.close_price,
                 original_price=position.close_price,
                 average_price=position.close_price,
                 original_quantity=position.position_qty,
@@ -186,6 +188,7 @@ class Backtester(Root):
         is_entry_order_filled = True if position.entry_price else False
 
         roe = float()
+        position.executed_qty = float()
         if is_entry_order_filled:
             position.close_price = close_price
             position.executed_qty = position.position_qty
@@ -307,18 +310,19 @@ class Backtester(Root):
 
         return trade_levels
 
-    def handle_position_open_orders(self, symbol: str, data: Any) -> None:
+    def handle_position_open_orders(
+        self, data: Any, open_symbol_positions: List[DBTradePosition]
+    ) -> None:
         """Monitor and fill position open orders if they meet the necessary
         requirements.
 
-        :param symbol: name of trading symbol.
         :param data: the historical price dataframe row at the current
                 time in backtest.
+        :param open_symbol_positions: open symbol trade positions.
         :return: None
         """
 
-        open_trade_positions = self.fetch_open_trade_positions([symbol])
-        for position in open_trade_positions:
+        for position in open_symbol_positions:
             # ensure that the trade position was not opened during the current candle.
             if position.entry_time == data.Index.to_pydatetime():
                 continue
@@ -327,46 +331,42 @@ class Backtester(Root):
             if not position.is_open:
                 continue
 
-            try:
-                position_open_order = DBOrder.get(
-                    DBOrder.order_id == position.open_order_id
-                )
-            except peewee.DoesNotExist as e:
-                logger.warning(
-                    "%s %s: position open order could not be filled. Not found in DB: %s",
-                    symbol,
-                    self.exchange.display_name,
-                    e,
-                )
-                continue
-
-            if data.high >= position_open_order.original_price >= data.low:
+            if data.high >= position.desired_entry_price >= data.low:
                 # fill position open order
-                position.entry_price = position_open_order.original_price
-                position_open_order.is_open = False
-                position_open_order.average_price = position_open_order.original_price
-                position_open_order.executed_quantity = (
-                    position_open_order.original_quantity
-                )
-                position_open_order.remaining_quantity = float()
-                position_open_order.commission = position.position_size * (
-                    self.commission / 100.0
-                )
+                position.entry_price = position.desired_entry_price
                 position.save()
-                position_open_order.save()
 
-    def handle_open_backtest_positions(self, symbol: str, data: Any) -> None:
+                query = DBOrder.update(
+                    {
+                        DBOrder.is_open: False,
+                        DBOrder.average_price: position.desired_entry_price,
+                        DBOrder.executed_quantity: position.position_qty,
+                        DBOrder.remaining_quantity: float(),
+                        DBOrder.commission: position.position_size
+                        * (self.commission / 100.0),
+                    }
+                ).where(
+                    DBOrder.order_id == position.open_order_id,
+                    DBOrder.symbol == position.symbol,
+                    DBOrder.exchange_display_name == self.exchange.display_name,
+                )
+                query.execute()
+
+    def handle_open_backtest_positions(
+        self, data: Any, open_symbol_positions: List[DBTradePosition]
+    ) -> bool:
         """Monitor and handle open positions for a given symbol and close them
-        if they hit a trade barrier.
+        if they hit a trade barrier. Returns true if a trade position is
+        closed.
 
-        :param symbol: symbol to monitor open positions for.
         :param data: the historical price dataframe row at the current
                 time in backtest.
+        :param open_symbol_positions: open symbol trade positions.
         :return: None
         """
 
-        open_trade_positions = self.fetch_open_trade_positions([symbol])
-        for position in open_trade_positions:
+        has_trade_position_closed = False
+        for position in open_symbol_positions:
             # ensure that the trade position was not opened during the current candle.
             if position.entry_time == data.Index.to_pydatetime():
                 continue
@@ -379,6 +379,7 @@ class Backtester(Root):
             position.holding_time += 1
             position.save()
 
+            close_position = None
             is_entry_order_filled = True if position.entry_price else False
 
             # check if the lower horizontal barrier has been hit for long positions.
@@ -389,7 +390,7 @@ class Backtester(Root):
                 and data.high >= position.stop_price >= data.low
                 and position.direction == 1
             ):
-                self.close_backtest_position(
+                close_position = self.close_backtest_position(
                     position,
                     position.stop_price,
                     data.Index.to_pydatetime(),
@@ -404,7 +405,7 @@ class Backtester(Root):
                 and data.high >= position.target_price >= data.low
                 and position.direction == 1
             ):
-                self.close_backtest_position(
+                close_position = self.close_backtest_position(
                     position,
                     position.target_price,
                     data.Index.to_pydatetime(),
@@ -419,7 +420,7 @@ class Backtester(Root):
                 and data.high >= position.stop_price >= data.low
                 and position.direction == -1
             ):
-                self.close_backtest_position(
+                close_position = self.close_backtest_position(
                     position,
                     position.stop_price,
                     data.Index.to_pydatetime(),
@@ -434,7 +435,7 @@ class Backtester(Root):
                 and data.high >= position.target_price >= data.low
                 and position.direction == -1
             ):
-                self.close_backtest_position(
+                close_position = self.close_backtest_position(
                     position,
                     position.target_price,
                     data.Index.to_pydatetime(),
@@ -443,15 +444,20 @@ class Backtester(Root):
 
             # check if vertical barrier has been hit.
             elif position.holding_time >= self.max_holding_candles:
-                self.close_backtest_position(
+                close_position = self.close_backtest_position(
                     position, data.close, data.Index.to_pydatetime()
                 )
 
             # check if current candle is the last candle in the provided historical price data.
-            elif data.Index == self.backtest_data[symbol].index.values[-1]:
-                self.close_backtest_position(
+            elif data.Index == self.backtest_data[position.symbol].index.values[-1]:
+                close_position = self.close_backtest_position(
                     position, data.close, data.Index.to_pydatetime()
                 )
+
+            if close_position:
+                has_trade_position_closed = True
+
+        return has_trade_position_closed
 
     def run_symbol_backtest(self, symbol: str) -> None:
         """Run trading backtest for a single symbol.
@@ -476,10 +482,11 @@ class Backtester(Root):
             self.strategy_name,
         )
 
-        ohlcv_db = OHLCVDatabase(self.exchange, symbol)
-        ohlcv_data = ohlcv_db.get_data(
-            symbol, self.backtest_from_time, self.backtest_to_time
-        )
+        with self.shared_lock:
+            ohlcv_db = OHLCVDatabase(self.exchange, symbol)
+            ohlcv_data = ohlcv_db.get_data(
+                symbol, self.backtest_from_time, self.backtest_to_time
+            )
         if ohlcv_data is None:
             logger.warning(
                 "%s %s %s: unable to get price data for the %s strategy",
@@ -502,10 +509,10 @@ class Backtester(Root):
         # open the trades' database connection.
         self.trades_database.database.connect(reuse_if_open=True)
 
+        open_symbol_positions: List[DBTradePosition] = []
         for row in self.backtest_data[symbol].itertuples():
             should_open_new_position = False
             new_position_direction = None
-            open_symbol_positions = self.fetch_open_trade_positions([symbol])
 
             # open a long position if we get a long trading signal.
             if (
@@ -533,16 +540,24 @@ class Backtester(Root):
                         row, trade_signal_direction=new_position_direction
                     )
                     if trade_levels:
-                        self.open_backtest_position(
+                        new_trade_position = self.open_backtest_position(
                             symbol=symbol,
                             direction=new_position_direction,
                             trade_levels=trade_levels,
                             entry_time=row.Index.to_pydatetime(),
                         )
+                        if new_trade_position:
+                            open_symbol_positions = self.fetch_open_trade_positions(
+                                [symbol]
+                            )
 
             # monitor and handle all open positions.
-            self.handle_position_open_orders(symbol, row)
-            self.handle_open_backtest_positions(symbol, row)
+            self.handle_position_open_orders(row, open_symbol_positions)
+            has_trade_position_closed = self.handle_open_backtest_positions(
+                row, open_symbol_positions
+            )
+            if has_trade_position_closed:
+                open_symbol_positions = self.fetch_open_trade_positions([symbol])
 
         # close the trades' database connection.
         self.trades_database.database.close()

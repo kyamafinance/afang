@@ -475,14 +475,23 @@ class DyDxExchange(IsExchange):
         self._wss_subscribe_markets_stream()
         self._wss_subscribe_accounts_stream()
 
-    def _wss_on_close(self, _ws: websocket.WebSocketApp) -> None:
+    def _wss_on_close(
+        self, _ws: websocket.WebSocketApp, close_status_code: str, close_msg: str
+    ) -> None:
         """Runs when the websocket connection is closed.
 
         :param _ws: instance of websocket connection.
+        :param close_status_code: wss close status code.
+        :param close_msg: wss close msg.
         :return: None
         """
 
-        logger.warning("%s: wss connection closed", self.display_name)
+        logger.warning(
+            "%s: wss connection closed. status code: %s. %s",
+            self.display_name,
+            close_status_code,
+            close_msg,
+        )
 
     def _wss_on_error(self, _ws: websocket.WebSocketApp, msg: str) -> None:
         """Runs when there is an error in websocket connection.
@@ -493,6 +502,7 @@ class DyDxExchange(IsExchange):
         """
 
         logger.error("%s: wss connection error: %s", self.display_name, msg)
+        self._start_wss(in_thread=False)
 
     def _update_collateral_balance(self, run_forever: bool = True) -> None:
         """Constantly updates the collateral balance value.
@@ -782,16 +792,13 @@ class DyDxExchange(IsExchange):
 
             elif trade_time_timestamp > next_candle_close_time:
                 # missing candle(s) from persisted record.
-                logger.error(
+                logger.warning(
                     "%s: %s candles cannot be updated because candle(s) are potentially"
-                    " missing from the persisted record."
-                    " trade timestamp: %s latest candle open: %s timeframe: %s",
+                    " missing from the persisted record. Re-populating price data",
                     self.display_name,
                     symbol_name,
-                    trade_time_timestamp,
-                    latest_candle_open_time,
-                    self.trading_timeframe.value,
                 )
+                self._populate_initial_trading_price_data(num_iterations=10)
 
     def _wss_on_message(self, _ws: websocket.WebSocketApp, msg: str) -> None:
         """Runs whenever a message is received by the websocket connection.
@@ -815,9 +822,10 @@ class DyDxExchange(IsExchange):
         elif channel_name == "v3_trades":
             self._wss_handle_candlestick_update(msg_data)
 
-    def _start_wss(self) -> None:
+    def _start_wss(self, in_thread: bool = True) -> None:
         """Open a websocket connection to the exchange.
 
+        :param in_thread: whether to start wss in thread.
         :return: None
         """
 
@@ -828,8 +836,13 @@ class DyDxExchange(IsExchange):
             on_message=self._wss_on_message,
             on_error=self._wss_on_error,
         )
-        wss_thread = threading.Thread(target=self._wss.run_forever)
-        wss_thread.start()
+
+        if in_thread:
+            wss_thread = threading.Thread(target=self._wss.run_forever)
+            wss_thread.start()
+            return
+
+        self._wss.run_forever()
 
     def _populate_initial_position_sizes(self) -> None:
         """Populate initial symbol position sizes for all open positions.

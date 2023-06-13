@@ -206,7 +206,10 @@ def test_handle_open_backtest_positions(
     test_position.entry_price = 10
     test_position.save()
 
-    dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
+    open_trade_positions = DBTradePosition.select().where(
+        DBTradePosition.is_open.__eq__(True), DBTradePosition.symbol == "test_symbol"
+    )
+    dummy_is_strategy.handle_open_backtest_positions(ohlcv_row, open_trade_positions)
 
     assert mocked_close_backtest_position.assert_called
     assert mocked_close_backtest_position.call_args.args[0].id == 4
@@ -223,7 +226,10 @@ def test_handle_open_backtest_positions_same_candle(
     dummy_is_strategy.open_backtest_position(
         "test_symbol", 1, TradeLevels(1, 1, 1), ohlcv_row.Index.to_pydatetime()
     )
-    dummy_is_strategy.handle_open_backtest_positions("test_symbol", ohlcv_row)
+    open_db_trade_positions = DBTradePosition.select().where(
+        DBTradePosition.is_open.__eq__(True), DBTradePosition.symbol == "test_symbol"
+    )
+    dummy_is_strategy.handle_open_backtest_positions(ohlcv_row, open_db_trade_positions)
 
     open_trade_positions: Any = dummy_is_strategy.fetch_open_trade_positions(
         ["test_symbol"]

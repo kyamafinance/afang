@@ -421,14 +421,23 @@ class BinanceExchange(IsExchange):
         logger.info("%s: wss connection opened", self.display_name)
         self._subscribe_wss_candlestick_stream()
 
-    def _wss_on_close(self, _ws: websocket.WebSocketApp) -> None:
+    def _wss_on_close(
+        self, _ws: websocket.WebSocketApp, close_status_code: str, close_msg: str
+    ) -> None:
         """Runs when the websocket connection is closed.
 
         :param _ws: instance of websocket connection.
+        :param close_status_code: wss close status code.
+        :param close_msg: wss close msg.
         :return: None
         """
 
-        logger.warning("%s: wss connection closed", self.display_name)
+        logger.warning(
+            "%s: wss connection closed. status code: %s. %s",
+            self.display_name,
+            close_status_code,
+            close_msg,
+        )
 
     def _wss_on_error(self, _ws: websocket.WebSocketApp, msg: str) -> None:
         """Runs when there is an error in websocket connection.
@@ -439,6 +448,7 @@ class BinanceExchange(IsExchange):
         """
 
         logger.error("%s: wss connection error: %s", self.display_name, msg)
+        self._start_wss(in_thread=False)
 
     def _wss_handle_listen_key_expired(self, _msg_data: Any) -> None:
         """Runs when exchange websocket receives message data that the wss
@@ -631,9 +641,10 @@ class BinanceExchange(IsExchange):
                 break
             time.sleep(40 * 60)
 
-    def _start_wss(self) -> None:
+    def _start_wss(self, in_thread: bool = True) -> None:
         """Open a websocket connection to the exchange.
 
+        :param in_thread: whether to start wss in thread.
         :return: None
         """
 
@@ -652,12 +663,17 @@ class BinanceExchange(IsExchange):
             on_message=self._wss_on_message,
             on_error=self._wss_on_error,
         )
-        wss_thread = threading.Thread(target=self._wss.run_forever)
-        wss_thread.start()
 
-        # Keep websocket listen key valid.
-        wss_listen_key_thread = threading.Thread(target=self._keep_wss_alive)
-        wss_listen_key_thread.start()
+        if in_thread:
+            wss_thread = threading.Thread(target=self._wss.run_forever)
+            wss_thread.start()
+
+            # Keep websocket listen key valid.
+            wss_listen_key_thread = threading.Thread(target=self._keep_wss_alive)
+            wss_listen_key_thread.start()
+            return
+
+        self._wss.run_forever()
 
     def setup_exchange_for_trading(
         self, symbols: List[str], timeframe: Timeframe
