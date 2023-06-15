@@ -17,7 +17,7 @@ from afang.exchanges import IsExchange
 from afang.exchanges.models import OrderSide, OrderType
 from afang.models import Timeframe
 from afang.strategies.analyzer import StrategyAnalyzer
-from afang.strategies.models import TradeLevels
+from afang.strategies.models import SymbolAnalysisResult, TradeLevels
 from afang.strategies.root import Root
 from afang.utils.util import generate_uuid, resample_timeframe, time_str_to_milliseconds
 
@@ -582,7 +582,7 @@ class Backtester(Root):
         timeframe: Optional[str],
         from_time: Optional[str],
         to_time: Optional[str],
-    ) -> Optional[List[Dict]]:
+    ) -> Optional[List[SymbolAnalysisResult]]:
         """Run trading backtest for multiple symbols at once and return
         analysis results on the backtest.
 
@@ -591,7 +591,7 @@ class Backtester(Root):
         :param timeframe: timeframe to run the backtest on.
         :param from_time: desired begin time of the backtest.
         :param to_time: desired end time of the backtest.
-        :return: Optional[List[Dict]]
+        :return: Optional[List[SymbolAnalysisResult]]
         """
 
         # Get symbols to backtest.

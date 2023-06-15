@@ -1,18 +1,16 @@
 import logging
-import operator
-from functools import reduce
-from statistics import mean
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List
 
-from afang.strategies.models import TradePosition
+from afang.database.trades_db.trades_database import TradePosition as DBTradePosition
+from afang.strategies.models import (
+    AnalysisStat,
+    MonthlyPnLAnalysis,
+    SymbolAnalysisResult,
+)
 from afang.utils.function_group import FunctionGroup
 
 logger = logging.getLogger(__name__)
 function_group = FunctionGroup()
-
-# symbol name given to the first entry of `StrategyAnalyzer.analysis_results`
-# that is derived from a sorted trade sequence of all traded symbols.
-AGGREGATE_DATA = "AGGREGATE_DATA"
 
 
 class StrategyAnalyzer:
@@ -25,7 +23,7 @@ class StrategyAnalyzer:
         """
 
         self.strategy = strategy
-        self.analysis_results: List[dict] = list()
+        self.analysis_results: List[SymbolAnalysisResult] = list()
 
     @function_group.add
     def compute_total_net_profit(self) -> None:
@@ -34,25 +32,21 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
-            total_net_profit = sum(trade.pnl for trade in symbol_backtest["trades"])
-            total_net_profit_long = sum(
-                trade.pnl for trade in symbol_backtest["trades"] if trade.direction == 1
+        for symbol_analysis in self.analysis_results:
+            net_profit = self.safe_sum(trade.pnl for trade in symbol_analysis.trades)
+            net_profit_long = self.safe_sum(
+                trade.pnl for trade in symbol_analysis.trades if trade.direction == 1
             )
-            total_net_profit_short = sum(
-                trade.pnl
-                for trade in symbol_backtest["trades"]
-                if trade.direction == -1
+            net_profit_short = self.safe_sum(
+                trade.pnl for trade in symbol_analysis.trades if trade.direction == -1
             )
-            symbol_backtest.update(
-                {
-                    "total_net_profit": {
-                        "all_trades": total_net_profit,
-                        "long_trades": total_net_profit_long,
-                        "short_trades": total_net_profit_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.net_profit = AnalysisStat(
+                name="Net Profit",
+                all_trades=net_profit,
+                long_trades=net_profit_long,
+                short_trades=net_profit_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -62,29 +56,29 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
-            gross_profit = sum(
-                trade.pnl for trade in symbol_backtest["trades"] if trade.pnl > 0
-            )
-            gross_profit_long = sum(
+        for symbol_analysis in self.analysis_results:
+            gross_profit = self.safe_sum(
                 trade.pnl
-                for trade in symbol_backtest["trades"]
-                if trade.pnl > 0 and trade.direction == 1
+                for trade in symbol_analysis.trades
+                if trade.pnl is not None and trade.pnl > 0
             )
-            gross_profit_short = sum(
+            gross_profit_long = self.safe_sum(
                 trade.pnl
-                for trade in symbol_backtest["trades"]
-                if trade.pnl > 0 and trade.direction == -1
+                for trade in symbol_analysis.trades
+                if trade.pnl is not None and trade.pnl > 0 and trade.direction == 1
             )
-            symbol_backtest.update(
-                {
-                    "gross_profit": {
-                        "all_trades": gross_profit,
-                        "long_trades": gross_profit_long,
-                        "short_trades": gross_profit_short,
-                        "positive_optimization": True,
-                    }
-                }
+            gross_profit_short = self.safe_sum(
+                trade.pnl
+                for trade in symbol_analysis.trades
+                if trade.pnl is not None and trade.pnl > 0 and trade.direction == -1
+            )
+
+            symbol_analysis.gross_profit = AnalysisStat(
+                name="Gross Profit",
+                all_trades=gross_profit,
+                long_trades=gross_profit_long,
+                short_trades=gross_profit_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -94,28 +88,29 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
-            gross_loss = sum(
-                trade.pnl for trade in symbol_backtest["trades"] if trade.pnl < 0
-            )
-            gross_loss_long = sum(
+        for symbol_analysis in self.analysis_results:
+            gross_loss = self.safe_sum(
                 trade.pnl
-                for trade in symbol_backtest["trades"]
-                if trade.pnl < 0 and trade.direction == 1
+                for trade in symbol_analysis.trades
+                if trade.pnl is not None and trade.pnl < 0
             )
-            gross_loss_short = sum(
+            gross_loss_long = self.safe_sum(
                 trade.pnl
-                for trade in symbol_backtest["trades"]
-                if trade.pnl < 0 and trade.direction == -1
+                for trade in symbol_analysis.trades
+                if trade.pnl is not None and trade.pnl < 0 and trade.direction == 1
             )
-            symbol_backtest.update(
-                {
-                    "gross_loss": {
-                        "all_trades": gross_loss,
-                        "long_trades": gross_loss_long,
-                        "short_trades": gross_loss_short,
-                    }
-                }
+            gross_loss_short = self.safe_sum(
+                trade.pnl
+                for trade in symbol_analysis.trades
+                if trade.pnl is not None and trade.pnl < 0 and trade.direction == -1
+            )
+
+            symbol_analysis.gross_loss = AnalysisStat(
+                name="Gross Loss",
+                all_trades=gross_loss,
+                long_trades=gross_loss_long,
+                short_trades=gross_loss_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -125,26 +120,27 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
-            commission = sum(trade.commission for trade in symbol_backtest["trades"])
-            commission_long = sum(
+        for symbol_analysis in self.analysis_results:
+            commission = self.safe_sum(
+                trade.commission for trade in symbol_analysis.trades
+            )
+            commission_long = self.safe_sum(
                 trade.commission
-                for trade in symbol_backtest["trades"]
+                for trade in symbol_analysis.trades
                 if trade.direction == 1
             )
-            commission_short = sum(
+            commission_short = self.safe_sum(
                 trade.commission
-                for trade in symbol_backtest["trades"]
+                for trade in symbol_analysis.trades
                 if trade.direction == -1
             )
-            symbol_backtest.update(
-                {
-                    "commission": {
-                        "all_trades": commission,
-                        "long_trades": commission_long,
-                        "short_trades": commission_short,
-                    }
-                }
+
+            symbol_analysis.commission = AnalysisStat(
+                name="Commission",
+                all_trades=commission,
+                long_trades=commission_long,
+                short_trades=commission_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -154,26 +150,25 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
-            slippage = sum(trade.slippage for trade in symbol_backtest["trades"])
-            slippage_long = sum(
+        for symbol_analysis in self.analysis_results:
+            slippage = self.safe_sum(trade.slippage for trade in symbol_analysis.trades)
+            slippage_long = self.safe_sum(
                 trade.slippage
-                for trade in symbol_backtest["trades"]
+                for trade in symbol_analysis.trades
                 if trade.direction == 1
             )
-            slippage_short = sum(
+            slippage_short = self.safe_sum(
                 trade.slippage
-                for trade in symbol_backtest["trades"]
+                for trade in symbol_analysis.trades
                 if trade.direction == -1
             )
-            symbol_backtest.update(
-                {
-                    "slippage": {
-                        "all_trades": slippage,
-                        "long_trades": slippage_long,
-                        "short_trades": slippage_short,
-                    }
-                }
+
+            symbol_analysis.slippage = AnalysisStat(
+                name="Slippage",
+                all_trades=slippage,
+                long_trades=slippage_long,
+                short_trades=slippage_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -185,34 +180,32 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             profit_factor = (
-                symbol_backtest["gross_profit"]["all_trades"]
-                / abs(symbol_backtest["gross_loss"]["all_trades"])
-                if abs(symbol_backtest["gross_loss"]["all_trades"])
+                symbol_analysis.gross_profit.all_trades
+                / abs(symbol_analysis.gross_loss.all_trades)
+                if abs(symbol_analysis.gross_loss.all_trades)
                 else 0
             )
             profit_factor_long = (
-                symbol_backtest["gross_profit"]["long_trades"]
-                / abs(symbol_backtest["gross_loss"]["long_trades"])
-                if abs(symbol_backtest["gross_loss"]["long_trades"])
+                symbol_analysis.gross_profit.long_trades
+                / abs(symbol_analysis.gross_loss.long_trades)
+                if abs(symbol_analysis.gross_loss.long_trades)
                 else 0
             )
             profit_factor_short = (
-                symbol_backtest["gross_profit"]["short_trades"]
-                / abs(symbol_backtest["gross_loss"]["short_trades"])
-                if abs(symbol_backtest["gross_loss"]["short_trades"])
+                symbol_analysis.gross_profit.short_trades
+                / abs(symbol_analysis.gross_loss.short_trades)
+                if abs(symbol_analysis.gross_loss.short_trades)
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "profit_factor": {
-                        "all_trades": profit_factor,
-                        "long_trades": profit_factor_long,
-                        "short_trades": profit_factor_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.profit_factor = AnalysisStat(
+                name="Profit Factor",
+                all_trades=profit_factor,
+                long_trades=profit_factor_long,
+                short_trades=profit_factor_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -234,33 +227,35 @@ class StrategyAnalyzer:
 
             return -1 * (_max_drawdown * 100.0) if _max_drawdown else 0.0
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             max_drawdown = get_max_drawdown(
-                list(trade.final_account_balance for trade in symbol_backtest["trades"])
+                list(
+                    trade.final_account_balance
+                    for trade in symbol_analysis.trades
+                    if trade.final_account_balance
+                )
             )
             max_drawdown_long = get_max_drawdown(
                 list(
                     trade.final_account_balance
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.direction == 1 and trade.final_account_balance
                 )
             )
             max_drawdown_short = get_max_drawdown(
                 list(
                     trade.final_account_balance
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.direction == -1 and trade.final_account_balance
                 )
             )
-            symbol_backtest.update(
-                {
-                    "maximum_drawdown": {
-                        "all_trades": max_drawdown,
-                        "long_trades": max_drawdown_long,
-                        "short_trades": max_drawdown_short,
-                        "positive_optimization": False,
-                    }
-                }
+
+            symbol_analysis.maximum_drawdown = AnalysisStat(
+                name="Maximum Drawdown (%)",
+                all_trades=max_drawdown,
+                long_trades=max_drawdown_long,
+                short_trades=max_drawdown_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -270,23 +265,21 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
-            total_trades = len(symbol_backtest["trades"])
+        for symbol_analysis in self.analysis_results:
+            total_trades = len(symbol_analysis.trades)
             total_trades_long = len(
-                [trade for trade in symbol_backtest["trades"] if trade.direction == 1]
+                [trade for trade in symbol_analysis.trades if trade.direction == 1]
             )
             total_trades_short = len(
-                [trade for trade in symbol_backtest["trades"] if trade.direction == -1]
+                [trade for trade in symbol_analysis.trades if trade.direction == -1]
             )
-            symbol_backtest.update(
-                {
-                    "total_trades": {
-                        "all_trades": total_trades,
-                        "long_trades": total_trades_long,
-                        "short_trades": total_trades_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.total_trades = AnalysisStat(
+                name="Total Trades",
+                all_trades=total_trades,
+                long_trades=total_trades_long,
+                short_trades=total_trades_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -296,33 +289,35 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             winning_trades = len(
-                [trade for trade in symbol_backtest["trades"] if trade.pnl > 0]
+                [
+                    trade
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl > 0
+                ]
             )
             winning_trades_long = len(
                 [
                     trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl > 0 and trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl > 0 and trade.direction == 1
                 ]
             )
             winning_trades_short = len(
                 [
                     trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl > 0 and trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl > 0 and trade.direction == -1
                 ]
             )
-            symbol_backtest.update(
-                {
-                    "winning_trades": {
-                        "all_trades": winning_trades,
-                        "long_trades": winning_trades_long,
-                        "short_trades": winning_trades_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.winning_trades = AnalysisStat(
+                name="Winning Trades",
+                all_trades=winning_trades,
+                long_trades=winning_trades_long,
+                short_trades=winning_trades_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -332,32 +327,35 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             losing_trades = len(
-                [trade for trade in symbol_backtest["trades"] if trade.pnl < 0]
+                [
+                    trade
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl < 0
+                ]
             )
             losing_trades_long = len(
                 [
                     trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl < 0 and trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl < 0 and trade.direction == 1
                 ]
             )
             losing_trades_short = len(
                 [
                     trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl < 0 and trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl < 0 and trade.direction == -1
                 ]
             )
-            symbol_backtest.update(
-                {
-                    "losing_trades": {
-                        "all_trades": losing_trades,
-                        "long_trades": losing_trades_long,
-                        "short_trades": losing_trades_short,
-                    }
-                }
+
+            symbol_analysis.losing_trades = AnalysisStat(
+                name="Losing Trades",
+                all_trades=losing_trades,
+                long_trades=losing_trades_long,
+                short_trades=losing_trades_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -367,32 +365,37 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             even_trades = len(
-                [trade for trade in symbol_backtest["trades"] if trade.pnl == 0]
+                [
+                    trade
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl == 0
+                ]
             )
             even_trades_long = len(
                 [
                     trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl == 0 and trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl == 0 and trade.direction == 1
                 ]
             )
             even_trades_short = len(
                 [
                     trade
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl == 0 and trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None
+                    and trade.pnl == 0
+                    and trade.direction == -1
                 ]
             )
-            symbol_backtest.update(
-                {
-                    "even_trades": {
-                        "all_trades": even_trades,
-                        "long_trades": even_trades_long,
-                        "short_trades": even_trades_short,
-                    }
-                }
+
+            symbol_analysis.even_trades = AnalysisStat(
+                name="Even Trades",
+                all_trades=even_trades,
+                long_trades=even_trades_long,
+                short_trades=even_trades_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -405,52 +408,50 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             percent_profitable = (
                 (
                     (
-                        symbol_backtest["winning_trades"]["all_trades"]
-                        + symbol_backtest["even_trades"]["all_trades"]
+                        symbol_analysis.winning_trades.all_trades
+                        + symbol_analysis.even_trades.all_trades
                     )
-                    / symbol_backtest["total_trades"]["all_trades"]
+                    / symbol_analysis.total_trades.all_trades
                 )
                 * 100.0
-                if symbol_backtest["total_trades"]["all_trades"]
+                if symbol_analysis.total_trades.all_trades
                 else 0
             )
             percent_profitable_long = (
                 (
                     (
-                        symbol_backtest["winning_trades"]["long_trades"]
-                        + symbol_backtest["even_trades"]["long_trades"]
+                        symbol_analysis.winning_trades.long_trades
+                        + symbol_analysis.even_trades.long_trades
                     )
-                    / symbol_backtest["total_trades"]["long_trades"]
+                    / symbol_analysis.total_trades.long_trades
                 )
                 * 100.0
-                if symbol_backtest["total_trades"]["long_trades"]
+                if symbol_analysis.total_trades.long_trades
                 else 0
             )
             percent_profitable_short = (
                 (
                     (
-                        symbol_backtest["winning_trades"]["short_trades"]
-                        + symbol_backtest["even_trades"]["short_trades"]
+                        symbol_analysis.winning_trades.short_trades
+                        + symbol_analysis.even_trades.short_trades
                     )
-                    / symbol_backtest["total_trades"]["short_trades"]
+                    / symbol_analysis.total_trades.short_trades
                 )
                 * 100.0
-                if symbol_backtest["total_trades"]["short_trades"]
+                if symbol_analysis.total_trades.short_trades
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "percent_profitable": {
-                        "all_trades": percent_profitable,
-                        "long_trades": percent_profitable_long,
-                        "short_trades": percent_profitable_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.percent_profitable = AnalysisStat(
+                name="Percent Profitable",
+                all_trades=percent_profitable,
+                long_trades=percent_profitable_long,
+                short_trades=percent_profitable_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -462,42 +463,42 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             average_roe = (
-                sum(trade.cost_adjusted_roe for trade in symbol_backtest["trades"])
-                / symbol_backtest["total_trades"]["all_trades"]
-                if symbol_backtest["total_trades"]["all_trades"]
+                self.safe_sum(
+                    trade.cost_adjusted_roe for trade in symbol_analysis.trades
+                )
+                / symbol_analysis.total_trades.all_trades
+                if symbol_analysis.total_trades.all_trades
                 else 0
             )
             average_roe_long = (
-                sum(
+                self.safe_sum(
                     trade.cost_adjusted_roe
-                    for trade in symbol_backtest["trades"]
+                    for trade in symbol_analysis.trades
                     if trade.direction == 1
                 )
-                / symbol_backtest["total_trades"]["long_trades"]
-                if symbol_backtest["total_trades"]["long_trades"]
+                / symbol_analysis.total_trades.long_trades
+                if symbol_analysis.total_trades.long_trades
                 else 0
             )
             average_roe_short = (
-                sum(
+                self.safe_sum(
                     trade.cost_adjusted_roe
-                    for trade in symbol_backtest["trades"]
+                    for trade in symbol_analysis.trades
                     if trade.direction == -1
                 )
-                / symbol_backtest["total_trades"]["short_trades"]
-                if symbol_backtest["total_trades"]["short_trades"]
+                / symbol_analysis.total_trades.short_trades
+                if symbol_analysis.total_trades.short_trades
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "average_roe": {
-                        "all_trades": average_roe,
-                        "long_trades": average_roe_long,
-                        "short_trades": average_roe_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.average_roe = AnalysisStat(
+                name="Average ROE (%)",
+                all_trades=average_roe,
+                long_trades=average_roe_long,
+                short_trades=average_roe_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -509,42 +510,40 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
-            average_trade = (
-                sum(trade.pnl for trade in symbol_backtest["trades"])
-                / symbol_backtest["total_trades"]["all_trades"]
-                if symbol_backtest["total_trades"]["all_trades"]
+        for symbol_analysis in self.analysis_results:
+            average_trade_pnl = (
+                self.safe_sum(trade.pnl for trade in symbol_analysis.trades)
+                / symbol_analysis.total_trades.all_trades
+                if symbol_analysis.total_trades.all_trades
                 else 0
             )
-            average_trade_long = (
-                sum(
+            average_trade_pnl_long = (
+                self.safe_sum(
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
+                    for trade in symbol_analysis.trades
                     if trade.direction == 1
                 )
-                / symbol_backtest["total_trades"]["long_trades"]
-                if symbol_backtest["total_trades"]["long_trades"]
+                / symbol_analysis.total_trades.long_trades
+                if symbol_analysis.total_trades.long_trades
                 else 0
             )
-            average_trade_short = (
-                sum(
+            average_trade_pnl_short = (
+                self.safe_sum(
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
+                    for trade in symbol_analysis.trades
                     if trade.direction == -1
                 )
-                / symbol_backtest["total_trades"]["short_trades"]
-                if symbol_backtest["total_trades"]["short_trades"]
+                / symbol_analysis.total_trades.short_trades
+                if symbol_analysis.total_trades.short_trades
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "average_pnl": {
-                        "all_trades": average_trade,
-                        "long_trades": average_trade_long,
-                        "short_trades": average_trade_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.average_trade_pnl = AnalysisStat(
+                name="Average Trade PnL",
+                all_trades=average_trade_pnl,
+                long_trades=average_trade_pnl_long,
+                short_trades=average_trade_pnl_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -556,42 +555,46 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             average_winning_trade = (
-                sum(trade.pnl for trade in symbol_backtest["trades"] if trade.pnl >= 0)
-                / symbol_backtest["winning_trades"]["all_trades"]
-                if symbol_backtest["winning_trades"]["all_trades"]
+                self.safe_sum(
+                    trade.pnl
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl >= 0
+                )
+                / symbol_analysis.winning_trades.all_trades
+                if symbol_analysis.winning_trades.all_trades
                 else 0
             )
             average_winning_trade_long = (
-                sum(
+                self.safe_sum(
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl >= 0 and trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl >= 0 and trade.direction == 1
                 )
-                / symbol_backtest["winning_trades"]["long_trades"]
-                if symbol_backtest["winning_trades"]["long_trades"]
+                / symbol_analysis.winning_trades.long_trades
+                if symbol_analysis.winning_trades.long_trades
                 else 0
             )
             average_winning_trade_short = (
-                sum(
+                self.safe_sum(
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl >= 0 and trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None
+                    and trade.pnl >= 0
+                    and trade.direction == -1
                 )
-                / symbol_backtest["winning_trades"]["short_trades"]
-                if symbol_backtest["winning_trades"]["short_trades"]
+                / symbol_analysis.winning_trades.short_trades
+                if symbol_analysis.winning_trades.short_trades
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "average_winning_trade": {
-                        "all_trades": average_winning_trade,
-                        "long_trades": average_winning_trade_long,
-                        "short_trades": average_winning_trade_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.average_winning_trade = AnalysisStat(
+                "Average Winning Trade",
+                all_trades=average_winning_trade,
+                long_trades=average_winning_trade_long,
+                short_trades=average_winning_trade_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -603,41 +606,44 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             average_losing_trade = (
-                sum(trade.pnl for trade in symbol_backtest["trades"] if trade.pnl < 0)
-                / symbol_backtest["losing_trades"]["all_trades"]
-                if symbol_backtest["losing_trades"]["all_trades"]
+                self.safe_sum(
+                    trade.pnl
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl < 0
+                )
+                / symbol_analysis.losing_trades.all_trades
+                if symbol_analysis.losing_trades.all_trades
                 else 0
             )
             average_losing_trade_long = (
-                sum(
+                self.safe_sum(
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl < 0 and trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl < 0 and trade.direction == 1
                 )
-                / symbol_backtest["losing_trades"]["long_trades"]
-                if symbol_backtest["losing_trades"]["long_trades"]
+                / symbol_analysis.losing_trades.long_trades
+                if symbol_analysis.losing_trades.long_trades
                 else 0
             )
             average_losing_trade_short = (
-                sum(
+                self.safe_sum(
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.pnl < 0 and trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.pnl < 0 and trade.direction == -1
                 )
-                / symbol_backtest["losing_trades"]["short_trades"]
-                if symbol_backtest["losing_trades"]["short_trades"]
+                / symbol_analysis.losing_trades.short_trades
+                if symbol_analysis.losing_trades.short_trades
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "average_losing_trade": {
-                        "all_trades": average_losing_trade,
-                        "long_trades": average_losing_trade_long,
-                        "short_trades": average_losing_trade_short,
-                    }
-                }
+
+            symbol_analysis.average_losing_trade = AnalysisStat(
+                name="Average Losing Trade",
+                all_trades=average_losing_trade,
+                long_trades=average_losing_trade_long,
+                short_trades=average_losing_trade_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -650,34 +656,32 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             take_profit_ratio = (
-                symbol_backtest["average_winning_trade"]["all_trades"]
-                / symbol_backtest["average_losing_trade"]["all_trades"]
-                if symbol_backtest["average_losing_trade"]["all_trades"]
+                symbol_analysis.average_winning_trade.all_trades
+                / symbol_analysis.average_losing_trade.all_trades
+                if symbol_analysis.average_losing_trade.all_trades
                 else 0
             )
             take_profit_ratio_long = (
-                symbol_backtest["average_winning_trade"]["long_trades"]
-                / symbol_backtest["average_losing_trade"]["long_trades"]
-                if symbol_backtest["average_losing_trade"]["long_trades"]
+                symbol_analysis.average_winning_trade.long_trades
+                / symbol_analysis.average_losing_trade.long_trades
+                if symbol_analysis.average_losing_trade.long_trades
                 else 0
             )
             take_profit_ratio_short = (
-                symbol_backtest["average_winning_trade"]["short_trades"]
-                / symbol_backtest["average_losing_trade"]["short_trades"]
-                if symbol_backtest["average_losing_trade"]["short_trades"]
+                symbol_analysis.average_winning_trade.short_trades
+                / symbol_analysis.average_losing_trade.short_trades
+                if symbol_analysis.average_losing_trade.short_trades
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "take_profit_ratio": {
-                        "all_trades": take_profit_ratio,
-                        "long_trades": take_profit_ratio_long,
-                        "short_trades": take_profit_ratio_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.take_profit_ratio = AnalysisStat(
+                name="Take Profit Ratio",
+                all_trades=take_profit_ratio,
+                long_trades=take_profit_ratio_long,
+                short_trades=take_profit_ratio_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -690,37 +694,35 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             trade_expectancy = (
-                (symbol_backtest["percent_profitable"]["all_trades"] / 100.0)
-                * symbol_backtest["average_winning_trade"]["all_trades"]
+                (symbol_analysis.percent_profitable.all_trades / 100.0)
+                * symbol_analysis.average_winning_trade.all_trades
             ) - (
-                (1.0 - (symbol_backtest["percent_profitable"]["all_trades"] / 100.0))
-                * abs(symbol_backtest["average_losing_trade"]["all_trades"])
+                (1.0 - (symbol_analysis.percent_profitable.all_trades / 100.0))
+                * abs(symbol_analysis.average_losing_trade.all_trades)
             )
             trade_expectancy_long = (
-                (symbol_backtest["percent_profitable"]["long_trades"] / 100.0)
-                * symbol_backtest["average_winning_trade"]["long_trades"]
+                (symbol_analysis.percent_profitable.long_trades / 100.0)
+                * symbol_analysis.average_winning_trade.long_trades
             ) - (
-                (1.0 - (symbol_backtest["percent_profitable"]["long_trades"] / 100.0))
-                * abs(symbol_backtest["average_losing_trade"]["long_trades"])
+                (1.0 - (symbol_analysis.percent_profitable.long_trades / 100.0))
+                * abs(symbol_analysis.average_losing_trade.long_trades)
             )
             trade_expectancy_short = (
-                (symbol_backtest["percent_profitable"]["short_trades"] / 100.0)
-                * symbol_backtest["average_winning_trade"]["short_trades"]
+                (symbol_analysis.percent_profitable.short_trades / 100.0)
+                * symbol_analysis.average_winning_trade.short_trades
             ) - (
-                (1.0 - (symbol_backtest["percent_profitable"]["short_trades"] / 100.0))
-                * abs(symbol_backtest["average_losing_trade"]["short_trades"])
+                (1.0 - (symbol_analysis.percent_profitable.short_trades / 100.0))
+                * abs(symbol_analysis.average_losing_trade.short_trades)
             )
-            symbol_backtest.update(
-                {
-                    "trade_expectancy": {
-                        "all_trades": trade_expectancy,
-                        "long_trades": trade_expectancy_long,
-                        "short_trades": trade_expectancy_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.trade_expectancy = AnalysisStat(
+                name="Trade Expectancy",
+                all_trades=trade_expectancy,
+                long_trades=trade_expectancy_long,
+                short_trades=trade_expectancy_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -742,33 +744,31 @@ class StrategyAnalyzer:
                     count = 0
             return max_val
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             max_consecutive_winners = get_max_consecutive_winners(
-                [trade.pnl for trade in symbol_backtest["trades"]]
+                [trade.pnl for trade in symbol_analysis.trades if trade.pnl is not None]
             )
             max_consecutive_winners_long = get_max_consecutive_winners(
                 [
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == 1
                 ]
             )
             max_consecutive_winners_short = get_max_consecutive_winners(
                 [
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == -1
                 ]
             )
-            symbol_backtest.update(
-                {
-                    "max_consecutive_winners": {
-                        "all_trades": max_consecutive_winners,
-                        "long_trades": max_consecutive_winners_long,
-                        "short_trades": max_consecutive_winners_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.max_consecutive_winners = AnalysisStat(
+                name="Maximum Consecutive Winners",
+                all_trades=max_consecutive_winners,
+                long_trades=max_consecutive_winners_long,
+                short_trades=max_consecutive_winners_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -790,32 +790,31 @@ class StrategyAnalyzer:
                     count = 0
             return max_val
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             max_consecutive_losers = get_max_consecutive_losers(
-                [trade.pnl for trade in symbol_backtest["trades"]]
+                [trade.pnl for trade in symbol_analysis.trades if trade.pnl is not None]
             )
             max_consecutive_losers_long = get_max_consecutive_losers(
                 [
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == 1
                 ]
             )
             max_consecutive_losers_short = get_max_consecutive_losers(
                 [
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == -1
                 ]
             )
-            symbol_backtest.update(
-                {
-                    "max_consecutive_losers": {
-                        "all_trades": max_consecutive_losers,
-                        "long_trades": max_consecutive_losers_long,
-                        "short_trades": max_consecutive_losers_short,
-                    }
-                }
+
+            symbol_analysis.max_consecutive_losers = AnalysisStat(
+                name="Maximum Consecutive Losers",
+                all_trades=max_consecutive_losers,
+                long_trades=max_consecutive_losers_long,
+                short_trades=max_consecutive_losers_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -825,34 +824,38 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             largest_winning_trade = max(
-                (trade.pnl for trade in symbol_backtest["trades"]), default=0
+                (
+                    trade.pnl
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None
+                ),
+                default=0,
             )
             largest_winning_trade_long = max(
                 (
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == 1
                 ),
                 default=0,
             )
             largest_winning_trade_short = max(
                 (
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == -1
                 ),
                 default=0,
             )
-            symbol_backtest.update(
-                {
-                    "largest_winning_trade": {
-                        "all_trades": largest_winning_trade,
-                        "long_trades": largest_winning_trade_long,
-                        "short_trades": largest_winning_trade_short,
-                    }
-                }
+
+            symbol_analysis.largest_winning_trade = AnalysisStat(
+                name="Largest Winning Trade",
+                all_trades=largest_winning_trade,
+                long_trades=largest_winning_trade_long,
+                short_trades=largest_winning_trade_short,
+                is_positive_optimization=True,
             )
 
     @function_group.add
@@ -862,34 +865,38 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             largest_losing_trade = min(
-                (trade.pnl for trade in symbol_backtest["trades"]), default=0
+                (
+                    trade.pnl
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None
+                ),
+                default=0,
             )
             largest_losing_trade_long = min(
                 (
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == 1
                 ),
                 default=0,
             )
             largest_losing_trade_short = min(
                 (
                     trade.pnl
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.pnl is not None and trade.direction == -1
                 ),
                 default=0,
             )
-            symbol_backtest.update(
-                {
-                    "largest_losing_trade": {
-                        "all_trades": largest_losing_trade,
-                        "long_trades": largest_losing_trade_long,
-                        "short_trades": largest_losing_trade_short,
-                    }
-                }
+
+            symbol_analysis.largest_losing_trade = AnalysisStat(
+                name="Largest Losing Trade",
+                all_trades=largest_losing_trade,
+                long_trades=largest_losing_trade_long,
+                short_trades=largest_losing_trade_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -901,41 +908,44 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             average_holding_time = (
-                sum(trade.holding_time for trade in symbol_backtest["trades"])
-                / symbol_backtest["total_trades"]["all_trades"]
-                if symbol_backtest["total_trades"]["all_trades"]
+                self.safe_sum(
+                    trade.holding_time
+                    for trade in symbol_analysis.trades
+                    if trade.holding_time
+                )
+                / symbol_analysis.total_trades.all_trades
+                if symbol_analysis.total_trades.all_trades
                 else 0
             )
             average_holding_time_long = (
-                sum(
+                self.safe_sum(
                     trade.holding_time
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.holding_time and trade.direction == 1
                 )
-                / symbol_backtest["total_trades"]["long_trades"]
-                if symbol_backtest["total_trades"]["long_trades"]
+                / symbol_analysis.total_trades.long_trades
+                if symbol_analysis.total_trades.long_trades
                 else 0
             )
             average_holding_time_short = (
-                sum(
+                self.safe_sum(
                     trade.holding_time
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.holding_time and trade.direction == -1
                 )
-                / symbol_backtest["total_trades"]["short_trades"]
-                if symbol_backtest["total_trades"]["short_trades"]
+                / symbol_analysis.total_trades.short_trades
+                if symbol_analysis.total_trades.short_trades
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "average_holding_time": {
-                        "all_trades": average_holding_time,
-                        "long_trades": average_holding_time_long,
-                        "short_trades": average_holding_time_short,
-                    }
-                }
+
+            symbol_analysis.average_holding_time = AnalysisStat(
+                name="Average Holding Time (candles)",
+                all_trades=average_holding_time,
+                long_trades=average_holding_time_long,
+                short_trades=average_holding_time_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -945,35 +955,38 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             maximum_holding_time = max(
-                (trade.holding_time for trade in symbol_backtest["trades"]),
+                (
+                    trade.holding_time
+                    for trade in symbol_analysis.trades
+                    if trade.holding_time
+                ),
                 default=0,
             )
             maximum_holding_time_long = max(
                 (
                     trade.holding_time
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == 1
+                    for trade in symbol_analysis.trades
+                    if trade.holding_time and trade.direction == 1
                 ),
                 default=0,
             )
             maximum_holding_time_short = max(
                 (
                     trade.holding_time
-                    for trade in symbol_backtest["trades"]
-                    if trade.direction == -1
+                    for trade in symbol_analysis.trades
+                    if trade.holding_time and trade.direction == -1
                 ),
                 default=0,
             )
-            symbol_backtest.update(
-                {
-                    "maximum_holding_time": {
-                        "all_trades": maximum_holding_time,
-                        "long_trades": maximum_holding_time_long,
-                        "short_trades": maximum_holding_time_short,
-                    }
-                }
+
+            symbol_analysis.maximum_holding_time = AnalysisStat(
+                name="Maximum Holding Time",
+                all_trades=maximum_holding_time,
+                long_trades=maximum_holding_time_long,
+                short_trades=maximum_holding_time_short,
+                is_positive_optimization=False,
             )
 
     @function_group.add
@@ -983,75 +996,91 @@ class StrategyAnalyzer:
         :return: None
         """
 
-        def get_monthly_pnl(_trades: List[TradePosition]) -> Dict:
-            _monthly_pnl: Dict = dict()
-            trade: TradePosition
-            for trade in _trades:
-                trade_month = f"{trade.exit_time.month}-{trade.exit_time.year}"
-                _monthly_pnl[trade_month] = _monthly_pnl.get(trade_month, 0) + trade.pnl
-            return _monthly_pnl
+        def get_monthly_pnl(_trades: List[DBTradePosition]) -> List[MonthlyPnLAnalysis]:
+            monthly_pnl_stat: Dict[str, MonthlyPnLAnalysis] = dict()
 
-        for symbol_backtest in self.analysis_results:
-            monthly_pnl = get_monthly_pnl(symbol_backtest["trades"])
-            monthly_pnl_long = get_monthly_pnl(
-                [trade for trade in symbol_backtest["trades"] if trade.direction == 1]
-            )
-            monthly_pnl_short = get_monthly_pnl(
-                [trade for trade in symbol_backtest["trades"] if trade.direction == -1]
-            )
-            symbol_backtest.update(
-                {
-                    "monthly_pnl": {
-                        "all_trades": monthly_pnl,
-                        "long_trades": monthly_pnl_long,
-                        "short_trades": monthly_pnl_short,
-                    }
-                }
-            )
+            for trade in _trades:
+                if not trade.exit_time or not trade.pnl:
+                    continue
+
+                trade_month = f"{trade.exit_time.month}-{trade.exit_time.year}"
+                if trade_month not in monthly_pnl_stat:
+                    monthly_pnl_stat[trade_month] = MonthlyPnLAnalysis(
+                        month=trade_month, all_trades=0, long_trades=0, short_trades=0
+                    )
+
+                monthly_pnl_stat[trade_month].all_trades += trade.pnl
+                if trade.direction == 1:
+                    monthly_pnl_stat[trade_month].long_trades += trade.pnl
+                elif trade.direction == -1:
+                    monthly_pnl_stat[trade_month].short_trades += trade.pnl
+
+            return list(monthly_pnl_stat.values())
+
+        for symbol_analysis in self.analysis_results:
+            monthly_pnl = get_monthly_pnl(symbol_analysis.trades)
+            symbol_analysis.monthly_pnl = monthly_pnl
 
     @function_group.add
     def compute_average_monthly_pnl(self) -> None:
         """Calculate average monthly PnL for all symbols. This function needs
         to run after compute_total_trades and compute_monthly_pnl. It relies on
-        the computation of the total number of trades and the monthly PnL.
+        the computation of the monthly PnL.
 
         :return: None
         """
 
-        for symbol_backtest in self.analysis_results:
+        for symbol_analysis in self.analysis_results:
             average_monthly_pnl = (
-                sum(symbol_backtest["monthly_pnl"]["all_trades"].values())
-                / len(symbol_backtest["monthly_pnl"]["all_trades"])
-                if len(symbol_backtest["monthly_pnl"]["all_trades"])
+                self.safe_sum(
+                    monthly_pnl.all_trades
+                    for monthly_pnl in symbol_analysis.monthly_pnl
+                )
+                / len(symbol_analysis.monthly_pnl)
+                if len(symbol_analysis.monthly_pnl)
                 else 0
             )
             average_monthly_pnl_long = (
-                sum(symbol_backtest["monthly_pnl"]["long_trades"].values())
-                / len(symbol_backtest["monthly_pnl"]["long_trades"])
-                if len(symbol_backtest["monthly_pnl"]["long_trades"])
+                self.safe_sum(
+                    monthly_pnl.long_trades
+                    for monthly_pnl in symbol_analysis.monthly_pnl
+                )
+                / len(symbol_analysis.monthly_pnl)
+                if len(symbol_analysis.monthly_pnl)
                 else 0
             )
             average_monthly_pnl_short = (
-                sum(symbol_backtest["monthly_pnl"]["short_trades"].values())
-                / len(symbol_backtest["monthly_pnl"]["short_trades"])
-                if len(symbol_backtest["monthly_pnl"]["short_trades"])
+                self.safe_sum(
+                    monthly_pnl.short_trades
+                    for monthly_pnl in symbol_analysis.monthly_pnl
+                )
+                / len(symbol_analysis.monthly_pnl)
+                if len(symbol_analysis.monthly_pnl)
                 else 0
             )
-            symbol_backtest.update(
-                {
-                    "average_monthly_pnl": {
-                        "all_trades": average_monthly_pnl,
-                        "long_trades": average_monthly_pnl_long,
-                        "short_trades": average_monthly_pnl_short,
-                        "positive_optimization": True,
-                    }
-                }
+
+            symbol_analysis.average_monthly_pnl = AnalysisStat(
+                name="Average Monthly PnL",
+                all_trades=average_monthly_pnl,
+                long_trades=average_monthly_pnl_long,
+                short_trades=average_monthly_pnl_short,
+                is_positive_optimization=True,
             )
 
-    def run_analysis(self) -> List[dict]:
+    @classmethod
+    def safe_sum(cls, iterable: Iterable) -> float:
+        """Perform a safe sum on an iterable that might contain NoneType
+        values.
+
+        :return: float
+        """
+
+        return sum(filter(None, iterable))
+
+    def run_analysis(self) -> List[SymbolAnalysisResult]:
         """Run analysis on the user provided strategy.
 
-        :return: List[dict]
+        :return: List[SymbolAnalysisResult]
         """
 
         logger.info(
@@ -1061,46 +1090,24 @@ class StrategyAnalyzer:
             self.strategy.strategy_name,
         )
 
-        # Aggregate all backtested trades and sort them by exit time.
-        trades = [
-            list(symbol_trades.values())
-            for symbol_trades in list(self.strategy.trade_positions.values())
-        ]
-        flattened_trades = reduce(lambda a, b: a + b, trades) if trades else trades
-        sorted_aggregate_trades: List[TradePosition] = sorted(
-            flattened_trades, key=operator.attrgetter("exit_time")
-        )
+        # Connect to the trades' database.
+        self.strategy.trades_database.database.connect(reuse_if_open=True)
 
-        # Calculate the initial account balance used when running the strategy.
-        initial_account_balance: float = 0
-        if sorted_aggregate_trades:
-            initial_account_balance = mean(
-                [
-                    trade.initial_account_balance
-                    for trade in sorted_aggregate_trades
-                    if trade.trade_count == 1
-                ]
+        # Populate the analysis results list.
+        symbol: str
+        for symbol in self.strategy.symbols:
+            symbol_positions: List[DBTradePosition] = DBTradePosition.select().where(
+                DBTradePosition.symbol == symbol,
             )
-
-        # Update the initial and final account values of each trade in the
-        # sorted aggregate trades.
-        for trade in sorted_aggregate_trades:
-            trade.initial_account_balance = initial_account_balance
-            trade.final_account_balance = initial_account_balance + trade.pnl
-            initial_account_balance = trade.final_account_balance
-
-        # Populate the analysis results dict.
-        symbol_trades: dict
-        for symbol, symbol_trades in self.strategy.trade_positions.items():
             self.analysis_results.append(
-                {"symbol": symbol, "trades": list(symbol_trades.values())}
+                SymbolAnalysisResult(symbol=symbol, trades=symbol_positions)
             )
-        self.analysis_results.insert(
-            0, {"symbol": AGGREGATE_DATA, "trades": sorted_aggregate_trades}
-        )
 
         # Compute strategy performance analysis.
         function_group(self)
+
+        # Close the trades' database
+        self.strategy.trades_database.database.close()
 
         logger.info(
             "%s %s: completed analysis on the %s strategy",

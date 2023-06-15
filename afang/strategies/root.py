@@ -61,8 +61,6 @@ class Root:
         self.expected_slippage: float = 0.05
         # backtest data that initially contains OHLCV data.
         self.backtest_data: Dict = dict()
-        # backtest trade positions.
-        self.trade_positions: Dict = dict()
 
         # --Unique to Trader (not in Backtester)
         self.on_demo_mode: Optional[bool] = None
