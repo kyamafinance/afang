@@ -174,7 +174,7 @@ def dummy_is_strategy_callable() -> Type[IsStrategy]:
                 "optimizer": {
                     "population_size": 4,
                     "num_generations": 5,
-                    "objectives": ["average_pnl", "maximum_drawdown"],
+                    "objectives": ["average_trade_pnl", "maximum_drawdown"],
                     "parameters": {
                         "RR": {"min": 1.0, "max": 5.0, "type": "float", "decimals": 1},
                         "ema_period": {"min": 100, "max": 800, "type": "int"},

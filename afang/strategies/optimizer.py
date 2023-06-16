@@ -1,13 +1,14 @@
-import builtins
 import copy
 import csv
 import logging
 import pathlib
 import random
+import statistics
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from afang.exchanges import IsExchange
+from afang.strategies.models import SymbolAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class BacktestProfile:
     def __init__(self) -> None:
         """Initialize BacktestProfile class."""
 
-        self.backtest_analysis: List[dict] = []
+        self.backtest_analysis: List[SymbolAnalysisResult] = []
         self.backtest_parameters: Dict = dict()
         self.front: int = 0
         self.crowding_distance: float = 0.0
@@ -47,10 +48,17 @@ class BacktestProfile:
         """
 
         try:
-            return self.backtest_analysis[0][objective]["positive_optimization"]
+            return getattr(
+                getattr(self.backtest_analysis[0], objective),
+                "is_positive_optimization",
+            )
         except IndexError:
             raise ValueError(
                 "Positive optimization cannot be fetched for an un-analyzed profile"
+            )
+        except AttributeError:
+            raise ValueError(
+                "Undefined objective provided for positive optimization search"
             )
 
     def get_objective_value(self, objective: str) -> Any:
@@ -61,11 +69,16 @@ class BacktestProfile:
         """
 
         try:
-            return self.backtest_analysis[0][objective]["all_trades"]
-        except IndexError:
+            return statistics.mean(
+                getattr(getattr(symbol_bt_analysis, objective), "all_trades")
+                for symbol_bt_analysis in self.backtest_analysis
+            )
+        except statistics.StatisticsError:
             raise ValueError(
                 "Objective value cannot be fetched for an un-analyzed profile"
             )
+        except AttributeError:
+            raise ValueError("Undefined objective provided for objective value search")
 
     def set_objective_value(self, objective: str, value: Any) -> None:
         """Get the value of a given objective.
@@ -76,9 +89,10 @@ class BacktestProfile:
         """
 
         try:
-            self.backtest_analysis[0][objective]["all_trades"] = value
-        except IndexError:
-            raise ValueError("Objective value cannot be set for an un-analyzed profile")
+            for symbol_bt_analysis in self.backtest_analysis:
+                setattr(getattr(symbol_bt_analysis, objective), "all_trades", value)
+        except AttributeError:
+            raise ValueError("Undefined objective provided for objective value update")
 
     def reset(self) -> None:
         """Reset the backtest profile's optimization results attributes.
@@ -93,7 +107,12 @@ class BacktestProfile:
 
 
 class StrategyOptimizer:
-    """Interface to optimize user defined strategies."""
+    """Interface to optimize user defined strategies.
+
+    Optimization is done via the NSGA-II multi-objective genetic
+    algorithm. Read more on it here:
+    https://cs.uwlax.edu/~dmathias/cs419/readings/NSGAIIElitistMultiobjectiveGA.pdf
+    """
 
     def __init__(
         self,
@@ -125,7 +144,7 @@ class StrategyOptimizer:
         self.population_backtest_params: List[Dict] = list()
 
         self.strategy_instance = strategy()
-        default_objectives = ["average_pnl", "maximum_drawdown"]
+        default_objectives = ["average_trade_pnl", "maximum_drawdown"]
         self.optimizer_config = self.strategy_instance.config["optimizer"]
         self.objectives = self.optimizer_config.get("objectives", default_objectives)
 
@@ -143,7 +162,7 @@ class StrategyOptimizer:
                     backtest_profile.backtest_parameters[param] = random.randint(
                         settings["min"], settings["max"]
                     )
-                if settings["type"] == "float":
+                elif settings["type"] == "float":
                     backtest_profile.backtest_parameters[param] = round(
                         random.uniform(settings["min"], settings["max"]),
                         settings.get("decimals", 1),
@@ -177,12 +196,15 @@ class StrategyOptimizer:
         for backtest_profile in population:
             strategy = self.strategy()
             strategy.config["parameters"].update(backtest_profile.backtest_parameters)
-            backtest_profile.backtest_analysis = strategy.run_backtest(
-                self.exchange,
-                self.symbols,
-                self.timeframe,
-                self.from_time,
-                self.to_time,
+            backtest_profile.backtest_analysis = (
+                strategy.run_backtest(
+                    self.exchange,
+                    self.symbols,
+                    self.timeframe,
+                    self.from_time,
+                    self.to_time,
+                )
+                or list()
             )
 
             # penalize backtest profiles that make no trades.
@@ -285,26 +307,19 @@ class StrategyOptimizer:
                 list(optimization_params.keys()), k=num_mutations
             )
             for param in params_to_mutate:
-                mutation_factor = random.uniform(-2, 2)
-                param_type = getattr(builtins, optimization_params[param]["type"])
-                new_child.backtest_parameters[param] = param_type(
-                    new_child.backtest_parameters[param] * (1 + mutation_factor)
-                )
-
-                if optimization_params[param]["type"] == "float":
+                if optimization_params[param]["type"] == "int":
+                    new_child.backtest_parameters[param] = random.randint(
+                        optimization_params[param]["min"],
+                        optimization_params[param]["max"],
+                    )
+                elif optimization_params[param]["type"] == "float":
                     new_child.backtest_parameters[param] = round(
-                        new_child.backtest_parameters[param],
+                        random.uniform(
+                            optimization_params[param]["min"],
+                            optimization_params[param]["max"],
+                        ),
                         optimization_params[param].get("decimals", 1),
                     )
-
-                new_child.backtest_parameters[param] = max(
-                    new_child.backtest_parameters[param],
-                    optimization_params[param]["min"],
-                )
-                new_child.backtest_parameters[param] = min(
-                    new_child.backtest_parameters[param],
-                    optimization_params[param]["max"],
-                )
 
             # ensure parameters generated are logical.
             new_child.backtest_parameters = (
@@ -495,10 +510,11 @@ class StrategyOptimizer:
         """
 
         logger.info(
-            "Started optimization on the %s strategy",
+            "Started optimizing the %s strategy",
             self.strategy_instance.strategy_name,
         )
 
+        logger.info("Generating and evaluating the initial population")
         p_population = self.generate_initial_population()
         p_population = self.evaluate_population(p_population)
         p_population = self.calculate_crowding_distance(p_population)
@@ -506,6 +522,12 @@ class StrategyOptimizer:
         generation_count = 1
         num_generations = self.optimizer_config["num_generations"]
         while generation_count <= num_generations:
+            logger.info(
+                "Running optimization generation: %s/%s",
+                generation_count,
+                self.optimizer_config["num_generations"],
+            )
+
             q_population = self.generate_offspring_population(p_population)
             q_population = self.evaluate_population(q_population)
             r_population = p_population + q_population

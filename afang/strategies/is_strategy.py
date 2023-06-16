@@ -115,11 +115,11 @@ class IsStrategy(Backtester, Trader):
         contains possible mutated parameters.
 
         :param parameters: parameters generated for strategy
-                optimization. These parameters         will follow the
-                specification provided in `config.yaml`. This dict will
-                not contain parameters         that are not to be
-                optimized.
+            optimization. These parameters will follow the
+            specification provided in `config.yaml`. This dict will
+            not contain parameters that are not to be
+            optimized.
         :return: Dict
         """
 
-        pass
+        return parameters
