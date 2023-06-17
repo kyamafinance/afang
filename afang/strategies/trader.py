@@ -8,6 +8,7 @@ from typing import Any, List, Optional
 
 import numpy as np
 import pandas as pd
+import peewee
 
 from afang.database.trades_db.trades_database import Order as DBOrder
 from afang.database.trades_db.trades_database import TradePosition as DBTradePosition
@@ -138,11 +139,12 @@ class Trader(Root):
                 .get()
             )
             return db_order
-        except DBOrder.DoesNotExist:
+        except (DBOrder.DoesNotExist, peewee.PeeweeException) as error:
             logger.warning(
-                "%s: order not found in DB. exchange order id: %s",
+                "%s: order not found in DB. exchange order id: %s: %s",
                 self.exchange.display_name,
                 order_id,
+                error,
             )
             return None
 
@@ -299,22 +301,31 @@ class Trader(Root):
         :return: None
         """
 
-        query = DBOrder.update(
-            {
-                DBOrder.is_open: False,
-                DBOrder.time_in_force: exchange_order.time_in_force,
-                DBOrder.average_price: exchange_order.average_price,
-                DBOrder.executed_quantity: exchange_order.executed_quantity,
-                DBOrder.remaining_quantity: exchange_order.remaining_quantity,
-                DBOrder.order_status: exchange_order.order_status,
-                DBOrder.commission: exchange_order.commission,
-            }
-        ).where(
-            DBOrder.id == db_order.id,
-            DBOrder.symbol == exchange_order.symbol,
-            DBOrder.exchange_display_name == self.exchange.display_name,
-        )
-        query.execute()
+        try:
+            query = DBOrder.update(
+                {
+                    DBOrder.is_open: False,
+                    DBOrder.time_in_force: exchange_order.time_in_force,
+                    DBOrder.average_price: exchange_order.average_price,
+                    DBOrder.executed_quantity: exchange_order.executed_quantity,
+                    DBOrder.remaining_quantity: exchange_order.remaining_quantity,
+                    DBOrder.order_status: exchange_order.order_status,
+                    DBOrder.commission: exchange_order.commission,
+                }
+            ).where(
+                DBOrder.id == db_order.id,
+                DBOrder.symbol == exchange_order.symbol,
+                DBOrder.exchange_display_name == self.exchange.display_name,
+            )
+            query.execute()
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: closed order %s could not be updated in the DB: %s",
+                self.exchange.display_name,
+                db_order.symbol,
+                db_order.id,
+                error,
+            )
 
     def cancel_position_order(self, symbol: str, exchange_order_id: str) -> None:
         """Cancel a position order if some/all of its quantity is un-executed
@@ -604,12 +615,23 @@ class Trader(Root):
         if quote_asset_wallet_balance is None:
             return None
 
-        position_open_order = DBOrder.get(
-            DBOrder.order_id == position.open_order_id,
-            DBOrder.is_open_order.__eq__(True),
-            DBOrder.symbol == position.symbol,
-            DBOrder.exchange_display_name == self.exchange.display_name,
-        )
+        try:
+            position_open_order = DBOrder.get(
+                DBOrder.order_id == position.open_order_id,
+                DBOrder.is_open_order.__eq__(True),
+                DBOrder.symbol == position.symbol,
+                DBOrder.exchange_display_name == self.exchange.display_name,
+            )
+        except (DBOrder.DoesNotExist, peewee.PeeweeException) as error:
+            logger.error(
+                "%s %s: trade position %s not marked as closed. position open order not found: %s",
+                self.exchange.display_name,
+                position.symbol,
+                position.id,
+                error,
+            )
+            return None
+
         # if the position open order is still open, then the open order was filled.
         is_open_order_filled = position_open_order.is_open
 
@@ -652,22 +674,31 @@ class Trader(Root):
             else float()
         )
 
-        query = DBTradePosition.update(
-            {
-                DBTradePosition.is_open: False,
-                DBTradePosition.exit_time: datetime.utcnow(),
-                DBTradePosition.pnl: pnl,
-                DBTradePosition.slippage: slippage,
-                DBTradePosition.close_price: close_price,
-                DBTradePosition.roe: roe,
-                DBTradePosition.executed_qty: executed_qty,
-                DBTradePosition.commission: commission,
-                DBTradePosition.final_account_balance: final_account_balance,
-                DBTradePosition.entry_price: entry_price,
-                DBTradePosition.cost_adjusted_roe: cost_adjusted_roe,
-            }
-        ).where(DBTradePosition.id == position.id)
-        query.execute()
+        try:
+            query = DBTradePosition.update(
+                {
+                    DBTradePosition.is_open: False,
+                    DBTradePosition.exit_time: datetime.utcnow(),
+                    DBTradePosition.pnl: pnl,
+                    DBTradePosition.slippage: slippage,
+                    DBTradePosition.close_price: close_price,
+                    DBTradePosition.roe: roe,
+                    DBTradePosition.executed_qty: executed_qty,
+                    DBTradePosition.commission: commission,
+                    DBTradePosition.final_account_balance: final_account_balance,
+                    DBTradePosition.entry_price: entry_price,
+                    DBTradePosition.cost_adjusted_roe: cost_adjusted_roe,
+                }
+            ).where(DBTradePosition.id == position.id)
+            query.execute()
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: trade position %s could not be marked as closed in the DB: %s",
+                self.exchange.display_name,
+                position.symbol,
+                position.id,
+                error,
+            )
 
     def get_exchange_order(self, symbol: str, order_id: str) -> Optional[ExchangeOrder]:
         """Get symbol exchange order.
@@ -740,10 +771,18 @@ class Trader(Root):
 
         self.trades_database.database.connect(reuse_if_open=True)
 
-        demo_mode_orders = DBOrder.select().where(
-            DBOrder.symbol.in_(symbols),
-            DBOrder.exchange_display_name == self.exchange.display_name,
-        )
+        try:
+            demo_mode_orders = DBOrder.select().where(
+                DBOrder.symbol.in_(symbols),
+                DBOrder.exchange_display_name == self.exchange.display_name,
+            )
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s: demo orders not initialized. Couldn't be fetched from the DB: %s",
+                self.exchange.display_name,
+                error,
+            )
+            return None
 
         for order in demo_mode_orders:
             demo_exchange_order = ExchangeOrder(
@@ -773,19 +812,28 @@ class Trader(Root):
         :return: None
         """
 
-        query = DBOrder.update(
-            {
-                DBOrder.average_price: demo_order.average_price,
-                DBOrder.executed_quantity: demo_order.executed_quantity,
-                DBOrder.remaining_quantity: demo_order.remaining_quantity,
-                DBOrder.commission: demo_order.commission,
-            }
-        ).where(
-            DBOrder.order_id == demo_order.order_id,
-            DBOrder.symbol == demo_order.symbol,
-            DBOrder.exchange_display_name == self.exchange.display_name,
-        )
-        query.execute()
+        try:
+            query = DBOrder.update(
+                {
+                    DBOrder.average_price: demo_order.average_price,
+                    DBOrder.executed_quantity: demo_order.executed_quantity,
+                    DBOrder.remaining_quantity: demo_order.remaining_quantity,
+                    DBOrder.commission: demo_order.commission,
+                }
+            ).where(
+                DBOrder.order_id == demo_order.order_id,
+                DBOrder.symbol == demo_order.symbol,
+                DBOrder.exchange_display_name == self.exchange.display_name,
+            )
+            query.execute()
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: demo mode order %s not marked as executed in the DB: %s",
+                self.exchange.display_name,
+                demo_order.symbol,
+                demo_order.order_id,
+                error,
+            )
 
     def update_symbol_demo_mode_orders(
         self, symbol: str, current_trading_candle: Any
@@ -815,12 +863,13 @@ class Trader(Root):
                     .get()
                 )
                 db_position = db_order.position
-            except DBOrder.DoesNotExist:
-                logger.warning(
-                    "%s %s: demo order %s not updated because it could not be found in the DB",
+            except (DBOrder.DoesNotExist, peewee.PeeweeException) as error:
+                logger.error(
+                    "%s %s: demo order %s not updated because it could not be found in the DB: %s",
                     self.exchange.display_name,
                     symbol,
                     order.order_id,
+                    error,
                 )
                 continue
 
@@ -1011,34 +1060,43 @@ class Trader(Root):
                 position_margin = precise_position_size / self.leverage
                 self.initial_test_account_balance -= position_margin
 
-        new_trade_position = DBTradePosition.create(
-            symbol=symbol,
-            direction=direction,
-            entry_time=datetime.utcnow(),
-            desired_entry_price=precise_open_order_entry_price,
-            open_order_id=open_order_id,
-            position_qty=precise_open_order_qty,
-            position_size=precise_position_size,
-            target_price=trade_levels.target_price,
-            stop_price=trade_levels.stop_price,
-            initial_account_balance=quote_asset_wallet_balance,
-            exchange_display_name=self.exchange.display_name,
-        )
+        try:
+            new_trade_position = DBTradePosition.create(
+                symbol=symbol,
+                direction=direction,
+                entry_time=datetime.utcnow(),
+                desired_entry_price=precise_open_order_entry_price,
+                open_order_id=open_order_id,
+                position_qty=precise_open_order_qty,
+                position_size=precise_position_size,
+                target_price=trade_levels.target_price,
+                stop_price=trade_levels.stop_price,
+                initial_account_balance=quote_asset_wallet_balance,
+                exchange_display_name=self.exchange.display_name,
+            )
 
-        DBOrder.create(
-            symbol=symbol,
-            is_open_order=True,
-            direction=direction,
-            order_id=open_order_id,
-            order_side=open_order_side.value,
-            raw_price=trade_levels.entry_price,
-            original_price=precise_open_order_entry_price,
-            original_quantity=precise_open_order_qty,
-            remaining_quantity=precise_open_order_qty,
-            order_type=self.open_order_type.value,
-            exchange_display_name=self.exchange.display_name,
-            position=new_trade_position,
-        )
+            DBOrder.create(
+                symbol=symbol,
+                is_open_order=True,
+                direction=direction,
+                order_id=open_order_id,
+                order_side=open_order_side.value,
+                raw_price=trade_levels.entry_price,
+                original_price=precise_open_order_entry_price,
+                original_quantity=precise_open_order_qty,
+                remaining_quantity=precise_open_order_qty,
+                order_type=self.open_order_type.value,
+                exchange_display_name=self.exchange.display_name,
+                position=new_trade_position,
+            )
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: new trade position could not be persisted to the DB: %s",
+                self.exchange.display_name,
+                symbol,
+                error,
+            )
+            return None
 
         return new_trade_position
 
@@ -1084,19 +1142,28 @@ class Trader(Root):
 
         # Check if the trade position open order has been filled - even partially.
         if not self.is_order_filled(position.symbol, position.open_order_id):
-            # Mark position as completed by marking the open order as being closed.
-            query = DBOrder.update(is_open=False).where(
-                DBOrder.order_id == position.open_order_id,
-                DBOrder.symbol == position.symbol,
-                DBOrder.exchange_display_name == self.exchange.display_name,
-            )
-            query.execute()
             logger.info(
                 "%s %s: trade position open order is not filled. position id: %s",
                 self.exchange.display_name,
                 position.symbol,
                 position.id,
             )
+            # Mark position as completed by marking the open order as being closed.
+            try:
+                query = DBOrder.update(is_open=False).where(
+                    DBOrder.order_id == position.open_order_id,
+                    DBOrder.symbol == position.symbol,
+                    DBOrder.exchange_display_name == self.exchange.display_name,
+                )
+                query.execute()
+            except peewee.PeeweeException as error:
+                logger.error(
+                    "%s %s: trade position %s could not be marked as being temporarily completed: %s",
+                    self.exchange.display_name,
+                    position.symbol,
+                    position.id,
+                    error,
+                )
             return None
 
         close_order_quantity = self.get_close_order_qty(position)
@@ -1140,20 +1207,28 @@ class Trader(Root):
             close_order_id,
         )
 
-        DBOrder.create(
-            symbol=position.symbol,
-            is_open_order=False,
-            direction=position.direction,
-            order_id=close_order_id,
-            order_side=close_order_side.value,
-            raw_price=close_price,
-            original_price=precise_close_order_price,
-            original_quantity=precise_close_order_qty,
-            remaining_quantity=precise_close_order_qty,
-            order_type=close_order_type.value,
-            exchange_display_name=self.exchange.display_name,
-            position=position,
-        )
+        try:
+            DBOrder.create(
+                symbol=position.symbol,
+                is_open_order=False,
+                direction=position.direction,
+                order_id=close_order_id,
+                order_side=close_order_side.value,
+                raw_price=close_price,
+                original_price=precise_close_order_price,
+                original_quantity=precise_close_order_qty,
+                remaining_quantity=precise_close_order_qty,
+                order_type=close_order_type.value,
+                exchange_display_name=self.exchange.display_name,
+                position=position,
+            )
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: close trade position order could not be placed: %s",
+                self.exchange.display_name,
+                position.symbol,
+                error,
+            )
 
     def calibrate_position_order_quantities(self, position: DBTradePosition) -> None:
         """Ensure that the remaining order quantities of all close position
@@ -1335,11 +1410,21 @@ class Trader(Root):
                 continue
 
             # check if the trade position open order has been filled - even partially.
-            position_open_order = DBOrder.get(
-                DBOrder.order_id == position.open_order_id,
-                DBOrder.symbol == position.symbol,
-                DBOrder.exchange_display_name == self.exchange.display_name,
-            )
+            try:
+                position_open_order = DBOrder.get(
+                    DBOrder.order_id == position.open_order_id,
+                    DBOrder.symbol == position.symbol,
+                    DBOrder.exchange_display_name == self.exchange.display_name,
+                )
+            except (DBOrder.DoesNotExist, peewee.PeeweeException) as error:
+                logger.error(
+                    "%s %s: could not fetch position open order: %s",
+                    self.exchange.display_name,
+                    position.symbol,
+                    error,
+                )
+                continue
+
             if (
                 not self.is_order_filled(position.symbol, position.open_order_id)
                 and position_open_order.is_open

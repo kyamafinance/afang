@@ -1,7 +1,10 @@
+import logging
 import queue
 import threading
 from collections import defaultdict
 from typing import Dict, List, Literal, Optional
+
+import peewee
 
 from afang.database.trades_db.trades_database import TradePosition as DBTradePosition
 from afang.database.trades_db.trades_database import TradesDatabase
@@ -9,6 +12,8 @@ from afang.exchanges.is_exchange import IsExchange
 from afang.exchanges.models import Order as ExchangeOrder
 from afang.exchanges.models import OrderType
 from afang.models import Timeframe
+
+logger = logging.getLogger(__name__)
 
 
 class Root:
@@ -92,10 +97,14 @@ class Root:
         :return: List[DBTradePosition]
         """
 
-        open_positions: List[DBTradePosition] = DBTradePosition.select().where(
-            DBTradePosition.is_open.__eq__(True),
-            DBTradePosition.symbol.in_(symbols),
-            DBTradePosition.exchange_display_name == self.exchange.display_name,
-        )
+        try:
+            open_positions: List[DBTradePosition] = DBTradePosition.select().where(
+                DBTradePosition.is_open.__eq__(True),
+                DBTradePosition.symbol.in_(symbols),
+                DBTradePosition.exchange_display_name == self.exchange.display_name,
+            )
+        except peewee.PeeweeException as db_error:
+            logger.error("Could not fetch open trade positions: %s", db_error)
+            return []
 
         return open_positions

@@ -89,34 +89,43 @@ class Backtester(Root):
 
         position_qty = position_size / trade_levels.entry_price
 
-        new_trade_position = DBTradePosition.create(
-            symbol=symbol,
-            direction=direction,
-            entry_time=entry_time,
-            desired_entry_price=trade_levels.entry_price,
-            open_order_id=open_order_id,
-            position_qty=position_qty,
-            position_size=position_size,
-            target_price=trade_levels.target_price,
-            stop_price=trade_levels.stop_price,
-            initial_account_balance=initial_test_account_balance,
-            exchange_display_name=self.exchange.display_name,
-        )
+        try:
+            new_trade_position = DBTradePosition.create(
+                symbol=symbol,
+                direction=direction,
+                entry_time=entry_time,
+                desired_entry_price=trade_levels.entry_price,
+                open_order_id=open_order_id,
+                position_qty=position_qty,
+                position_size=position_size,
+                target_price=trade_levels.target_price,
+                stop_price=trade_levels.stop_price,
+                initial_account_balance=initial_test_account_balance,
+                exchange_display_name=self.exchange.display_name,
+            )
 
-        DBOrder.create(
-            symbol=symbol,
-            is_open_order=True,
-            direction=direction,
-            order_id=open_order_id,
-            order_side=open_order_side.value,
-            raw_price=trade_levels.entry_price,
-            original_price=trade_levels.entry_price,
-            original_quantity=position_qty,
-            remaining_quantity=position_qty,
-            order_type=self.open_order_type.value,
-            exchange_display_name=self.exchange.display_name,
-            position=new_trade_position,
-        )
+            DBOrder.create(
+                symbol=symbol,
+                is_open_order=True,
+                direction=direction,
+                order_id=open_order_id,
+                order_side=open_order_side.value,
+                raw_price=trade_levels.entry_price,
+                original_price=trade_levels.entry_price,
+                original_quantity=position_qty,
+                remaining_quantity=position_qty,
+                order_type=self.open_order_type.value,
+                exchange_display_name=self.exchange.display_name,
+                position=new_trade_position,
+            )
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: new trade position could not be persisted to the DB: %s",
+                self.exchange.display_name,
+                symbol,
+                error,
+            )
+            return None
 
         return new_trade_position
 
@@ -154,12 +163,12 @@ class Backtester(Root):
                 commission=position.commission / 2,
                 position=position,
             )
-        except peewee.PeeweeException as e:
+        except peewee.PeeweeException as error:
             logger.error(
                 "%s %s: closed position close order could not be created: %s",
                 self.exchange.display_name,
                 position.symbol,
-                e,
+                error,
             )
 
     def close_backtest_position(
@@ -341,21 +350,29 @@ class Backtester(Root):
                 position.entry_price = position.desired_entry_price
                 position.save()
 
-                query = DBOrder.update(
-                    {
-                        DBOrder.is_open: False,
-                        DBOrder.average_price: position.desired_entry_price,
-                        DBOrder.executed_quantity: position.position_qty,
-                        DBOrder.remaining_quantity: float(),
-                        DBOrder.commission: position.position_size
-                        * (self.commission / 100.0),
-                    }
-                ).where(
-                    DBOrder.order_id == position.open_order_id,
-                    DBOrder.symbol == position.symbol,
-                    DBOrder.exchange_display_name == self.exchange.display_name,
-                )
-                query.execute()
+                try:
+                    query = DBOrder.update(
+                        {
+                            DBOrder.is_open: False,
+                            DBOrder.average_price: position.desired_entry_price,
+                            DBOrder.executed_quantity: position.position_qty,
+                            DBOrder.remaining_quantity: float(),
+                            DBOrder.commission: position.position_size
+                            * (self.commission / 100.0),
+                        }
+                    ).where(
+                        DBOrder.order_id == position.open_order_id,
+                        DBOrder.symbol == position.symbol,
+                        DBOrder.exchange_display_name == self.exchange.display_name,
+                    )
+                    query.execute()
+                except peewee.PeeweeException as error:
+                    logger.error(
+                        "%s %s: open order could not be marked as closed in the DB: %s",
+                        self.exchange.display_name,
+                        position.symbol,
+                        error,
+                    )
 
     def handle_open_backtest_positions(
         self, data: Any, open_symbol_positions: List[DBTradePosition]

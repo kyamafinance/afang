@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Dict, Iterable, List
 
+import peewee
+
 from afang.database.trades_db.trades_database import TradePosition as DBTradePosition
 from afang.strategies.models import (
     AnalysisStat,
@@ -1096,9 +1098,18 @@ class StrategyAnalyzer:
         # Populate the analysis results list.
         symbol: str
         for symbol in self.strategy.symbols:
-            symbol_positions: List[DBTradePosition] = DBTradePosition.select().where(
-                DBTradePosition.symbol == symbol,
-            )
+            try:
+                symbol_positions = DBTradePosition.select().where(
+                    DBTradePosition.symbol == symbol,
+                )
+            except peewee.PeeweeException as db_error:
+                logger.error(
+                    "%s %s: could not fetch symbol positions for analysis: %s",
+                    self.strategy.config["exchange"].display_name,
+                    symbol,
+                    db_error,
+                )
+                continue
             self.analysis_results.append(
                 SymbolAnalysisResult(symbol=symbol, trades=symbol_positions)
             )
