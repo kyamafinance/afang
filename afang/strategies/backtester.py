@@ -7,12 +7,17 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+import peewee
 
 from afang.database.ohlcv_db.ohlcv_database import OHLCVDatabase
+from afang.database.trades_db.trades_database import Order as DBOrder
+from afang.database.trades_db.trades_database import TradePosition as DBTradePosition
+from afang.database.trades_db.trades_database import TradesDatabase
 from afang.exchanges import IsExchange
+from afang.exchanges.models import OrderSide, OrderType
 from afang.models import Timeframe
 from afang.strategies.analyzer import StrategyAnalyzer
-from afang.strategies.models import TradeLevels, TradePosition
+from afang.strategies.models import SymbolAnalysisResult, TradeLevels
 from afang.strategies.root import Root
 from afang.utils.util import generate_uuid, resample_timeframe, time_str_to_milliseconds
 
@@ -40,148 +45,198 @@ class Backtester(Root):
 
         return dict()
 
-    def open_long_backtest_position(
+    def open_backtest_position(
         self,
         symbol: str,
-        entry_price: float,
+        direction: int,
+        trade_levels: TradeLevels,
         entry_time: datetime,
-        target_price: Optional[float] = None,
-        stop_price: Optional[float] = None,
-    ) -> None:
-        """Open a long trade position for a given symbol.
+    ) -> Optional[DBTradePosition]:
+        """Open a trade position for a given symbol.
 
         :param symbol: symbol to open a long trade position for.
-        :param entry_price: price to enter the long trade.
+        :param direction: new position trade direction. 1 for LONG. -1
+            for SHORT.
+        :param trade_levels: desired trade levels.
         :param entry_time: time at which the long trade was entered.
-        :param target_price: price at which the long trade should take
-            profit.
-        :param stop_price: price at which the long trade should cut
-            losses.
-        :return: None
+        :return: Optional[DBTradePosition]
         """
 
-        new_position = TradePosition(
-            direction=1,
-            entry_price=entry_price,
-            entry_time=entry_time,
-            trade_count=len(self.trade_positions.get(symbol, {})) + 1,
-            target_price=target_price,
-            stop_price=stop_price,
-        )
+        open_order_id = generate_uuid()
+        open_order_side = OrderSide.BUY if direction == 1 else OrderSide.SELL
 
-        if not self.trade_positions.get(symbol, dict()):
-            self.trade_positions[symbol] = dict()
-        self.trade_positions[symbol][generate_uuid()] = new_position
+        with self.shared_lock:
+            initial_test_account_balance = self.initial_test_account_balance
 
-    def open_short_backtest_position(
-        self,
-        symbol: str,
-        entry_price: float,
-        entry_time: datetime,
-        target_price: Optional[float] = None,
-        stop_price: Optional[float] = None,
+            position_size = (
+                self.leverage
+                * (self.percentage_risk_per_trade / 100.0)
+                * initial_test_account_balance
+            )
+            # Ensure that there is enough capital to open the trade.
+            if position_size <= 0:
+                logger.error(
+                    "%s %s: inadequate capital to open new trade position",
+                    self.exchange.display_name,
+                    symbol,
+                )
+                return None
+            if self.max_amount_per_trade and position_size > self.max_amount_per_trade:
+                position_size = self.max_amount_per_trade
+
+            position_margin = position_size / self.leverage
+            self.initial_test_account_balance -= position_margin
+
+        position_qty = position_size / trade_levels.entry_price
+
+        try:
+            new_trade_position = DBTradePosition.create(
+                symbol=symbol,
+                direction=direction,
+                entry_time=entry_time,
+                desired_entry_price=trade_levels.entry_price,
+                open_order_id=open_order_id,
+                position_qty=position_qty,
+                position_size=position_size,
+                target_price=trade_levels.target_price,
+                stop_price=trade_levels.stop_price,
+                initial_account_balance=initial_test_account_balance,
+                exchange_display_name=self.exchange.display_name,
+                sequence_id=trade_levels.sequence_id or generate_uuid(),
+            )
+
+            DBOrder.create(
+                symbol=symbol,
+                is_open_order=True,
+                direction=direction,
+                order_id=open_order_id,
+                order_side=open_order_side.value,
+                raw_price=trade_levels.entry_price,
+                original_price=trade_levels.entry_price,
+                original_quantity=position_qty,
+                remaining_quantity=position_qty,
+                order_type=self.open_order_type.value,
+                exchange_display_name=self.exchange.display_name,
+                position=new_trade_position,
+            )
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: new trade position could not be persisted to the DB: %s",
+                self.exchange.display_name,
+                symbol,
+                error,
+            )
+            return None
+
+        return new_trade_position
+
+    def update_closed_position_orders(
+        self, position: DBTradePosition, close_order_type: OrderType
     ) -> None:
-        """Open a short trade position for a given symbol.
+        """Update database orders for a closed backtest trade position.
 
-        :param symbol: symbol to open a short trade position for.
-        :param entry_price: price to enter the short trade.
-        :param entry_time: time at which the short trade was entered.
-        :param target_price: price at which the short trade should take
-            profit.
-        :param stop_price: price at which the short trade should cut
-            losses.
+        :param position: DB trade position whose close position orders
+            need to be updated.
+        :param close_order_type: order type to use for the close
+            position order.
         :return: None
         """
 
-        new_position = TradePosition(
-            direction=-1,
-            entry_price=entry_price,
-            entry_time=entry_time,
-            trade_count=len(self.trade_positions.get(symbol, {})) + 1,
-            target_price=target_price,
-            stop_price=stop_price,
-        )
-
-        if not self.trade_positions.get(symbol, dict()):
-            self.trade_positions[symbol] = dict()
-        self.trade_positions[symbol][generate_uuid()] = new_position
-
-    def fetch_open_symbol_backtest_positions(self, symbol: str) -> List[TradePosition]:
-        """Fetch a list of all open backtest positions for a given symbol.
-
-        :param symbol: symbol to fetch open positions for.
-        :return: List[TradePosition]
-        """
-
-        open_positions = list()
-        position: TradePosition
-        for position in self.trade_positions.get(symbol, dict()).values():
-            if position.open_position:
-                open_positions.append(position)
-
-        return open_positions
+        # create position close order.
+        close_order_id = generate_uuid()
+        close_order_side = OrderSide.SELL if position.direction == 1 else OrderSide.BUY
+        try:
+            DBOrder.create(
+                symbol=position.symbol,
+                is_open_order=False,
+                direction=position.direction,
+                is_open=False,
+                order_id=close_order_id,
+                order_side=close_order_side.value,
+                raw_price=position.close_price,
+                original_price=position.close_price,
+                average_price=position.close_price,
+                original_quantity=position.position_qty,
+                executed_quantity=position.position_qty,
+                remaining_quantity=0,
+                order_type=close_order_type,
+                exchange_display_name=self.exchange.display_name,
+                commission=position.commission / 2,
+                position=position,
+            )
+        except peewee.PeeweeException as error:
+            logger.error(
+                "%s %s: closed position close order could not be created: %s",
+                self.exchange.display_name,
+                position.symbol,
+                error,
+            )
 
     def close_backtest_position(
-        self, symbol: str, position_id: str, close_price: float, exit_time: datetime
-    ) -> TradePosition:
+        self,
+        position: DBTradePosition,
+        close_price: float,
+        exit_time: datetime,
+        close_order_type: OrderType = OrderType.MARKET,
+    ) -> Optional[DBTradePosition]:
         """Close an open trade position for a given symbol.
 
-        :param symbol: symbol whose position should be closed.
-        :param position_id: ID of the position to close.
+        :param position: DB trade position to close.
         :param close_price: price at which the trade exited.
         :param exit_time: time at which the trade exited.
-        :return: TradePosition
+        :param close_order_type: order type to use for the close
+            position order.
+        :return: Optional[DBTradePosition]
         """
 
-        position: Optional[TradePosition] = self.trade_positions[symbol].get(
-            position_id, None
-        )
-        if not position:
-            raise LookupError(
-                f"Position ID {position_id} does not exist for symbol {symbol}"
+        if not position.is_open:
+            logger.error(
+                "%s %s: attempting to close a closed position %s",
+                self.exchange.display_name,
+                position.symbol,
+                position.position_id,
             )
-        if not position.open_position:
-            raise ValueError(
-                f"Attempting to close closed position {position_id} of symbol {symbol}"
-            )
+            return None
 
-        position.exit_time = exit_time
-        position.close_price = close_price
-        position.initial_account_balance = self.initial_test_account_balance
+        is_entry_order_filled = True if position.entry_price else False
 
-        roe = ((close_price / position.entry_price - 1) * position.direction) * 100.0
-        position.roe = round(roe, 4)
+        roe = float()
+        position.executed_qty = float()
+        if is_entry_order_filled:
+            position.close_price = close_price
+            position.executed_qty = position.position_qty
+            roe = (
+                (close_price / position.entry_price - 1) * position.direction
+            ) * 100.0
 
-        position.position_size = self.leverage * (
-            (self.percentage_risk_per_trade / 100.0) * self.initial_test_account_balance
-        )
-        if (
-            self.max_amount_per_trade
-            and position.position_size > self.max_amount_per_trade
-        ):
-            position.position_size = self.max_amount_per_trade
-
-        cost_adjusted_roe = (
-            position.roe - (2 * self.commission) - self.expected_slippage
-        )
-        position.cost_adjusted_roe = round(cost_adjusted_roe, 4)
-
-        if self.initial_test_account_balance <= 0:
-            position.roe = 0
-            position.position_size = 0
-            position.cost_adjusted_roe = 0
-
+        cost_adjusted_roe = roe - (2 * self.commission) - self.expected_slippage
         pnl = position.position_size * (cost_adjusted_roe / 100.0)
-        position.pnl = round(pnl, 4)
         commission = position.position_size * ((2 * self.commission) / 100.0)
-        position.commission = round(commission, 4)
         slippage = position.position_size * (self.expected_slippage / 100.0)
-        position.slippage = round(slippage, 4)
 
-        self.initial_test_account_balance += position.pnl
+        position.roe = round(roe, 4) if is_entry_order_filled else float()
+        position.pnl = round(pnl, 4) if is_entry_order_filled else float()
+        position.commission = round(commission, 4) if is_entry_order_filled else float()
+        position.slippage = round(slippage, 4) if is_entry_order_filled else float()
+        position.cost_adjusted_roe = (
+            round(cost_adjusted_roe, 4) if is_entry_order_filled else float()
+        )
 
-        position.open_position = False
-        position.final_account_balance = self.initial_test_account_balance
+        position_margin = position.position_size / self.leverage
+        with self.shared_lock:
+            self.initial_test_account_balance += position_margin
+            self.initial_test_account_balance += position.pnl
+            position.final_account_balance = self.initial_test_account_balance
+
+        position.is_open = False
+        position.exit_time = exit_time
+
+        # Persist finalized trade position.
+        position.save()
+
+        # Update position orders.
+        if is_entry_order_filled:
+            self.update_closed_position_orders(position, close_order_type)
 
         return position
 
@@ -270,81 +325,162 @@ class Backtester(Root):
 
         return trade_levels
 
-    def handle_open_backtest_positions(self, symbol: str, data: Any) -> None:
-        """Monitor and handle open positions for a given symbol and close them
-        if they hit a trade barrier.
+    def handle_position_open_orders(
+        self, data: Any, open_symbol_positions: List[DBTradePosition]
+    ) -> None:
+        """Monitor and fill position open orders if they meet the necessary
+        requirements.
 
-        :param symbol: symbol to monitor open positions for.
         :param data: the historical price dataframe row at the current
             time in backtest.
+        :param open_symbol_positions: open symbol trade positions.
         :return: None
         """
 
-        # handle each open trade position.
-        position: TradePosition
-        for position_id, position in self.trade_positions.get(symbol, dict()).items():
+        for position in open_symbol_positions:
             # ensure that the trade position was not opened during the current candle.
-            if position.entry_time == data.Index:
+            if position.entry_time == data.Index.to_pydatetime():
                 continue
 
             # ensure that the trade position is still open.
-            if not position.open_position:
+            if not position.is_open:
+                continue
+
+            if data.high >= position.desired_entry_price >= data.low:
+                # fill position open order
+                position.entry_price = position.desired_entry_price
+                position.save()
+
+                try:
+                    query = DBOrder.update(
+                        {
+                            DBOrder.is_open: False,
+                            DBOrder.average_price: position.desired_entry_price,
+                            DBOrder.executed_quantity: position.position_qty,
+                            DBOrder.remaining_quantity: float(),
+                            DBOrder.commission: position.position_size
+                            * (self.commission / 100.0),
+                        }
+                    ).where(
+                        DBOrder.order_id == position.open_order_id,
+                        DBOrder.symbol == position.symbol,
+                        DBOrder.exchange_display_name == self.exchange.display_name,
+                    )
+                    query.execute()
+                except peewee.PeeweeException as error:
+                    logger.error(
+                        "%s %s: open order could not be marked as closed in the DB: %s",
+                        self.exchange.display_name,
+                        position.symbol,
+                        error,
+                    )
+
+    def handle_open_backtest_positions(
+        self, data: Any, open_symbol_positions: List[DBTradePosition]
+    ) -> bool:
+        """Monitor and handle open positions for a given symbol and close them
+        if they hit a trade barrier. Returns true if a trade position is
+        closed.
+
+        :param data: the historical price dataframe row at the current
+            time in backtest.
+        :param open_symbol_positions: open symbol trade positions.
+        :return: None
+        """
+
+        has_trade_position_closed = False
+        for position in open_symbol_positions:
+            # ensure that the trade position was not opened during the current candle.
+            if position.entry_time == data.Index.to_pydatetime():
+                continue
+
+            # ensure that the trade position is still open.
+            if not position.is_open:
                 continue
 
             # increment trade holding time by 1.
             position.holding_time += 1
+            position.save()
+
+            close_position = None
+            is_entry_order_filled = True if position.entry_price else False
 
             # check if the lower horizontal barrier has been hit for long positions.
             if (
-                position.stop_price
+                is_entry_order_filled
+                and position.stop_price
                 and data.low <= position.stop_price
+                and data.high >= position.stop_price >= data.low
                 and position.direction == 1
             ):
-                self.close_backtest_position(
-                    symbol, position_id, position.stop_price, data.Index
+                close_position = self.close_backtest_position(
+                    position,
+                    position.stop_price,
+                    data.Index.to_pydatetime(),
+                    self.stop_loss_order_type,
                 )
 
             # check if upper horizontal barrier has been hit for long positions.
             elif (
-                position.target_price
+                is_entry_order_filled
+                and position.target_price
                 and data.high >= position.target_price
+                and data.high >= position.target_price >= data.low
                 and position.direction == 1
             ):
-                self.close_backtest_position(
-                    symbol, position_id, position.target_price, data.Index
+                close_position = self.close_backtest_position(
+                    position,
+                    position.target_price,
+                    data.Index.to_pydatetime(),
+                    self.take_profit_order_type,
                 )
 
             # check if upper horizontal barrier has been hit for short positions.
             elif (
-                position.stop_price
+                is_entry_order_filled
+                and position.stop_price
                 and data.high >= position.stop_price
+                and data.high >= position.stop_price >= data.low
                 and position.direction == -1
             ):
-                self.close_backtest_position(
-                    symbol, position_id, position.stop_price, data.Index
+                close_position = self.close_backtest_position(
+                    position,
+                    position.stop_price,
+                    data.Index.to_pydatetime(),
+                    self.stop_loss_order_type,
                 )
 
             # check if lower horizontal barrier has been hit for short positions.
             elif (
-                position.target_price
+                is_entry_order_filled
+                and position.target_price
                 and data.low <= position.target_price
+                and data.high >= position.target_price >= data.low
                 and position.direction == -1
             ):
-                self.close_backtest_position(
-                    symbol, position_id, position.target_price, data.Index
+                close_position = self.close_backtest_position(
+                    position,
+                    position.target_price,
+                    data.Index.to_pydatetime(),
+                    self.take_profit_order_type,
                 )
 
             # check if vertical barrier has been hit.
             elif position.holding_time >= self.max_holding_candles:
-                self.close_backtest_position(
-                    symbol, position_id, data.close, data.Index
+                close_position = self.close_backtest_position(
+                    position, data.close, data.Index.to_pydatetime()
                 )
 
             # check if current candle is the last candle in the provided historical price data.
-            elif data.Index == self.backtest_data[symbol].index.values[-1]:
-                self.close_backtest_position(
-                    symbol, position_id, data.close, data.Index
+            elif data.Index == self.backtest_data[position.symbol].index.values[-1]:
+                close_position = self.close_backtest_position(
+                    position, data.close, data.Index.to_pydatetime()
                 )
+
+            if close_position:
+                has_trade_position_closed = True
+
+        return has_trade_position_closed
 
     def run_symbol_backtest(self, symbol: str) -> None:
         """Run trading backtest for a single symbol.
@@ -369,10 +505,11 @@ class Backtester(Root):
             self.strategy_name,
         )
 
-        ohlcv_db = OHLCVDatabase(self.exchange, symbol)
-        ohlcv_data = ohlcv_db.get_data(
-            symbol, self.backtest_from_time, self.backtest_to_time
-        )
+        with self.shared_lock:
+            ohlcv_db = OHLCVDatabase(self.exchange, symbol)
+            ohlcv_data = ohlcv_db.get_data(
+                symbol, self.backtest_from_time, self.backtest_to_time
+            )
         if ohlcv_data is None:
             logger.warning(
                 "%s %s %s: unable to get price data for the %s strategy",
@@ -392,59 +529,61 @@ class Backtester(Root):
         idx = self.unstable_indicator_values
         self.backtest_data[symbol] = populated_ohlcv_data.iloc[idx:]
 
+        # open the trades' database connection.
+        self.trades_database.database.connect(reuse_if_open=True)
+
+        open_symbol_positions: List[DBTradePosition] = []
         for row in self.backtest_data[symbol].itertuples():
+            should_open_new_position = False
+            new_position_direction = None
+
             # open a long position if we get a long trading signal.
             if (
                 self.allow_long_positions
                 and self.is_long_trade_signal_present(row)
                 and row.Index != self.backtest_data[symbol].index.values[-1]
             ):
-                # only open a position if multiple open positions are allowed or
-                # there is no open position.
-                if not self.allow_multiple_open_positions and len(
-                    self.fetch_open_symbol_backtest_positions(symbol)
-                ):
-                    continue
-
-                trade_levels = self.generate_and_verify_backtest_trade_levels(
-                    row, trade_signal_direction=1
-                )
-                if trade_levels:
-                    self.open_long_backtest_position(
-                        symbol=symbol,
-                        entry_price=trade_levels.entry_price,
-                        entry_time=row.Index,
-                        target_price=trade_levels.target_price,
-                        stop_price=trade_levels.stop_price,
-                    )
+                should_open_new_position = True
+                new_position_direction = 1
 
             # open a short position if we get a short trading signal.
-            if (
+            elif (
                 self.allow_short_positions
                 and self.is_short_trade_signal_present(row)
                 and row.Index != self.backtest_data[symbol].index.values[-1]
             ):
+                should_open_new_position = True
+                new_position_direction = -1
+
+            if should_open_new_position:
                 # only open a position if multiple open positions are allowed or
                 # there is no open position.
-                if not self.allow_multiple_open_positions and len(
-                    self.fetch_open_symbol_backtest_positions(symbol)
-                ):
-                    continue
-
-                trade_levels = self.generate_and_verify_backtest_trade_levels(
-                    row, trade_signal_direction=-1
-                )
-                if trade_levels:
-                    self.open_short_backtest_position(
-                        symbol=symbol,
-                        entry_price=trade_levels.entry_price,
-                        entry_time=row.Index,
-                        target_price=trade_levels.target_price,
-                        stop_price=trade_levels.stop_price,
+                if self.allow_multiple_open_positions or not len(open_symbol_positions):
+                    trade_levels = self.generate_and_verify_backtest_trade_levels(
+                        row, trade_signal_direction=new_position_direction
                     )
+                    if trade_levels:
+                        new_trade_position = self.open_backtest_position(
+                            symbol=symbol,
+                            direction=new_position_direction,
+                            trade_levels=trade_levels,
+                            entry_time=row.Index.to_pydatetime(),
+                        )
+                        if new_trade_position:
+                            open_symbol_positions = self.fetch_open_trade_positions(
+                                [symbol]
+                            )
 
             # monitor and handle all open positions.
-            self.handle_open_backtest_positions(symbol, row)
+            self.handle_position_open_orders(row, open_symbol_positions)
+            has_trade_position_closed = self.handle_open_backtest_positions(
+                row, open_symbol_positions
+            )
+            if has_trade_position_closed:
+                open_symbol_positions = self.fetch_open_trade_positions([symbol])
+
+        # close the trades' database connection.
+        self.trades_database.database.close()
 
         logger.info(
             "%s %s %s: completed backtest on the %s strategy",
@@ -461,7 +600,7 @@ class Backtester(Root):
         timeframe: Optional[str],
         from_time: Optional[str],
         to_time: Optional[str],
-    ) -> Optional[List[Dict]]:
+    ) -> Optional[List[SymbolAnalysisResult]]:
         """Run trading backtest for multiple symbols at once and return
         analysis results on the backtest.
 
@@ -470,7 +609,7 @@ class Backtester(Root):
         :param timeframe: timeframe to run the backtest on.
         :param from_time: desired begin time of the backtest.
         :param to_time: desired end time of the backtest.
-        :return: Optional[List[Dict]]
+        :return: Optional[List[SymbolAnalysisResult]]
         """
 
         # Get symbols to backtest.
@@ -523,6 +662,16 @@ class Backtester(Root):
                 "backtest_to_time": self.backtest_to_time,
             }
         )
+
+        # Initialize backtest trades database.
+        self.trades_database = TradesDatabase(db_name="trades_backtest.sqlite3")
+        with self.trades_database.database:
+            self.trades_database.database.drop_tables(
+                self.trades_database.models, safe=True
+            )
+            self.trades_database.database.create_tables(
+                self.trades_database.models, safe=True
+            )
 
         max_workers = multiprocessing.cpu_count() - 1
         with ThreadPoolExecutor(max_workers=max_workers) as executor:

@@ -24,6 +24,7 @@ def dummy_db_trade_positions() -> List[dict]:
             "stop_price": 80,
             "initial_account_balance": 2000,
             "exchange_display_name": "test_exchange",
+            "sequence_id": "1",
         },
         {
             "id": 2,
@@ -37,6 +38,7 @@ def dummy_db_trade_positions() -> List[dict]:
             "stop_price": 80,
             "initial_account_balance": 2000,
             "exchange_display_name": "test_exchange",
+            "sequence_id": "2",
         },
         {
             "id": 3,
@@ -50,6 +52,7 @@ def dummy_db_trade_positions() -> List[dict]:
             "stop_price": 80,
             "initial_account_balance": 2000,
             "exchange_display_name": "test_exchange",
+            "sequence_id": "3",
         },
     ]
 
@@ -63,6 +66,7 @@ def dummy_db_trade_orders() -> List[dict]:
             "is_open_order": True,
             "order_id": "12345",
             "order_side": OrderSide.BUY.value,
+            "raw_price": 100,
             "original_price": 100,
             "average_price": 120,
             "original_quantity": 15,
@@ -78,6 +82,7 @@ def dummy_db_trade_orders() -> List[dict]:
             "is_open_order": False,
             "order_id": "678932",
             "order_side": OrderSide.BUY.value,
+            "raw_price": 100,
             "original_price": 100,
             "average_price": 120,
             "original_quantity": 9,

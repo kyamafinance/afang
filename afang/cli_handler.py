@@ -11,7 +11,7 @@ def parse_args(args) -> argparse.Namespace:
     """
 
     parser = argparse.ArgumentParser(
-        description="A Python-based platform for backtesting and optimizing automated trading systems"
+        description="A python based platform for backtesting, optimizing, and running automated trading systems"
     )
 
     parser.add_argument(

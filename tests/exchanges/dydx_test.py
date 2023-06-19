@@ -493,7 +493,7 @@ def test_wss_on_close(mocker, caplog) -> None:
     mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
 
     dydx_exchange = DyDxExchange()
-    dydx_exchange._wss_on_close(websocket.WebSocketApp("fake-url"))
+    dydx_exchange._wss_on_close(websocket.WebSocketApp("fake-url"), "500", "error")
 
     assert caplog.records[0].levelname == "WARNING"
     assert "wss connection closed" in caplog.text
@@ -501,6 +501,7 @@ def test_wss_on_close(mocker, caplog) -> None:
 
 def test_wss_on_error(mocker, caplog) -> None:
     mocker.patch("afang.exchanges.dydx.DyDxExchange._get_symbols")
+    mocker.patch("afang.exchanges.dydx.DyDxExchange._start_wss")
 
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_on_error(websocket.WebSocketApp("fake-url"), "message")
@@ -850,7 +851,7 @@ def test_wss_handle_candlestick_update_invalid_candle(mocker, caplog) -> None:
         close=9,
         volume=10,
     )
-    assert caplog.records[0].levelname == "ERROR"
+    assert caplog.records[0].levelname == "WARNING"
     assert (
         "candles cannot be updated because candle(s) are potentially missing"
         in caplog.text

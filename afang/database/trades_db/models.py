@@ -11,7 +11,16 @@ from peewee import (
     SqliteDatabase,
 )
 
-database = SqliteDatabase(database=None)
+database = SqliteDatabase(
+    database=None,
+    pragmas={
+        "journal_mode": "wal",
+        "cache_size": -1 * 64000,  # 64MB
+        "foreign_keys": 1,
+        "ignore_check_constraints": 0,
+        "synchronous": 1,
+    },
+)
 
 
 class BaseModel(Model):
@@ -20,6 +29,7 @@ class BaseModel(Model):
 
 
 class TradePosition(BaseModel):
+    sequence_id = CharField(null=False, index=True)
     symbol = CharField(null=False, index=True)
     direction = IntegerField(null=False, index=True)
     desired_entry_price = FloatField(null=False)
@@ -29,8 +39,6 @@ class TradePosition(BaseModel):
     position_qty = FloatField(null=False)
     position_size = FloatField(null=False)
     exchange_display_name = CharField(null=False, index=True)
-    is_tp_order_active = BooleanField(null=False, default=False)
-    is_sl_order_active = BooleanField(null=False, default=False)
     entry_time = DateTimeField(null=True)
     entry_price = FloatField(null=True)
     initial_account_balance = FloatField(null=True)
@@ -55,11 +63,11 @@ class Order(BaseModel):
     is_open_order = BooleanField(null=False, index=True)
     order_id = CharField(null=False)
     order_side = CharField(null=False)
+    raw_price = FloatField(null=False)
     original_price = FloatField(null=False)
     original_quantity = FloatField(null=False)
     order_type = CharField(null=False)
     exchange_display_name = CharField(null=False)
-    is_take_profit_order = BooleanField(null=True)
     time_in_force = CharField(null=True)
     average_price = FloatField(null=True)
     executed_quantity = FloatField(null=True)

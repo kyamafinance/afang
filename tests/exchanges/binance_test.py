@@ -478,13 +478,15 @@ def test_wss_on_close(caplog, mocker) -> None:
     mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
 
     binance_exchange = BinanceExchange()
-    binance_exchange._wss_on_close(websocket.WebSocketApp("fake-url"))
+    binance_exchange._wss_on_close(websocket.WebSocketApp("fake-url"), "500", "error")
 
     assert caplog.records[0].levelname == "WARNING"
     assert "wss connection closed" in caplog.text
 
 
-def test_wss_on_error(caplog) -> None:
+def test_wss_on_error(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._start_wss")
+
     binance_exchange = BinanceExchange()
     binance_exchange._wss_on_error(websocket.WebSocketApp("fake-url"), "this message")
 

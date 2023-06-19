@@ -3,51 +3,124 @@ from typing import Dict, List
 
 import pytest
 
+from afang.strategies.models import AnalysisStat, SymbolAnalysisResult
 from afang.strategies.optimizer import BacktestProfile
 
 
 @pytest.fixture
-def run_backtest_side_effect() -> List[List[Dict]]:
+def run_backtest_side_effect() -> List[List[SymbolAnalysisResult]]:
     return [
         [
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 100, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 12,
-                    "positive_optimization": False,
-                },
-            }
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=1,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=100,
+                    long_trades=100,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=12,
+                    long_trades=12,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            )
         ],
         [
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 90, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 16,
-                    "positive_optimization": False,
-                },
-            }
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=1,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=90,
+                    long_trades=90,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=16,
+                    long_trades=16,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            )
         ],
         [
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 80, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 20,
-                    "positive_optimization": False,
-                },
-            }
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=1,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=80,
+                    long_trades=80,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=20,
+                    long_trades=20,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            )
         ],
         [
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 30, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 28,
-                    "positive_optimization": False,
-                },
-            }
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=1,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=30,
+                    long_trades=30,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=28,
+                    long_trades=28,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            )
         ],
     ]
 
@@ -89,9 +162,22 @@ def test_is_objective_positive_optimization() -> None:
     ):
         profile.is_objective_positive_optimization("param")
 
-    profile.backtest_analysis = [{"param": {"positive_optimization": True}}]
+    profile.backtest_analysis = [
+        SymbolAnalysisResult(
+            symbol="test_symbol",
+            trades=[],
+            sequenced_trades=[],
+            net_profit=AnalysisStat(
+                name="Net Profit",
+                all_trades=10,
+                long_trades=10,
+                short_trades=0,
+                is_positive_optimization=True,
+            ),
+        )
+    ]
 
-    assert profile.is_objective_positive_optimization("param")
+    assert profile.is_objective_positive_optimization("net_profit")
 
 
 def test_get_objective_value() -> None:
@@ -100,25 +186,50 @@ def test_get_objective_value() -> None:
     with pytest.raises(
         ValueError, match="Objective value cannot be fetched for an un-analyzed profile"
     ):
-        profile.get_objective_value("param")
+        profile.get_objective_value("net_profit")
 
-    profile.backtest_analysis = [{"param": {"all_trades": 1}}]
+    profile.backtest_analysis = [
+        SymbolAnalysisResult(
+            symbol="test_symbol",
+            trades=[],
+            sequenced_trades=[],
+            net_profit=AnalysisStat(
+                name="Net Profit",
+                all_trades=10,
+                long_trades=0,
+                short_trades=0,
+                is_positive_optimization=True,
+            ),
+        )
+    ]
 
-    assert profile.get_objective_value("param") == 1
+    assert profile.get_objective_value("net_profit") == 10
 
 
 def test_set_objective_value() -> None:
     profile = BacktestProfile()
+    profile.backtest_analysis = [
+        SymbolAnalysisResult(
+            symbol="test_symbol",
+            trades=[],
+            sequenced_trades=[],
+            net_profit=AnalysisStat(
+                name="Net Profit",
+                all_trades=10,
+                long_trades=0,
+                short_trades=0,
+                is_positive_optimization=True,
+            ),
+        )
+    ]
 
     with pytest.raises(
-        ValueError, match="Objective value cannot be set for an un-analyzed profile"
+        ValueError, match="Undefined objective provided for objective value update"
     ):
         profile.set_objective_value("param", 2)
 
-    profile.backtest_analysis = [{"param": {"all_trades": 1}}]
-
-    profile.set_objective_value("param", 2)
-    assert profile.get_objective_value("param") == 2
+    profile.set_objective_value("net_profit", 4)
+    assert profile.get_objective_value("net_profit") == 4
 
 
 def test_generate_initial_population(dummy_is_optimizer) -> None:
@@ -141,52 +252,118 @@ def test_generate_initial_population(dummy_is_optimizer) -> None:
     [
         (
             [
-                {
-                    "total_trades": {"all_trades": 0},
-                    "average_pnl": {"all_trades": 0, "positive_optimization": True},
-                    "maximum_drawdown": {
-                        "all_trades": 0,
-                        "positive_optimization": False,
-                    },
-                }
+                SymbolAnalysisResult(
+                    symbol="test_symbol",
+                    trades=[],
+                    sequenced_trades=[],
+                    total_trades=AnalysisStat(
+                        name="Total Trades",
+                        all_trades=0,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    average_trade_pnl=AnalysisStat(
+                        name="Average Trade PnL",
+                        all_trades=0,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    maximum_drawdown=AnalysisStat(
+                        name="Maximum Drawdown (%)",
+                        all_trades=0,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=False,
+                    ),
+                )
             ],
             [
-                {
-                    "average_pnl": {
-                        "all_trades": float("-inf"),
-                        "positive_optimization": True,
-                    },
-                    "maximum_drawdown": {
-                        "all_trades": float("inf"),
-                        "positive_optimization": False,
-                    },
-                    "total_trades": {"all_trades": 0},
-                }
+                SymbolAnalysisResult(
+                    symbol="test_symbol",
+                    trades=[],
+                    sequenced_trades=[],
+                    total_trades=AnalysisStat(
+                        name="Total Trades",
+                        all_trades=0,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    average_trade_pnl=AnalysisStat(
+                        name="Average Trade PnL",
+                        all_trades=float("-inf"),
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    maximum_drawdown=AnalysisStat(
+                        name="Maximum Drawdown (%)",
+                        all_trades=float("inf"),
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=False,
+                    ),
+                )
             ],
         ),
         (
             [
-                {
-                    "total_trades": {"all_trades": 1},
-                    "average_pnl": {"all_trades": 100, "positive_optimization": True},
-                    "maximum_drawdown": {
-                        "all_trades": 12,
-                        "positive_optimization": False,
-                    },
-                }
+                SymbolAnalysisResult(
+                    symbol="test_symbol",
+                    trades=[],
+                    sequenced_trades=[],
+                    total_trades=AnalysisStat(
+                        name="Total Trades",
+                        all_trades=1,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    average_trade_pnl=AnalysisStat(
+                        name="Average Trade PnL",
+                        all_trades=100,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    maximum_drawdown=AnalysisStat(
+                        name="Maximum Drawdown (%)",
+                        all_trades=12,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=False,
+                    ),
+                )
             ],
             [
-                {
-                    "average_pnl": {
-                        "all_trades": 100,
-                        "positive_optimization": True,
-                    },
-                    "maximum_drawdown": {
-                        "all_trades": 12,
-                        "positive_optimization": False,
-                    },
-                    "total_trades": {"all_trades": 1},
-                }
+                SymbolAnalysisResult(
+                    symbol="test_symbol",
+                    trades=[],
+                    sequenced_trades=[],
+                    total_trades=AnalysisStat(
+                        name="Total Trades",
+                        all_trades=1,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    average_trade_pnl=AnalysisStat(
+                        name="Average Trade PnL",
+                        all_trades=100,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=True,
+                    ),
+                    maximum_drawdown=AnalysisStat(
+                        name="Maximum Drawdown (%)",
+                        all_trades=12,
+                        long_trades=0,
+                        short_trades=0,
+                        is_positive_optimization=False,
+                    ),
+                )
             ],
         ),
     ],
@@ -281,41 +458,113 @@ def test_generate_offspring_population(
     "profile_a_analysis, profile_b_analysis, expected_result",
     [
         (
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 100, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 50,
-                    "positive_optimization": False,
-                },
-            },
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 90, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 70,
-                    "positive_optimization": False,
-                },
-            },
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=100,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=50,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            ),
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=90,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=70,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            ),
             True,
         ),
         (
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 90, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 70,
-                    "positive_optimization": False,
-                },
-            },
-            {
-                "total_trades": {"all_trades": 1},
-                "average_pnl": {"all_trades": 100, "positive_optimization": True},
-                "maximum_drawdown": {
-                    "all_trades": 50,
-                    "positive_optimization": False,
-                },
-            },
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=90,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=70,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            ),
+            SymbolAnalysisResult(
+                symbol="test_symbol",
+                trades=[],
+                sequenced_trades=[],
+                total_trades=AnalysisStat(
+                    name="Total Trades",
+                    all_trades=1,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                average_trade_pnl=AnalysisStat(
+                    name="Average Trade PnL",
+                    all_trades=100,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=True,
+                ),
+                maximum_drawdown=AnalysisStat(
+                    name="Maximum Drawdown (%)",
+                    all_trades=50,
+                    long_trades=0,
+                    short_trades=0,
+                    is_positive_optimization=False,
+                ),
+            ),
             False,
         ),
     ],
@@ -328,7 +577,7 @@ def test_is_profile_dominant(
     profile_b = BacktestProfile()
     profile_b.backtest_analysis = [profile_b_analysis]
 
-    objectives = ["average_pnl", "maximum_drawdown"]
+    objectives = ["average_trade_pnl", "maximum_drawdown"]
     result = dummy_is_optimizer.is_profile_dominant(profile_a, profile_b, objectives)
 
     assert result == expected_result
@@ -394,14 +643,32 @@ def test_generate_new_population(
 def test_persist_optimization(optimization_root_dir, dummy_is_optimizer) -> None:
     backtest_profile = BacktestProfile()
     backtest_profile.backtest_analysis = [
-        {
-            "total_trades": {"all_trades": 1},
-            "average_pnl": {"all_trades": 100, "positive_optimization": True},
-            "maximum_drawdown": {
-                "all_trades": 50,
-                "positive_optimization": False,
-            },
-        }
+        SymbolAnalysisResult(
+            symbol="test_symbol",
+            trades=[],
+            sequenced_trades=[],
+            total_trades=AnalysisStat(
+                name="Total Trades",
+                all_trades=1,
+                long_trades=1,
+                short_trades=0,
+                is_positive_optimization=True,
+            ),
+            average_trade_pnl=AnalysisStat(
+                name="Average Trade PnL",
+                all_trades=100,
+                long_trades=100,
+                short_trades=0,
+                is_positive_optimization=True,
+            ),
+            maximum_drawdown=AnalysisStat(
+                name="Maximum Drawdown (%)",
+                all_trades=50,
+                long_trades=50,
+                short_trades=0,
+                is_positive_optimization=False,
+            ),
+        )
     ]
     backtest_profile.backtest_parameters = {
         "RR": 1.5,
@@ -419,7 +686,7 @@ def test_persist_optimization(optimization_root_dir, dummy_is_optimizer) -> None
 
     expected_persisted_optimization_data = [
         [
-            "average_pnl",
+            "average_trade_pnl",
             "maximum_drawdown",
             "RR",
             "ema_period",

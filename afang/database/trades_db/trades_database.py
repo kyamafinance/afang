@@ -1,4 +1,6 @@
 import logging
+import os
+import pathlib
 from typing import Optional
 
 from peewee import SqliteDatabase
@@ -18,17 +20,12 @@ class TradesDatabase:
         :param db_name: database name/filepath. optional.
         """
 
-        database.init(
-            database=db_name,
-            pragmas={
-                "journal_mode": "wal",
-                "cache_size": -1 * 64000,  # 64MB
-                "foreign_keys": 1,
-                "ignore_check_constraints": 0,
-                "synchronous": 1,
-            },
-        )
+        db_base_dir = os.path.join(pathlib.Path(__file__).parents[3], "data", "trades")
+        db_file_path = os.path.join(db_base_dir, db_name)
 
+        database.init(database=db_file_path)
+
+        self.models = [TradePosition, Order]
         self.database: SqliteDatabase = database
         with self.database:
-            self.database.create_tables([TradePosition, Order])
+            self.database.create_tables(self.models, safe=True)

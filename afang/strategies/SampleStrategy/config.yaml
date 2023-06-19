@@ -32,7 +32,7 @@ optimizer:
       type: float
       decimals: 2
   objectives:
-    - average_pnl
+    - average_trade_pnl
     - maximum_drawdown
 watchlist:
   dydx:

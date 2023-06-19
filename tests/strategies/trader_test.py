@@ -264,7 +264,6 @@ def test_update_closed_order_in_db(
     [
         (False, False, False, False),
         (True, False, False, False),
-        (True, True, False, False),
         (True, False, False, False),
         (True, False, True, True),
     ],
@@ -316,9 +315,6 @@ def test_cancel_position_order(
             "position order not cancelled because it was not found in the DB."
             in caplog.text
         )
-        return
-    if not exchange_position_order_found and db_position_order_closed:
-        assert not caplog.records
         return
     if not exchange_position_order_found:
         assert caplog.records[0].levelname == "ERROR"
@@ -716,8 +712,9 @@ def test_place_close_trade_position_order(
     if not is_position_open:
         db_position.is_open = False
         db_position.save()
-    dummy_is_strategy.place_close_trade_position_order(db_position, 20, True)
-    db_position = DBTradePosition.get(DBTradePosition.id == 1)
+    dummy_is_strategy.place_close_trade_position_order(
+        db_position, 20, OrderType.MARKET
+    )
 
     assert caplog.records[0].levelname == "INFO"
     assert "attempting to place a close trade position order" in caplog.text
@@ -729,7 +726,6 @@ def test_place_close_trade_position_order(
 
     assert caplog.records[-1].levelname == "INFO"
     assert "close order successfully placed on the exchange" in caplog.text
-    assert db_position.is_tp_order_active is True
 
 
 @pytest.mark.parametrize(
@@ -754,31 +750,25 @@ def test_handle_open_trade_positions(
     mocked_place_close_trade_position_order = mocker.patch.object(
         Trader, "place_close_trade_position_order"
     )
+    mocked_calibrate_position_order_quantities = mocker.patch.object(
+        Trader, "calibrate_position_order_quantities"
+    )
 
-    symbol_open_positions = [
-        DBTradePosition(
-            open_position=True,
-            symbol="BTCUSDT",
-            direction=direction,
-            desired_entry_price=10,
-            open_order_id="12345",
-            position_qty=10,
-            position_size=10,
-            target_price=20,
-            stop_price=5,
-            initial_account_balance=20,
-            exchange_display_name="test_exchange",
-            take_profit_order_active=False,
-        )
-    ]
+    dummy_is_strategy.open_backtest_position(
+        "BTCUSDT",
+        direction,
+        TradeLevels(entry_price=10, target_price=20, stop_price=5),
+        datetime.datetime(1960, 2, 2),
+    )
 
     dummy_is_strategy.take_profit_order_type = close_order_type
     dummy_is_strategy.stop_loss_order_type = close_order_type
     dummy_is_strategy.handle_open_trade_positions(
-        SimpleNamespace(**current_candle_data), symbol_open_positions
+        SimpleNamespace(**current_candle_data), [DBTradePosition.select().get()]
     )
 
     assert mocked_place_close_trade_position_order.called
+    assert mocked_calibrate_position_order_quantities.called
 
 
 @pytest.mark.parametrize(
@@ -1028,6 +1018,8 @@ def test_calibrate_position_order_quantities(
     dummy_exchange_orders,
     dummy_db_trade_positions,
 ) -> None:
+    dummy_exchange_orders[0].executed_quantity = 9
+    dummy_exchange_orders[0].remaining_quantity = 6
     mocker.patch.object(
         Trader,
         "get_exchange_order",
