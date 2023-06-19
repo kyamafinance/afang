@@ -44,7 +44,7 @@ parsimonious==0.8.1
 peewee==3.16.2
 platformdirs==3.6.0
 pluggy==1.0.0
-pre-commit==3.3.2
+pre-commit==3.3.3
 protobuf==3.20.3
 py==1.11.0
 pycryptodome==3.18.0
