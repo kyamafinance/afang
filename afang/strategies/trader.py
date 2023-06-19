@@ -1073,6 +1073,7 @@ class Trader(Root):
                 stop_price=trade_levels.stop_price,
                 initial_account_balance=quote_asset_wallet_balance,
                 exchange_display_name=self.exchange.display_name,
+                sequence_id=trade_levels.sequence_id or generate_uuid(),
             )
 
             DBOrder.create(

@@ -29,6 +29,7 @@ class BaseModel(Model):
 
 
 class TradePosition(BaseModel):
+    sequence_id = CharField(null=False, index=True)
     symbol = CharField(null=False, index=True)
     direction = IntegerField(null=False, index=True)
     desired_entry_price = FloatField(null=False)

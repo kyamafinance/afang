@@ -1,3 +1,4 @@
+import copy
 import logging
 from typing import Any, Dict, Iterable, List
 
@@ -268,12 +269,20 @@ class StrategyAnalyzer:
         """
 
         for symbol_analysis in self.analysis_results:
-            total_trades = len(symbol_analysis.trades)
+            total_trades = len({trade.sequence_id for trade in symbol_analysis.trades})
             total_trades_long = len(
-                [trade for trade in symbol_analysis.trades if trade.direction == 1]
+                {
+                    trade.sequence_id
+                    for trade in symbol_analysis.trades
+                    if trade.direction == 1
+                }
             )
             total_trades_short = len(
-                [trade for trade in symbol_analysis.trades if trade.direction == -1]
+                {
+                    trade.sequence_id
+                    for trade in symbol_analysis.trades
+                    if trade.direction == -1
+                }
             )
 
             symbol_analysis.total_trades = AnalysisStat(
@@ -295,21 +304,21 @@ class StrategyAnalyzer:
             winning_trades = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl > 0
                 ]
             )
             winning_trades_long = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl > 0 and trade.direction == 1
                 ]
             )
             winning_trades_short = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl > 0 and trade.direction == -1
                 ]
             )
@@ -333,21 +342,21 @@ class StrategyAnalyzer:
             losing_trades = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl < 0
                 ]
             )
             losing_trades_long = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl < 0 and trade.direction == 1
                 ]
             )
             losing_trades_short = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl < 0 and trade.direction == -1
                 ]
             )
@@ -371,21 +380,21 @@ class StrategyAnalyzer:
             even_trades = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl == 0
                 ]
             )
             even_trades_long = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl == 0 and trade.direction == 1
                 ]
             )
             even_trades_short = len(
                 [
                     trade
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None
                     and trade.pnl == 0
                     and trade.direction == -1
@@ -504,7 +513,7 @@ class StrategyAnalyzer:
             )
 
     @function_group.add
-    def compute_average_pnl(self) -> None:
+    def compute_average_trade_pnl(self) -> None:
         """Calculate average PnL for all symbols. This function needs to run
         after compute_total_trades. It relies on computing the total number of
         trades.
@@ -561,7 +570,7 @@ class StrategyAnalyzer:
             average_winning_trade = (
                 self.safe_sum(
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl >= 0
                 )
                 / symbol_analysis.winning_trades.all_trades
@@ -571,7 +580,7 @@ class StrategyAnalyzer:
             average_winning_trade_long = (
                 self.safe_sum(
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl >= 0 and trade.direction == 1
                 )
                 / symbol_analysis.winning_trades.long_trades
@@ -581,7 +590,7 @@ class StrategyAnalyzer:
             average_winning_trade_short = (
                 self.safe_sum(
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None
                     and trade.pnl >= 0
                     and trade.direction == -1
@@ -612,7 +621,7 @@ class StrategyAnalyzer:
             average_losing_trade = (
                 self.safe_sum(
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl < 0
                 )
                 / symbol_analysis.losing_trades.all_trades
@@ -622,7 +631,7 @@ class StrategyAnalyzer:
             average_losing_trade_long = (
                 self.safe_sum(
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl < 0 and trade.direction == 1
                 )
                 / symbol_analysis.losing_trades.long_trades
@@ -632,7 +641,7 @@ class StrategyAnalyzer:
             average_losing_trade_short = (
                 self.safe_sum(
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.pnl < 0 and trade.direction == -1
                 )
                 / symbol_analysis.losing_trades.short_trades
@@ -748,19 +757,23 @@ class StrategyAnalyzer:
 
         for symbol_analysis in self.analysis_results:
             max_consecutive_winners = get_max_consecutive_winners(
-                [trade.pnl for trade in symbol_analysis.trades if trade.pnl is not None]
+                [
+                    trade.pnl
+                    for trade in symbol_analysis.sequenced_trades
+                    if trade.pnl is not None
+                ]
             )
             max_consecutive_winners_long = get_max_consecutive_winners(
                 [
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == 1
                 ]
             )
             max_consecutive_winners_short = get_max_consecutive_winners(
                 [
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == -1
                 ]
             )
@@ -794,19 +807,23 @@ class StrategyAnalyzer:
 
         for symbol_analysis in self.analysis_results:
             max_consecutive_losers = get_max_consecutive_losers(
-                [trade.pnl for trade in symbol_analysis.trades if trade.pnl is not None]
+                [
+                    trade.pnl
+                    for trade in symbol_analysis.sequenced_trades
+                    if trade.pnl is not None
+                ]
             )
             max_consecutive_losers_long = get_max_consecutive_losers(
                 [
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == 1
                 ]
             )
             max_consecutive_losers_short = get_max_consecutive_losers(
                 [
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == -1
                 ]
             )
@@ -830,7 +847,7 @@ class StrategyAnalyzer:
             largest_winning_trade = max(
                 (
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None
                 ),
                 default=0,
@@ -838,7 +855,7 @@ class StrategyAnalyzer:
             largest_winning_trade_long = max(
                 (
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == 1
                 ),
                 default=0,
@@ -846,7 +863,7 @@ class StrategyAnalyzer:
             largest_winning_trade_short = max(
                 (
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == -1
                 ),
                 default=0,
@@ -871,7 +888,7 @@ class StrategyAnalyzer:
             largest_losing_trade = min(
                 (
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None
                 ),
                 default=0,
@@ -879,7 +896,7 @@ class StrategyAnalyzer:
             largest_losing_trade_long = min(
                 (
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == 1
                 ),
                 default=0,
@@ -887,7 +904,7 @@ class StrategyAnalyzer:
             largest_losing_trade_short = min(
                 (
                     trade.pnl
-                    for trade in symbol_analysis.trades
+                    for trade in symbol_analysis.sequenced_trades
                     if trade.pnl is not None and trade.direction == -1
                 ),
                 default=0,
@@ -1079,6 +1096,25 @@ class StrategyAnalyzer:
 
         return sum(filter(None, iterable))
 
+    @classmethod
+    def sequenced_trades(cls, trades: List[DBTradePosition]) -> List[DBTradePosition]:
+        """Get a list of trades merged according to their sequence id.
+
+        :param trades: list of DB trade positions.
+        :return: List[dict]
+        """
+
+        sequenced_trades: Dict[str, DBTradePosition] = dict()
+        for trade in trades:
+            if trade.sequence_id not in sequenced_trades:
+                sequenced_trades[trade.sequence_id] = copy.deepcopy(trade)
+                continue
+
+            sequenced_trade: DBTradePosition = sequenced_trades[trade.sequence_id]
+            sequenced_trade.pnl += trade.pnl
+
+        return list(sequenced_trades.values())
+
     def run_analysis(self) -> List[SymbolAnalysisResult]:
         """Run analysis on the user provided strategy.
 
@@ -1111,7 +1147,11 @@ class StrategyAnalyzer:
                 )
                 continue
             self.analysis_results.append(
-                SymbolAnalysisResult(symbol=symbol, trades=symbol_positions)
+                SymbolAnalysisResult(
+                    symbol=symbol,
+                    trades=symbol_positions,
+                    sequenced_trades=self.sequenced_trades(symbol_positions),
+                )
             )
 
         # Compute strategy performance analysis.

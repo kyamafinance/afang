@@ -7,8 +7,9 @@ from afang.database.trades_db.models import TradePosition as DBTradePosition
 @dataclass
 class TradeLevels:
     entry_price: float
-    target_price: Optional[float]
-    stop_price: Optional[float]
+    target_price: Optional[float] = None
+    stop_price: Optional[float] = None
+    sequence_id: Optional[str] = None
 
 
 @dataclass
@@ -32,6 +33,7 @@ class MonthlyPnLAnalysis:
 class SymbolAnalysisResult:
     symbol: str
     trades: List[DBTradePosition]
+    sequenced_trades: List[DBTradePosition]
     monthly_pnl: Optional[List[MonthlyPnLAnalysis]] = None
     net_profit: Optional[AnalysisStat] = None
     gross_profit: Optional[AnalysisStat] = None

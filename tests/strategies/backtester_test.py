@@ -92,7 +92,7 @@ def ohlcv_db(ohlcv_root_db_dir, dummy_is_exchange, ohlcv_df) -> OHLCVDatabase:
 
 
 def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
-    mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3])
+    mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3, 4, 5, 6])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     dummy_is_strategy.open_backtest_position(
@@ -115,7 +115,7 @@ def test_open_long_backtest_position(mocker, dummy_is_strategy) -> None:
 
 
 def test_open_short_backtest_position(mocker, dummy_is_strategy) -> None:
-    mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3])
+    mocker.patch.object(backtester, "generate_uuid", side_effect=[1, 2, 3, 4, 5, 6])
 
     trade_entry_time = datetime.datetime(2022, 1, 1, 1, 0)
     dummy_is_strategy.open_backtest_position(
@@ -179,7 +179,7 @@ def test_handle_open_backtest_positions(
     dummy_is_strategy.backtest_data["test_symbol"] = ohlcv_df
     dummy_is_strategy.max_holding_candles = max_holding_candles
 
-    mocker.patch.object(backtester, "generate_uuid", side_effect=["1"])
+    mocker.patch.object(backtester, "generate_uuid", side_effect=["1", "2"])
     mocked_close_backtest_position = mocker.patch.object(
         Backtester,
         "close_backtest_position",

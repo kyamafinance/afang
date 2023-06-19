@@ -14,6 +14,7 @@ from afang.strategies.analyzer import (
 
 
 def dummy_trade_position(
+    sequence_id="1",
     open_position=False,
     direction=1,
     entry_price=100,
@@ -34,6 +35,7 @@ def dummy_trade_position(
     final_account_balance=10099.7,
 ) -> Any:
     trade_position = dict(
+        sequence_id=sequence_id,
         open_position=open_position,
         direction=direction,
         entry_price=entry_price,
@@ -57,6 +59,18 @@ def dummy_trade_position(
     return SimpleNamespace(**trade_position)
 
 
+def mock_analysis_results(dummy_strategy_analyzer, dummy_trade_positions) -> Any:
+    return [
+        SymbolAnalysisResult(
+            symbol="test_symbol",
+            trades=dummy_trade_positions,
+            sequenced_trades=dummy_strategy_analyzer.sequenced_trades(
+                dummy_trade_positions
+            ),
+        )
+    ]
+
+
 @pytest.fixture
 def dummy_strategy_analyzer(dummy_is_strategy, dummy_is_exchange) -> StrategyAnalyzer:
     dummy_is_strategy.symbols = ["test_symbol"]
@@ -65,17 +79,15 @@ def dummy_strategy_analyzer(dummy_is_strategy, dummy_is_exchange) -> StrategyAna
 
 
 def test_compute_total_net_profit(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5),
+            dummy_trade_position(direction=-1, pnl=8.5),
+            dummy_trade_position(direction=1, pnl=2.5),
+            dummy_trade_position(direction=-1, pnl=10.5),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_net_profit()
 
@@ -89,17 +101,15 @@ def test_compute_total_net_profit(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_gross_profit(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=-10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=-10.5),
+            dummy_trade_position(direction=-1, pnl=-8.5),
+            dummy_trade_position(direction=1, pnl=2.5),
+            dummy_trade_position(direction=-1, pnl=10.5),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_gross_profit()
 
@@ -113,17 +123,15 @@ def test_compute_gross_profit(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_gross_loss(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=-10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=-10.5),
+            dummy_trade_position(direction=-1, pnl=-8.5),
+            dummy_trade_position(direction=1, pnl=2.5),
+            dummy_trade_position(direction=-1, pnl=10.5),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_gross_loss()
 
@@ -137,17 +145,15 @@ def test_compute_gross_loss(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_commission(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, commission=1.2),
-                dummy_trade_position(direction=-1, commission=0.8),
-                dummy_trade_position(direction=1, commission=2.5),
-                dummy_trade_position(direction=-1, commission=3.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, commission=1.2),
+            dummy_trade_position(direction=-1, commission=0.8),
+            dummy_trade_position(direction=1, commission=2.5),
+            dummy_trade_position(direction=-1, commission=3.5),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_commission()
 
@@ -161,17 +167,15 @@ def test_compute_commission(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_slippage(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, slippage=1.2),
-                dummy_trade_position(direction=-1, slippage=0.8),
-                dummy_trade_position(direction=1, slippage=2.5),
-                dummy_trade_position(direction=-1, slippage=3.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, slippage=1.2),
+            dummy_trade_position(direction=-1, slippage=0.8),
+            dummy_trade_position(direction=1, slippage=2.5),
+            dummy_trade_position(direction=-1, slippage=3.5),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_slippage()
 
@@ -185,17 +189,15 @@ def test_compute_slippage(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_profit_factor(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=-10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=-10.5),
+            dummy_trade_position(direction=-1, pnl=-8.5),
+            dummy_trade_position(direction=1, pnl=2.5),
+            dummy_trade_position(direction=-1, pnl=10.5),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_gross_profit()
     dummy_strategy_analyzer.compute_gross_loss()
@@ -211,17 +213,15 @@ def test_compute_profit_factor(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_maximum_drawdown(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, final_account_balance=30.0),
-                dummy_trade_position(direction=-1, final_account_balance=60.0),
-                dummy_trade_position(direction=1, final_account_balance=25.0),
-                dummy_trade_position(direction=-1, final_account_balance=30.0),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, final_account_balance=30.0),
+            dummy_trade_position(direction=-1, final_account_balance=60.0),
+            dummy_trade_position(direction=1, final_account_balance=25.0),
+            dummy_trade_position(direction=-1, final_account_balance=30.0),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_maximum_drawdown()
 
@@ -235,42 +235,38 @@ def test_compute_maximum_drawdown(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_total_trades(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1),
-                dummy_trade_position(direction=-1),
-                dummy_trade_position(direction=1),
-                dummy_trade_position(direction=-1),
-                dummy_trade_position(direction=-1),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, sequence_id="1"),
+            dummy_trade_position(direction=-1, sequence_id="2"),
+            dummy_trade_position(direction=1, sequence_id="1"),
+            dummy_trade_position(direction=-1, sequence_id="3"),
+            dummy_trade_position(direction=-1, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_trades()
 
     assert dummy_strategy_analyzer.analysis_results[0].total_trades == AnalysisStat(
         name="Total Trades",
-        all_trades=5,
-        long_trades=2,
+        all_trades=4,
+        long_trades=1,
         short_trades=3,
         is_positive_optimization=True,
     )
 
 
 def test_compute_winning_trades(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=2.5, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=10.5, sequence_id="2"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_winning_trades()
 
@@ -284,41 +280,37 @@ def test_compute_winning_trades(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_losing_trades(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=2.5, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="2"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_losing_trades()
 
     assert dummy_strategy_analyzer.analysis_results[0].losing_trades == AnalysisStat(
         name="Losing Trades",
-        all_trades=2,
+        all_trades=1,
         long_trades=0,
-        short_trades=2,
+        short_trades=1,
         is_positive_optimization=False,
     )
 
 
 def test_compute_even_trades(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=0, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_even_trades()
 
@@ -332,17 +324,15 @@ def test_compute_even_trades(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_percent_profitable(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=0, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_trades()
     dummy_strategy_analyzer.compute_winning_trades()
@@ -362,69 +352,65 @@ def test_compute_percent_profitable(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_average_roe(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, cost_adjusted_roe=10.5),
-                dummy_trade_position(direction=-1, cost_adjusted_roe=-8.5),
-                dummy_trade_position(direction=1, cost_adjusted_roe=0),
-                dummy_trade_position(direction=-1, cost_adjusted_roe=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, cost_adjusted_roe=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, cost_adjusted_roe=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, cost_adjusted_roe=0, sequence_id="1"),
+            dummy_trade_position(
+                direction=-1, cost_adjusted_roe=-10.5, sequence_id="4"
+            ),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_trades()
     dummy_strategy_analyzer.compute_average_roe()
 
     assert dummy_strategy_analyzer.analysis_results[0].average_roe == AnalysisStat(
         name="Average ROE (%)",
-        all_trades=-2.125,
-        long_trades=5.25,
+        all_trades=-2.8333333333333335,
+        long_trades=10.5,
         short_trades=-9.5,
         is_positive_optimization=True,
     )
 
 
 def test_compute_average_trade_pnl(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=0, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_trades()
-    dummy_strategy_analyzer.compute_average_pnl()
+    dummy_strategy_analyzer.compute_average_trade_pnl()
 
     assert dummy_strategy_analyzer.analysis_results[
         0
     ].average_trade_pnl == AnalysisStat(
         name="Average Trade PnL",
-        all_trades=-2.125,
-        long_trades=5.25,
+        all_trades=-2.8333333333333335,
+        long_trades=10.5,
         short_trades=-9.5,
         is_positive_optimization=True,
     )
 
 
 def test_compute_average_winning_trade(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=2.5, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=10.5, sequence_id="2"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_winning_trades()
     dummy_strategy_analyzer.compute_average_winning_trade()
@@ -433,25 +419,23 @@ def test_compute_average_winning_trade(dummy_strategy_analyzer) -> None:
         0
     ].average_winning_trade == AnalysisStat(
         name="Average Winning Trade",
-        all_trades=7.833333333333333,
+        all_trades=5.0,
         long_trades=6.5,
-        short_trades=10.5,
+        short_trades=2,
         is_positive_optimization=True,
     )
 
 
 def test_compute_average_losing_trade(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=2.5, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=10.5, sequence_id="2"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_losing_trades()
     dummy_strategy_analyzer.compute_average_losing_trade()
@@ -460,25 +444,23 @@ def test_compute_average_losing_trade(dummy_strategy_analyzer) -> None:
         0
     ].average_losing_trade == AnalysisStat(
         name="Average Losing Trade",
-        all_trades=-8.5,
+        all_trades=0,
         long_trades=0,
-        short_trades=-8.5,
+        short_trades=0,
         is_positive_optimization=False,
     )
 
 
 def test_compute_take_profit_ratio(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=2.5),
-                dummy_trade_position(direction=-1, pnl=10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=2.5, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=10.5, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_winning_trades()
     dummy_strategy_analyzer.compute_average_winning_trade()
@@ -498,17 +480,15 @@ def test_compute_take_profit_ratio(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_trade_expectancy(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=0, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_trades()
     dummy_strategy_analyzer.compute_winning_trades()
@@ -529,17 +509,16 @@ def test_compute_trade_expectancy(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_max_consecutive_winners(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=-8, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="4"),
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="3"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_max_consecutive_winners()
 
@@ -547,25 +526,23 @@ def test_compute_max_consecutive_winners(dummy_strategy_analyzer) -> None:
         0
     ].max_consecutive_winners == AnalysisStat(
         name="Maximum Consecutive Winners",
-        all_trades=1,
-        long_trades=1,
-        short_trades=0,
+        all_trades=3,
+        long_trades=2,
+        short_trades=1,
         is_positive_optimization=True,
     )
 
 
 def test_compute_max_consecutive_losers(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=0, sequence_id="3"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_max_consecutive_losers()
 
@@ -581,17 +558,15 @@ def test_compute_max_consecutive_losers(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_largest_winning_trade(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=0, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_largest_winning_trade()
 
@@ -607,17 +582,15 @@ def test_compute_largest_winning_trade(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_largest_losing_trade(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, pnl=10.5),
-                dummy_trade_position(direction=-1, pnl=-8.5),
-                dummy_trade_position(direction=1, pnl=0),
-                dummy_trade_position(direction=-1, pnl=-10.5),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-8.5, sequence_id="2"),
+            dummy_trade_position(direction=1, pnl=0, sequence_id="1"),
+            dummy_trade_position(direction=-1, pnl=-10.5, sequence_id="3"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_largest_losing_trade()
 
@@ -626,24 +599,22 @@ def test_compute_largest_losing_trade(dummy_strategy_analyzer) -> None:
     ].largest_losing_trade == AnalysisStat(
         name="Largest Losing Trade",
         all_trades=-10.5,
-        long_trades=0,
+        long_trades=10.5,
         short_trades=-10.5,
         is_positive_optimization=False,
     )
 
 
 def test_compute_average_holding_time(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, holding_time=1),
-                dummy_trade_position(direction=-1, holding_time=2),
-                dummy_trade_position(direction=1, holding_time=3),
-                dummy_trade_position(direction=-1, holding_time=4),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, holding_time=1, sequence_id="1"),
+            dummy_trade_position(direction=-1, holding_time=2, sequence_id="2"),
+            dummy_trade_position(direction=1, holding_time=3, sequence_id="3"),
+            dummy_trade_position(direction=-1, holding_time=4, sequence_id="4"),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_trades()
     dummy_strategy_analyzer.compute_average_holding_time()
@@ -660,17 +631,15 @@ def test_compute_average_holding_time(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_maximum_holding_time(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(direction=1, holding_time=1),
-                dummy_trade_position(direction=-1, holding_time=2),
-                dummy_trade_position(direction=1, holding_time=3),
-                dummy_trade_position(direction=-1, holding_time=4),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, holding_time=1),
+            dummy_trade_position(direction=-1, holding_time=2),
+            dummy_trade_position(direction=1, holding_time=3),
+            dummy_trade_position(direction=-1, holding_time=4),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_maximum_holding_time()
 
@@ -686,25 +655,19 @@ def test_compute_maximum_holding_time(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_monthly_pnl(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(
-                    direction=1, pnl=10.5, exit_time=datetime(2022, 1, 1)
-                ),
-                dummy_trade_position(
-                    direction=-1, pnl=-8.5, exit_time=datetime(2022, 1, 2)
-                ),
-                dummy_trade_position(
-                    direction=1, pnl=0, exit_time=datetime(2022, 2, 1)
-                ),
-                dummy_trade_position(
-                    direction=-1, pnl=-10.5, exit_time=datetime(2022, 2, 1)
-                ),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, exit_time=datetime(2022, 1, 1)),
+            dummy_trade_position(
+                direction=-1, pnl=-8.5, exit_time=datetime(2022, 1, 2)
+            ),
+            dummy_trade_position(direction=1, pnl=0, exit_time=datetime(2022, 2, 1)),
+            dummy_trade_position(
+                direction=-1, pnl=-10.5, exit_time=datetime(2022, 2, 1)
+            ),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_monthly_pnl()
 
@@ -719,25 +682,19 @@ def test_compute_monthly_pnl(dummy_strategy_analyzer) -> None:
 
 
 def test_compute_average_monthly_pnl(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = [
-        SymbolAnalysisResult(
-            symbol="test_symbol",
-            trades=[
-                dummy_trade_position(
-                    direction=1, pnl=10.5, exit_time=datetime(2022, 1, 1)
-                ),
-                dummy_trade_position(
-                    direction=-1, pnl=-8.5, exit_time=datetime(2022, 1, 2)
-                ),
-                dummy_trade_position(
-                    direction=1, pnl=0, exit_time=datetime(2022, 2, 1)
-                ),
-                dummy_trade_position(
-                    direction=-1, pnl=-10.5, exit_time=datetime(2022, 2, 1)
-                ),
-            ],
-        )
-    ]
+    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
+        dummy_strategy_analyzer,
+        [
+            dummy_trade_position(direction=1, pnl=10.5, exit_time=datetime(2022, 1, 1)),
+            dummy_trade_position(
+                direction=-1, pnl=-8.5, exit_time=datetime(2022, 1, 2)
+            ),
+            dummy_trade_position(direction=1, pnl=0, exit_time=datetime(2022, 2, 1)),
+            dummy_trade_position(
+                direction=-1, pnl=-10.5, exit_time=datetime(2022, 2, 1)
+            ),
+        ],
+    )
 
     dummy_strategy_analyzer.compute_total_trades()
     dummy_strategy_analyzer.compute_monthly_pnl()
@@ -761,4 +718,4 @@ def test_run_analysis(dummy_strategy_analyzer) -> None:
     analysis_results_fields = [field.name for field in fields(analysis_results[0])]
 
     assert len(analysis_results) == 1
-    assert len(analysis_results_fields) == 28
+    assert len(analysis_results_fields) == 29

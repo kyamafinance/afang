@@ -14,6 +14,7 @@ def run_backtest_side_effect() -> List[List[SymbolAnalysisResult]]:
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -41,6 +42,7 @@ def run_backtest_side_effect() -> List[List[SymbolAnalysisResult]]:
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -68,6 +70,7 @@ def run_backtest_side_effect() -> List[List[SymbolAnalysisResult]]:
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -95,6 +98,7 @@ def run_backtest_side_effect() -> List[List[SymbolAnalysisResult]]:
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -162,6 +166,7 @@ def test_is_objective_positive_optimization() -> None:
         SymbolAnalysisResult(
             symbol="test_symbol",
             trades=[],
+            sequenced_trades=[],
             net_profit=AnalysisStat(
                 name="Net Profit",
                 all_trades=10,
@@ -187,6 +192,7 @@ def test_get_objective_value() -> None:
         SymbolAnalysisResult(
             symbol="test_symbol",
             trades=[],
+            sequenced_trades=[],
             net_profit=AnalysisStat(
                 name="Net Profit",
                 all_trades=10,
@@ -206,6 +212,7 @@ def test_set_objective_value() -> None:
         SymbolAnalysisResult(
             symbol="test_symbol",
             trades=[],
+            sequenced_trades=[],
             net_profit=AnalysisStat(
                 name="Net Profit",
                 all_trades=10,
@@ -248,6 +255,7 @@ def test_generate_initial_population(dummy_is_optimizer) -> None:
                 SymbolAnalysisResult(
                     symbol="test_symbol",
                     trades=[],
+                    sequenced_trades=[],
                     total_trades=AnalysisStat(
                         name="Total Trades",
                         all_trades=0,
@@ -275,6 +283,7 @@ def test_generate_initial_population(dummy_is_optimizer) -> None:
                 SymbolAnalysisResult(
                     symbol="test_symbol",
                     trades=[],
+                    sequenced_trades=[],
                     total_trades=AnalysisStat(
                         name="Total Trades",
                         all_trades=0,
@@ -304,6 +313,7 @@ def test_generate_initial_population(dummy_is_optimizer) -> None:
                 SymbolAnalysisResult(
                     symbol="test_symbol",
                     trades=[],
+                    sequenced_trades=[],
                     total_trades=AnalysisStat(
                         name="Total Trades",
                         all_trades=1,
@@ -331,6 +341,7 @@ def test_generate_initial_population(dummy_is_optimizer) -> None:
                 SymbolAnalysisResult(
                     symbol="test_symbol",
                     trades=[],
+                    sequenced_trades=[],
                     total_trades=AnalysisStat(
                         name="Total Trades",
                         all_trades=1,
@@ -450,6 +461,7 @@ def test_generate_offspring_population(
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -475,6 +487,7 @@ def test_generate_offspring_population(
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -503,6 +516,7 @@ def test_generate_offspring_population(
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -528,6 +542,7 @@ def test_generate_offspring_population(
             SymbolAnalysisResult(
                 symbol="test_symbol",
                 trades=[],
+                sequenced_trades=[],
                 total_trades=AnalysisStat(
                     name="Total Trades",
                     all_trades=1,
@@ -631,6 +646,7 @@ def test_persist_optimization(optimization_root_dir, dummy_is_optimizer) -> None
         SymbolAnalysisResult(
             symbol="test_symbol",
             trades=[],
+            sequenced_trades=[],
             total_trades=AnalysisStat(
                 name="Total Trades",
                 all_trades=1,

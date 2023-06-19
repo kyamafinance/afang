@@ -24,6 +24,7 @@ def dummy_db_trade_positions() -> List[dict]:
             "stop_price": 80,
             "initial_account_balance": 2000,
             "exchange_display_name": "test_exchange",
+            "sequence_id": "1",
         },
         {
             "id": 2,
@@ -37,6 +38,7 @@ def dummy_db_trade_positions() -> List[dict]:
             "stop_price": 80,
             "initial_account_balance": 2000,
             "exchange_display_name": "test_exchange",
+            "sequence_id": "2",
         },
         {
             "id": 3,
@@ -50,6 +52,7 @@ def dummy_db_trade_positions() -> List[dict]:
             "stop_price": 80,
             "initial_account_balance": 2000,
             "exchange_display_name": "test_exchange",
+            "sequence_id": "3",
         },
     ]
 
