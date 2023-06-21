@@ -1,9 +1,10 @@
 import logging
 import os
 import pathlib
+import time
 from typing import Optional
 
-from peewee import SqliteDatabase
+from playhouse.sqliteq import SqliteQueueDatabase
 
 from afang.database.trades_db.models import Order, TradePosition, database
 
@@ -26,6 +27,11 @@ class TradesDatabase:
         database.init(database=db_file_path)
 
         self.models = [TradePosition, Order]
-        self.database: SqliteDatabase = database
-        with self.database:
-            self.database.create_tables(self.models, safe=True)
+        self.database: SqliteQueueDatabase = database
+
+        # Create database tables if needed.
+        self.database.start()
+        self.database.connect()
+        self.database.create_tables(self.models, safe=True)
+        time.sleep(0.01)  # ensure tables are created in DB.
+        self.database.close()

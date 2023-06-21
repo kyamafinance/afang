@@ -29,97 +29,106 @@ class SampleStrategy(IsStrategy):
 
         return dict()
 
-    def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
+    def generate_features(self, symbol: str, ohlcv_df: pd.DataFrame) -> pd.DataFrame:
         """Generate features for the trading strategy.
 
         - To generate features, add columns to the `data` dataframe that can later
           be used to calculate horizontal trade barriers.
         - Initially, the `data` dataframe will contain OHLCV data.
 
-        :param data: OHLCV data for a trading symbol.
+        :param symbol: trading symbol.
+        :param ohlcv_df: OHLCV data for a trading symbol.
         :return: None
         """
 
         params = self.config["parameters"]
 
         # EMA.
-        data["ema"] = talib.EMA(data.close, timeperiod=params["ema_period"])
+        ohlcv_df["ema"] = talib.EMA(ohlcv_df.close, timeperiod=params["ema_period"])
 
         # MACD.
-        data["macd"], data["macd_signal"], _ = talib.MACD(
-            data.close,
+        ohlcv_df["macd"], ohlcv_df["macd_signal"], _ = talib.MACD(
+            ohlcv_df.close,
             fastperiod=params["macd_period_fast"],
             slowperiod=params["macd_period_slow"],
             signalperiod=params["macd_signal"],
         )
-        data["prev_macd"] = data["macd"].shift(1)
-        data["prev_macd_signal"] = data["macd_signal"].shift(1)
+        ohlcv_df["prev_macd"] = ohlcv_df["macd"].shift(1)
+        ohlcv_df["prev_macd_signal"] = ohlcv_df["macd_signal"].shift(1)
 
         # PSAR.
-        data["psar"] = talib.SAR(
-            data.high,
-            data.low,
+        ohlcv_df["psar"] = talib.SAR(
+            ohlcv_df.high,
+            ohlcv_df.low,
             acceleration=params["psar_acceleration"],
             maximum=params["psar_max_val"],
         )
 
-        return data
+        return ohlcv_df
 
-    def is_long_trade_signal_present(self, data: Any) -> bool:
+    def is_long_trade_signal_present(
+        self, symbol: str, current_trading_candle: Any
+    ) -> bool:
         """Check if a long trade signal exists.
 
-        :param data: the historical price dataframe row at the current
-            time in backtest.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the current trading candle.
         :return: bool
         """
 
         # Ensure that the candle is above the EMA.
-        if not data.low > data.ema:
+        if not (current_trading_candle.low > current_trading_candle.ema):
             return False
 
         # Ensure that the MACD line is crossing above the signal line.
-        if not data.macd > data.macd_signal:
+        if not (current_trading_candle.macd > current_trading_candle.macd_signal):
             return False
-        if not data.prev_macd < data.prev_macd_signal:
+        if not (
+            current_trading_candle.prev_macd < current_trading_candle.prev_macd_signal
+        ):
             return False
 
         # Ensure that the PSAR is below the candle low.
-        if not data.psar < data.low:
+        if not (current_trading_candle.psar < current_trading_candle.low):
             return False
 
         return True
 
-    def is_short_trade_signal_present(self, data: Any) -> bool:
+    def is_short_trade_signal_present(
+        self, symbol: str, current_trading_candle: Any
+    ) -> bool:
         """Check if a short trade signal exists.
 
-        :param data: the historical price dataframe row at the current
-            time in backtest.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the current trading candle.
         :return: bool
         """
 
         # Ensure that the candle is below the EMA.
-        if not data.high < data.ema:
+        if not (current_trading_candle.high < current_trading_candle.ema):
             return False
 
         # Ensure that the MACD line is crossing below the signal line.
-        if not data.macd < data.macd_signal:
+        if not (current_trading_candle.macd < current_trading_candle.macd_signal):
             return False
-        if not data.prev_macd > data.prev_macd_signal:
+        if not (
+            current_trading_candle.prev_macd > current_trading_candle.prev_macd_signal
+        ):
             return False
 
         # Ensure that the PSAR is above the candle high.
-        if not data.psar > data.high:
+        if not (current_trading_candle.psar > current_trading_candle.high):
             return False
 
         return True
 
     def generate_trade_levels(
-        self, data: Any, trade_signal_direction: int
+        self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
     ) -> TradeLevels:
         """Generate price levels for an individual trade signal.
 
-        :param data: the historical price dataframe row where the open
-            trade signal was detected.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the current trading candle.
         :param trade_signal_direction: 1 for a long position. -1 for a
             short position.
         :return: TradeLevels
@@ -127,8 +136,8 @@ class SampleStrategy(IsStrategy):
 
         params = self.config["parameters"]
 
-        entry_price = data.close
-        stop_price = data.psar
+        entry_price = current_trading_candle.close
+        stop_price = current_trading_candle.psar
 
         if trade_signal_direction == 1:
             # long trade.

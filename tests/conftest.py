@@ -194,19 +194,27 @@ def dummy_is_strategy_callable() -> Type[IsStrategy]:
                 },
             }
 
-        def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
-            return super().generate_features(data)
+        def generate_features(
+            self, symbol: str, ohlcv_df: pd.DataFrame
+        ) -> pd.DataFrame:
+            return super().generate_features(symbol, ohlcv_df)
 
-        def is_long_trade_signal_present(self, data: Any) -> bool:
-            return super().is_long_trade_signal_present(data)
+        def is_long_trade_signal_present(
+            self, symbol: str, current_trading_candle: Any
+        ) -> bool:
+            return super().is_long_trade_signal_present(symbol, current_trading_candle)
 
-        def is_short_trade_signal_present(self, data: Any) -> bool:
-            return super().is_short_trade_signal_present(data)
+        def is_short_trade_signal_present(
+            self, symbol: str, current_trading_candle: Any
+        ) -> bool:
+            return super().is_short_trade_signal_present(symbol, current_trading_candle)
 
         def generate_trade_levels(
-            self, data: Any, trade_signal_direction: int
+            self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
         ) -> TradeLevels:
-            return super().generate_trade_levels(data, trade_signal_direction)
+            return super().generate_trade_levels(
+                symbol, current_trading_candle, trade_signal_direction
+            )
 
         def plot_backtest_indicators(self) -> Dict:
             return super().plot_backtest_indicators()
