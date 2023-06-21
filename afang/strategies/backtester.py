@@ -128,6 +128,9 @@ class Backtester(Root):
             )
             return None
 
+        self.open_symbol_positions[symbol] = self.fetch_open_trade_positions([symbol])
+        self.on_trade_position_opened(new_trade_position)
+
         return new_trade_position
 
     def update_closed_position_orders(
@@ -238,39 +241,51 @@ class Backtester(Root):
         if is_entry_order_filled:
             self.update_closed_position_orders(position, close_order_type)
 
+        self.open_symbol_positions[position.symbol] = self.fetch_open_trade_positions(
+            [position.symbol]
+        )
+        self.on_trade_position_closed(DBTradePosition.get_by_id(position.id))
+
         return position
 
     @abstractmethod
-    def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
+    def generate_features(self, symbol: str, ohlcv_df: pd.DataFrame) -> pd.DataFrame:
         """Generate features for the trading strategy.
 
         - To generate features, add columns to the `data` dataframe that can later
           be used to calculate horizontal trade barriers.
         - Initially, the `data` dataframe will contain OHLCV data.
 
-        :param data: OHLCV data for a trading symbol.
+        :param symbol: trading symbol.
+        :param ohlcv_df: OHLCV data for a trading symbol.
         :return: None
         """
 
-        return data
+        return ohlcv_df
 
     @abstractmethod
-    def is_long_trade_signal_present(self, data: Any) -> bool:
+    def is_long_trade_signal_present(
+        self, symbol: str, current_trading_candle: Any
+    ) -> bool:
         """Check if a long trade signal exists.
 
-        :param data: the historical price dataframe row at the current
-            time in backtest.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the historical price dataframe
+            row at the current time in backtest.
         :return: bool
         """
 
         pass
 
     @abstractmethod
-    def is_short_trade_signal_present(self, data: Any) -> bool:
+    def is_short_trade_signal_present(
+        self, symbol: str, current_trading_candle: Any
+    ) -> bool:
         """Check if a short trade signal exists.
 
-        :param data: the historical price dataframe row at the current
-            time in backtest.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the historical price dataframe
+            row at the current time in backtest.
         :return: bool
         """
 
@@ -278,48 +293,56 @@ class Backtester(Root):
 
     @abstractmethod
     def generate_trade_levels(
-        self, data: Any, trade_signal_direction: int
+        self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
     ) -> TradeLevels:
         """Generate price levels for an individual trade signal.
 
-        :param data: the historical price dataframe row where the open
-            trade signal was detected.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the historical price dataframe
+            row where the open trade signal was detected.
         :param trade_signal_direction: 1 for a long position. -1 for a
             short position.
         :return: TradeLevels
         """
 
         return TradeLevels(
-            entry_price=data.close,
+            entry_price=current_trading_candle.close,
             target_price=None,
             stop_price=None,
         )
 
     def generate_and_verify_backtest_trade_levels(
-        self, data: Any, trade_signal_direction: int
+        self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
     ) -> Optional[TradeLevels]:
         """Generate price levels for an individual trade signal and verify that
         they are valid.
 
-        :param data: the historical price dataframe row where the open
-            trade signal was detected.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the historical price dataframe
+            row where the open trade signal was detected.
         :param trade_signal_direction: 1 for a long position. -1 for a
             short position.
         :return: Optional[TradeLevels]
         """
 
-        trade_levels = self.generate_trade_levels(data, trade_signal_direction)
+        trade_levels = self.generate_trade_levels(
+            symbol, current_trading_candle, trade_signal_direction
+        )
 
-        if (trade_signal_direction == 1 and trade_levels.entry_price < data.close) or (
-            trade_signal_direction == -1 and trade_levels.entry_price > data.close
+        if (
+            trade_signal_direction == 1
+            and trade_levels.entry_price < current_trading_candle.close
+        ) or (
+            trade_signal_direction == -1
+            and trade_levels.entry_price > current_trading_candle.close
         ):
             logger.warning(
                 "Generated trade levels are invalid. direction: %s. candle open time: %s. "
                 "desired entry price: %s. current price: %s",
                 trade_signal_direction,
-                data.Index,
+                current_trading_candle.Index,
                 trade_levels.entry_price,
-                data.close,
+                current_trading_candle.close,
             )
             return None
 
@@ -377,10 +400,9 @@ class Backtester(Root):
 
     def handle_open_backtest_positions(
         self, data: Any, open_symbol_positions: List[DBTradePosition]
-    ) -> bool:
+    ) -> None:
         """Monitor and handle open positions for a given symbol and close them
-        if they hit a trade barrier. Returns true if a trade position is
-        closed.
+        if they hit a trade barrier.
 
         :param data: the historical price dataframe row at the current
             time in backtest.
@@ -388,7 +410,6 @@ class Backtester(Root):
         :return: None
         """
 
-        has_trade_position_closed = False
         for position in open_symbol_positions:
             # ensure that the trade position was not opened during the current candle.
             if position.entry_time == data.Index.to_pydatetime():
@@ -402,7 +423,6 @@ class Backtester(Root):
             position.holding_time += 1
             position.save()
 
-            close_position = None
             is_entry_order_filled = True if position.entry_price else False
 
             # check if the lower horizontal barrier has been hit for long positions.
@@ -413,7 +433,7 @@ class Backtester(Root):
                 and data.high >= position.stop_price >= data.low
                 and position.direction == 1
             ):
-                close_position = self.close_backtest_position(
+                self.close_backtest_position(
                     position,
                     position.stop_price,
                     data.Index.to_pydatetime(),
@@ -428,7 +448,7 @@ class Backtester(Root):
                 and data.high >= position.target_price >= data.low
                 and position.direction == 1
             ):
-                close_position = self.close_backtest_position(
+                self.close_backtest_position(
                     position,
                     position.target_price,
                     data.Index.to_pydatetime(),
@@ -443,7 +463,7 @@ class Backtester(Root):
                 and data.high >= position.stop_price >= data.low
                 and position.direction == -1
             ):
-                close_position = self.close_backtest_position(
+                self.close_backtest_position(
                     position,
                     position.stop_price,
                     data.Index.to_pydatetime(),
@@ -458,7 +478,7 @@ class Backtester(Root):
                 and data.high >= position.target_price >= data.low
                 and position.direction == -1
             ):
-                close_position = self.close_backtest_position(
+                self.close_backtest_position(
                     position,
                     position.target_price,
                     data.Index.to_pydatetime(),
@@ -467,20 +487,15 @@ class Backtester(Root):
 
             # check if vertical barrier has been hit.
             elif position.holding_time >= self.max_holding_candles:
-                close_position = self.close_backtest_position(
+                self.close_backtest_position(
                     position, data.close, data.Index.to_pydatetime()
                 )
 
             # check if current candle is the last candle in the provided historical price data.
             elif data.Index == self.backtest_data[position.symbol].index.values[-1]:
-                close_position = self.close_backtest_position(
+                self.close_backtest_position(
                     position, data.close, data.Index.to_pydatetime()
                 )
-
-            if close_position:
-                has_trade_position_closed = True
-
-        return has_trade_position_closed
 
     def run_symbol_backtest(self, symbol: str) -> None:
         """Run trading backtest for a single symbol.
@@ -522,25 +537,29 @@ class Backtester(Root):
 
         resampled_ohlcv_data = resample_timeframe(ohlcv_data, self.timeframe.value)
 
+        # open the trades' database connection.
+        self.trades_database.database.connect(reuse_if_open=True)
+
         # generate trading features.
-        populated_ohlcv_data = self.generate_features(resampled_ohlcv_data)
+        populated_ohlcv_data = self.generate_features(symbol, resampled_ohlcv_data)
 
         # remove unstable indicator values.
         idx = self.unstable_indicator_values
         self.backtest_data[symbol] = populated_ohlcv_data.iloc[idx:]
 
-        # open the trades' database connection.
-        self.trades_database.database.connect(reuse_if_open=True)
-
-        open_symbol_positions: List[DBTradePosition] = []
         for row in self.backtest_data[symbol].itertuples():
+            # Allow user strategies to manipulate open trade positions.
+            self.handle_open_trade_positions(
+                symbol, self.open_symbol_positions[symbol], row
+            )
+
             should_open_new_position = False
             new_position_direction = None
 
             # open a long position if we get a long trading signal.
             if (
                 self.allow_long_positions
-                and self.is_long_trade_signal_present(row)
+                and self.is_long_trade_signal_present(symbol, row)
                 and row.Index != self.backtest_data[symbol].index.values[-1]
             ):
                 should_open_new_position = True
@@ -549,7 +568,7 @@ class Backtester(Root):
             # open a short position if we get a short trading signal.
             elif (
                 self.allow_short_positions
-                and self.is_short_trade_signal_present(row)
+                and self.is_short_trade_signal_present(symbol, row)
                 and row.Index != self.backtest_data[symbol].index.values[-1]
             ):
                 should_open_new_position = True
@@ -558,29 +577,23 @@ class Backtester(Root):
             if should_open_new_position:
                 # only open a position if multiple open positions are allowed or
                 # there is no open position.
-                if self.allow_multiple_open_positions or not len(open_symbol_positions):
+                if self.allow_multiple_open_positions or not len(
+                    self.open_symbol_positions[symbol]
+                ):
                     trade_levels = self.generate_and_verify_backtest_trade_levels(
-                        row, trade_signal_direction=new_position_direction
+                        symbol, row, trade_signal_direction=new_position_direction
                     )
                     if trade_levels:
-                        new_trade_position = self.open_backtest_position(
+                        self.open_backtest_position(
                             symbol=symbol,
                             direction=new_position_direction,
                             trade_levels=trade_levels,
                             entry_time=row.Index.to_pydatetime(),
                         )
-                        if new_trade_position:
-                            open_symbol_positions = self.fetch_open_trade_positions(
-                                [symbol]
-                            )
 
             # monitor and handle all open positions.
-            self.handle_position_open_orders(row, open_symbol_positions)
-            has_trade_position_closed = self.handle_open_backtest_positions(
-                row, open_symbol_positions
-            )
-            if has_trade_position_closed:
-                open_symbol_positions = self.fetch_open_trade_positions([symbol])
+            self.handle_position_open_orders(row, self.open_symbol_positions[symbol])
+            self.handle_open_backtest_positions(row, self.open_symbol_positions[symbol])
 
         # close the trades' database connection.
         self.trades_database.database.close()
@@ -611,6 +624,9 @@ class Backtester(Root):
         :param to_time: desired end time of the backtest.
         :return: Optional[List[SymbolAnalysisResult]]
         """
+
+        # Record strategy run mode.
+        self.is_running_backtest = True
 
         # Get symbols to backtest.
         self.symbols = symbols
@@ -665,13 +681,14 @@ class Backtester(Root):
 
         # Initialize backtest trades database.
         self.trades_database = TradesDatabase(db_name="trades_backtest.sqlite3")
-        with self.trades_database.database:
-            self.trades_database.database.drop_tables(
-                self.trades_database.models, safe=True
-            )
-            self.trades_database.database.create_tables(
-                self.trades_database.models, safe=True
-            )
+        self.trades_database.database.connect(reuse_if_open=True)
+        self.trades_database.database.drop_tables(
+            self.trades_database.models, safe=True
+        )
+        self.trades_database.database.create_tables(
+            self.trades_database.models, safe=True
+        )
+        self.trades_database.database.close()
 
         max_workers = multiprocessing.cpu_count() - 1
         with ThreadPoolExecutor(max_workers=max_workers) as executor:

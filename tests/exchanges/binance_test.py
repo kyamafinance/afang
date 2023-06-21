@@ -180,6 +180,7 @@ def test_get_historical_candles(mocker, req_response, expected_candles) -> None:
         "afang.exchanges.binance.BinanceExchange._make_request",
         mock_make_request,
     )
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
 
     binance_exchange = BinanceExchange()
     assert (
@@ -425,7 +426,9 @@ def test_get_asset_balances(mocker, caplog, response) -> None:
     )
 
 
-def test_subscribe_wss_candlestick_stream() -> None:
+def test_subscribe_wss_candlestick_stream(mocker) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+
     class MockWSS:
         def send(self, _val):
             pass
@@ -486,6 +489,7 @@ def test_wss_on_close(caplog, mocker) -> None:
 
 def test_wss_on_error(mocker, caplog) -> None:
     mocker.patch("afang.exchanges.binance.BinanceExchange._start_wss")
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
 
     binance_exchange = BinanceExchange()
     binance_exchange._wss_on_error(websocket.WebSocketApp("fake-url"), "this message")
@@ -494,7 +498,8 @@ def test_wss_on_error(mocker, caplog) -> None:
     assert "wss connection error: this message" in caplog.text
 
 
-def test_wss_handle_listen_key_expired(caplog) -> None:
+def test_wss_handle_listen_key_expired(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     binance_exchange = BinanceExchange()
     binance_exchange._wss_handle_listen_key_expired("this message")
 
@@ -523,14 +528,19 @@ def test_wss_handle_margin_call(caplog, mocker) -> None:
         ),
     ],
 )
-def test_wss_handle_asset_balance_update(msg_data, expected_symbol_balances) -> None:
+def test_wss_handle_asset_balance_update(
+    mocker, msg_data, expected_symbol_balances
+) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     binance_exchange = BinanceExchange()
     binance_exchange._wss_handle_asset_balance_update(msg_data)
 
     assert binance_exchange.trading_symbol_balance == expected_symbol_balances
 
 
-def test_wss_handle_order_update() -> None:
+def test_wss_handle_order_update(mocker) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+
     msg_data = {
         "o": {
             "s": "BTC",
@@ -580,7 +590,9 @@ def test_wss_handle_order_update() -> None:
     )
 
 
-def test_wss_handle_candlestick_update_no_k() -> None:
+def test_wss_handle_candlestick_update_no_k(mocker) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+
     binance_exchange = BinanceExchange()
     binance_exchange.trading_price_data["BTC"] = [
         Candle(
@@ -598,7 +610,11 @@ def test_wss_handle_candlestick_update_no_k() -> None:
 
 
 @pytest.mark.parametrize("msg_data_open_time, expected_candle_len", [(1, 1), (2, 1)])
-def test_wss_handle_candlestick_update(msg_data_open_time, expected_candle_len) -> None:
+def test_wss_handle_candlestick_update(
+    mocker, msg_data_open_time, expected_candle_len
+) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
+
     msg_data: Dict = {
         "ps": "BTC",
         "k": {
@@ -647,6 +663,7 @@ def test_wss_handle_candlestick_update(msg_data_open_time, expected_candle_len) 
     ],
 )
 def test_wss_on_message(mocker, msg_data) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     mocked_handle_lk_expired = mocker.patch(
         "afang.exchanges.binance.BinanceExchange._wss_handle_listen_key_expired"
     )
@@ -704,6 +721,7 @@ def test_fetch_wss_listen_key(mocker, response, expected_output) -> None:
     "listen_key_result, expected_listen_key", [(None, None), (12345, 12345)]
 )
 def test_keep_wss_alive(mocker, listen_key_result, expected_listen_key) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     mocked_fetch_listen_key = mocker.patch(
         "afang.exchanges.binance.BinanceExchange._fetch_wss_listen_key",
         return_value=listen_key_result,
@@ -717,6 +735,7 @@ def test_keep_wss_alive(mocker, listen_key_result, expected_listen_key) -> None:
 
 
 def test_start_wss_no_listen_key(mocker, caplog) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     mocked_fetch_lk = mocker.patch.object(
         BinanceExchange, "_fetch_wss_listen_key", return_value=None
     )
@@ -731,6 +750,7 @@ def test_start_wss_no_listen_key(mocker, caplog) -> None:
 
 
 def test_start_wss(mocker) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     mocked_threading_thread = mocker.patch("afang.exchanges.binance.threading.Thread")
     mocked_fetch_lk = mocker.patch.object(
         BinanceExchange, "_fetch_wss_listen_key", return_value=12345
@@ -745,6 +765,7 @@ def test_start_wss(mocker) -> None:
 
 
 def test_setup_exchange_for_trading(mocker) -> None:
+    mocker.patch("afang.exchanges.binance.BinanceExchange._get_symbols")
     mocked_populate_trading_symbols = mocker.patch.object(
         BinanceExchange, "_populate_trading_symbols"
     )

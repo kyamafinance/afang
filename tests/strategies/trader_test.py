@@ -663,7 +663,7 @@ def test_open_trade_position(
         IsExchange, "place_order", return_value=exchange_place_order_return_val
     )
 
-    trade_position = dummy_is_strategy.open_trade_position(
+    trade_position = dummy_is_strategy.trader__open_trade_position(
         "BTCUSDT",
         1,
         TradeLevels(entry_price=10, target_price=12, stop_price=5),
@@ -712,7 +712,7 @@ def test_place_close_trade_position_order(
     if not is_position_open:
         db_position.is_open = False
         db_position.save()
-    dummy_is_strategy.place_close_trade_position_order(
+    dummy_is_strategy.trader__place_close_trade_position_order(
         db_position, 20, OrderType.MARKET
     )
 
@@ -748,7 +748,7 @@ def test_handle_open_trade_positions(
 ) -> None:
     mocker.patch.object(Trader, "is_order_filled", return_value=True)
     mocked_place_close_trade_position_order = mocker.patch.object(
-        Trader, "place_close_trade_position_order"
+        Trader, "trader__place_close_trade_position_order"
     )
     mocked_calibrate_position_order_quantities = mocker.patch.object(
         Trader, "calibrate_position_order_quantities"
@@ -763,7 +763,7 @@ def test_handle_open_trade_positions(
 
     dummy_is_strategy.take_profit_order_type = close_order_type
     dummy_is_strategy.stop_loss_order_type = close_order_type
-    dummy_is_strategy.handle_open_trade_positions(
+    dummy_is_strategy.trader__handle_open_trade_positions(
         SimpleNamespace(**current_candle_data), [DBTradePosition.select().get()]
     )
 
@@ -785,13 +785,15 @@ def test_generate_and_verify_trader_trade_levels(
 ) -> None:
     dummy_trade_levels = TradeLevels(entry_price=10, stop_price=5, target_price=20)
 
-    def dummy_generate_trade_levels(_data, _trade_signal_direction) -> TradeLevels:
+    def dummy_generate_trade_levels(
+        _symbol, _data, _trade_signal_direction
+    ) -> TradeLevels:
         return dummy_trade_levels
 
     dummy_is_strategy.generate_trade_levels = dummy_generate_trade_levels
 
     trade_levels = dummy_is_strategy.generate_and_verify_trader_trade_levels(
-        SimpleNamespace(**candle_data), 1
+        "test_symbol", SimpleNamespace(**candle_data), 1
     )
 
     if not is_valid:
@@ -868,16 +870,16 @@ def test_run_symbol_trader(
         Trader, "get_symbol_ohlcv_candles_df", return_value=ohlcv_data_df
     )
     mocker.patch.object(IsStrategy, "is_long_trade_signal_present", return_value=True)
-    mocker.patch.object(Trader, "open_trade_position")
+    mocker.patch.object(Trader, "trader__open_trade_position")
 
     mocked_handle_open_trade_positions = mocker.patch.object(
-        Trader, "handle_open_trade_positions"
+        Trader, "trader__handle_open_trade_positions"
     )
     mocked_handle_finalized_trade_positions = mocker.patch.object(
         Trader, "handle_finalized_trade_positions"
     )
 
-    dummy_is_strategy.run_symbol_trader("BTCUSDT")
+    dummy_is_strategy.run_symbol_trader("BTCUSDT", cool_down=0)
 
     if not exchange_symbol_present:
         assert caplog.records[-1].levelname == "ERROR"
@@ -1028,7 +1030,7 @@ def test_calibrate_position_order_quantities(
 
     mocked_cancel_position_order = mocker.patch.object(Trader, "cancel_position_order")
     mocked_place_close_trade_position_order = mocker.patch.object(
-        Trader, "place_close_trade_position_order"
+        Trader, "trader__place_close_trade_position_order"
     )
 
     dummy_is_strategy.calibrate_position_order_quantities(

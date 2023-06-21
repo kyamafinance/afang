@@ -40,34 +40,41 @@ class Trader(Root):
         Root.__init__(self, strategy_name=strategy_name)
 
     @abstractmethod
-    def generate_features(self, data: pd.DataFrame) -> pd.DataFrame:
+    def generate_features(self, symbol: str, ohlcv_df: pd.DataFrame) -> pd.DataFrame:
         """Generate features for the trading strategy.
 
         - To generate features, add columns to the `data` dataframe that can later
           be used to calculate horizontal trade barriers.
         - Initially, the `data` dataframe will contain OHLCV data.
 
-        :param data: OHLCV data for a trading symbol.
+        :param symbol: trading symbol.
+        :param ohlcv_df: OHLCV data for a trading symbol.
         :return: None
         """
 
-        return data
+        return ohlcv_df
 
     @abstractmethod
-    def is_long_trade_signal_present(self, data: Any) -> bool:
+    def is_long_trade_signal_present(
+        self, symbol: str, current_trading_candle: Any
+    ) -> bool:
         """Check if a long trade signal exists.
 
-        :param data: the current trading candle.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the current trading candle.
         :return: bool
         """
 
         pass
 
     @abstractmethod
-    def is_short_trade_signal_present(self, data: Any) -> bool:
+    def is_short_trade_signal_present(
+        self, symbol: str, current_trading_candle: Any
+    ) -> bool:
         """Check if a short trade signal exists.
 
-        :param data: the current trading candle.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the current trading candle.
         :return: bool
         """
 
@@ -75,47 +82,55 @@ class Trader(Root):
 
     @abstractmethod
     def generate_trade_levels(
-        self, data: Any, trade_signal_direction: int
+        self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
     ) -> TradeLevels:
         """Generate price levels for an individual trade signal.
 
-        :param data: the current trading candle.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the current trading candle.
         :param trade_signal_direction: 1 for a long position. -1 for a
             short position.
         :return: TradeLevels
         """
 
         return TradeLevels(
-            entry_price=data.close,
+            entry_price=current_trading_candle.close,
             target_price=None,
             stop_price=None,
         )
 
     def generate_and_verify_trader_trade_levels(
-        self, data: Any, trade_signal_direction: int
+        self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
     ) -> Optional[TradeLevels]:
         """Generate price levels for an individual trade signal and verify that
         they are valid.
 
-        :param data: the candle where the open trade signal was
-            detected.
+        :param symbol: trading symbol.
+        :param current_trading_candle: the candle where the open trade
+            signal was detected.
         :param trade_signal_direction: 1 for a long position. -1 for a
             short position.
         :return: Optional[TradeLevels]
         """
 
-        trade_levels = self.generate_trade_levels(data, trade_signal_direction)
+        trade_levels = self.generate_trade_levels(
+            symbol, current_trading_candle, trade_signal_direction
+        )
 
-        if (trade_signal_direction == 1 and trade_levels.entry_price < data.close) or (
-            trade_signal_direction == -1 and trade_levels.entry_price > data.close
+        if (
+            trade_signal_direction == 1
+            and trade_levels.entry_price < current_trading_candle.close
+        ) or (
+            trade_signal_direction == -1
+            and trade_levels.entry_price > current_trading_candle.close
         ):
             logger.warning(
                 "Generated trade levels are invalid. direction: %s. candle open time: %s. "
                 "desired entry price: %s. current price: %s",
                 trade_signal_direction,
-                milliseconds_to_datetime(data.open_time),
+                milliseconds_to_datetime(current_trading_candle.open_time),
                 trade_levels.entry_price,
-                data.close,
+                current_trading_candle.close,
             )
             return None
 
@@ -974,7 +989,7 @@ class Trader(Root):
             dydx_limit_fee=self.dydx_limit_fee,
         )
 
-    def open_trade_position(
+    def trader__open_trade_position(
         self,
         symbol: str,
         direction: int,
@@ -1099,9 +1114,11 @@ class Trader(Root):
             )
             return None
 
+        self.on_trade_position_opened(new_trade_position)
+
         return new_trade_position
 
-    def place_close_trade_position_order(
+    def trader__place_close_trade_position_order(
         self,
         position: DBTradePosition,
         close_price: float,
@@ -1246,6 +1263,8 @@ class Trader(Root):
 
         for db_order in position_db_orders:
             exchange_order = self.get_exchange_order(db_order.symbol, db_order.order_id)
+            if not exchange_order:
+                continue
             order_executed_qty = exchange_order.executed_quantity or float()
             if db_order.is_open_order:
                 total_remaining_qty += order_executed_qty
@@ -1266,13 +1285,13 @@ class Trader(Root):
 
                 # place an updated close position order.
                 if total_remaining_qty:
-                    self.place_close_trade_position_order(
+                    self.trader__place_close_trade_position_order(
                         position=position,
                         close_price=db_order.raw_price,
                         close_order_type=OrderType(db_order.order_type),
                     )
 
-    def handle_open_trade_positions(
+    def trader__handle_open_trade_positions(
         self,
         current_candle_data: Any,
         open_symbol_positions: List[DBTradePosition],
@@ -1325,7 +1344,7 @@ class Trader(Root):
                     )
                 )
             ):
-                self.place_close_trade_position_order(
+                self.trader__place_close_trade_position_order(
                     position=position,
                     close_price=position.target_price,
                     close_order_type=self.take_profit_order_type,
@@ -1341,7 +1360,7 @@ class Trader(Root):
                 and self.stop_loss_order_type == OrderType.MARKET
                 and current_candle_data.close <= position.stop_price
             ):
-                self.place_close_trade_position_order(
+                self.trader__place_close_trade_position_order(
                     position=position,
                     close_price=position.stop_price,
                     close_order_type=self.stop_loss_order_type,
@@ -1365,7 +1384,7 @@ class Trader(Root):
                     )
                 )
             ):
-                self.place_close_trade_position_order(
+                self.trader__place_close_trade_position_order(
                     position=position,
                     close_price=position.target_price,
                     close_order_type=self.take_profit_order_type,
@@ -1381,7 +1400,7 @@ class Trader(Root):
                 and self.stop_loss_order_type == OrderType.MARKET
                 and current_candle_data.close >= position.stop_price
             ):
-                self.place_close_trade_position_order(
+                self.trader__place_close_trade_position_order(
                     position=position,
                     close_price=position.stop_price,
                     close_order_type=self.stop_loss_order_type,
@@ -1439,6 +1458,8 @@ class Trader(Root):
                 exchange_order = self.get_exchange_order(
                     db_order.symbol, db_order.order_id
                 )
+                if not exchange_order:
+                    continue
                 order_executed_qty = exchange_order.executed_quantity or float()
                 if db_order.is_open_order:
                     total_remaining_position_qty += order_executed_qty
@@ -1454,10 +1475,14 @@ class Trader(Root):
             for db_order in position_db_orders:
                 self.cancel_position_order(position.symbol, db_order.order_id)
 
-    def run_symbol_trader(self, symbol: str) -> None:
+            self.on_trade_position_closed(DBTradePosition.get_by_id(position.id))
+
+    def run_symbol_trader(self, symbol: str, cool_down: int = 2) -> None:
         """Run trader on a single symbol.
 
         :param symbol: symbol to trade.
+        :param cool_down: time in secs before the trader adds the symbol
+            back to the execution queue.
         :return: None
         """
 
@@ -1474,34 +1499,39 @@ class Trader(Root):
         if ohlcv_candles_df.empty:
             return None
 
-        populated_ohlcv_data = self.generate_features(ohlcv_candles_df)
+        # open the trades' database connection.
+        self.trades_database.database.connect(reuse_if_open=True)
+
+        populated_ohlcv_data = self.generate_features(symbol, ohlcv_candles_df)
         current_candle_data = self.get_symbol_current_trading_candle(
             symbol, populated_ohlcv_data
         )
         if current_candle_data is None:
             return None
 
-        # open the trades' database connection.
-        self.trades_database.database.connect(reuse_if_open=True)
-
         if self.on_demo_mode:
             self.update_symbol_demo_mode_orders(symbol, current_candle_data)
 
         symbol_open_positions = self.fetch_open_trade_positions([symbol])
+
+        # Allow user strategies to manipulate open trade positions.
+        self.handle_open_trade_positions(
+            symbol, symbol_open_positions, current_candle_data
+        )
 
         should_open_new_position = False
         new_position_direction = None
 
         # open a long position if we get a long trading signal.
         if self.allow_long_positions and self.is_long_trade_signal_present(
-            current_candle_data
+            symbol, current_candle_data
         ):
             should_open_new_position = True
             new_position_direction = 1
 
         # open a short position if we get a short trading signal.
         elif self.allow_short_positions and self.is_short_trade_signal_present(
-            current_candle_data
+            symbol, current_candle_data
         ):
             should_open_new_position = True
             new_position_direction = -1
@@ -1511,24 +1541,28 @@ class Trader(Root):
             # there is no open position.
             if self.allow_multiple_open_positions or not len(symbol_open_positions):
                 trade_levels = self.generate_and_verify_trader_trade_levels(
-                    current_candle_data, trade_signal_direction=new_position_direction
+                    symbol,
+                    current_candle_data,
+                    trade_signal_direction=new_position_direction,
                 )
                 if trade_levels:
-                    self.open_trade_position(
+                    self.trader__open_trade_position(
                         symbol=symbol,
                         direction=new_position_direction,
                         trade_levels=trade_levels,
                     )
 
         # monitor and handle all open symbol positions.
-        self.handle_open_trade_positions(current_candle_data, symbol_open_positions)
+        self.trader__handle_open_trade_positions(
+            current_candle_data, symbol_open_positions
+        )
         self.handle_finalized_trade_positions(symbol_open_positions)
 
         # close the trades' database connection.
         self.trades_database.database.close()
 
         # add the symbol back to the trading execution queue.
-        time.sleep(2.0)
+        time.sleep(cool_down)
         self.trading_execution_queue.put(symbol)
 
     def get_db_name(self) -> str:
@@ -1562,6 +1596,9 @@ class Trader(Root):
         :param db_path: database path. optional.
         :return: None
         """
+
+        # Record strategy run mode.
+        self.is_running_backtest = False
 
         # Get symbols to trade.
         self.symbols = symbols

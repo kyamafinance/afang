@@ -104,7 +104,7 @@ def test_sample_strategy_params(sample_strategy) -> None:
 
 
 def test_generate_features(sample_strategy, ohlcv_df) -> None:
-    expected_df = sample_strategy.generate_features(ohlcv_df)
+    expected_df = sample_strategy.generate_features("test_symbol", ohlcv_df)
     expected_columns = [
         "open",
         "high",
@@ -148,7 +148,9 @@ def test_is_long_trade_signal_present(
     )
     ohlcv_row = OHLCVRow(low, ema, macd, macd_signal, prev_macd, prev_macd_signal, psar)
 
-    is_signal_expected = sample_strategy.is_long_trade_signal_present(ohlcv_row)
+    is_signal_expected = sample_strategy.is_long_trade_signal_present(
+        "test_symbol", ohlcv_row
+    )
     assert is_signal_expected == expected_signal
 
 
@@ -181,7 +183,9 @@ def test_is_short_trade_signal_present(
         high, ema, macd, macd_signal, prev_macd, prev_macd_signal, psar
     )
 
-    is_signal_expected = sample_strategy.is_short_trade_signal_present(ohlcv_row)
+    is_signal_expected = sample_strategy.is_short_trade_signal_present(
+        "test_symbol", ohlcv_row
+    )
     assert is_signal_expected == expected_signal
 
 
@@ -209,7 +213,7 @@ def test_generate_trade_levels(
     ohlcv_row = OHLCVRow(close, psar)
 
     expected_trade_levels = sample_strategy.generate_trade_levels(
-        ohlcv_row, trade_signal_direction=direction
+        "test_symbol", ohlcv_row, trade_signal_direction=direction
     )
 
     assert expected_trade_levels == TradeLevels(

@@ -8,11 +8,16 @@ from peewee import (
     ForeignKeyField,
     IntegerField,
     Model,
-    SqliteDatabase,
 )
+from playhouse.sqliteq import SqliteQueueDatabase
 
-database = SqliteDatabase(
+database = SqliteQueueDatabase(
     database=None,
+    use_gevent=False,
+    autostart=False,
+    queue_max_size=64,
+    results_timeout=5.0,
+    thread_safe=True,
     pragmas={
         "journal_mode": "wal",
         "cache_size": -1 * 64000,  # 64MB

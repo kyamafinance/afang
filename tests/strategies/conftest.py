@@ -151,4 +151,5 @@ def run_around_tests(
     yield
 
     # Tear down test DB.
+    dummy_is_strategy.trades_database.database.stop()
     dummy_is_strategy.trades_database.database.close()

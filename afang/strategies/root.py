@@ -2,7 +2,7 @@ import logging
 import queue
 import threading
 from collections import defaultdict
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import peewee
 
@@ -33,6 +33,7 @@ class Root:
         self.timeframe: Optional[Timeframe] = None
         self.symbols: Optional[List[str]] = None
         self.exchange: Optional[IsExchange] = None
+        self.is_running_backtest: bool = True
         # leverage to use per trade.
         self.leverage: int = 1
         # exchange order fee as a percentage of the trade principal.
@@ -62,6 +63,7 @@ class Root:
         # --Unique to Backtester (not in Trader)
         self.backtest_to_time: Optional[int] = None
         self.backtest_from_time: Optional[int] = None
+        self.open_symbol_positions: Dict[str, List[DBTradePosition]] = defaultdict(list)
         # expected trade slippage as a percentage of the trade principal.
         self.expected_slippage: float = 0.05
         # backtest data that initially contains OHLCV data.
@@ -108,3 +110,38 @@ class Root:
             return []
 
         return open_positions
+
+    def on_trade_position_opened(self, position: DBTradePosition) -> None:
+        """Hook that is called when a trade position is opened.
+
+        :param position: newly opened trade position.
+        :return: None
+        """
+
+        pass
+
+    def on_trade_position_closed(self, position: DBTradePosition) -> None:
+        """Hook that is called when a trade position is closed.
+
+        :param position: closed trade position.
+        :return: None
+        """
+
+        pass
+
+    def handle_open_trade_positions(
+        self,
+        symbol: str,
+        open_trade_positions: List[DBTradePosition],
+        current_trading_candle: Any,
+    ) -> None:
+        """Hook to be used by user strategies to manipulate open trade
+        positions.
+
+        :param symbol: trading symbol.
+        :param open_trade_positions: current open trade positions.
+        :param current_trading_candle: current trading candle.
+        :return: None
+        """
+
+        pass
