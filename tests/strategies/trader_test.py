@@ -771,40 +771,6 @@ def test_handle_open_trade_positions(
     assert mocked_calibrate_position_order_quantities.called
 
 
-@pytest.mark.parametrize(
-    "direction, candle_data, is_valid",
-    [
-        (1, {"close": 16, "open_time": 1}, False),
-        (1, {"close": 10, "open_time": 1}, True),
-        (-1, {"close": 16, "open_time": 1}, False),
-        (-1, {"close": 10, "open_time": 1}, True),
-    ],
-)
-def test_generate_and_verify_trader_trade_levels(
-    caplog, dummy_is_strategy, direction, candle_data, is_valid
-) -> None:
-    dummy_trade_levels = TradeLevels(entry_price=10, stop_price=5, target_price=20)
-
-    def dummy_generate_trade_levels(
-        _symbol, _data, _trade_signal_direction
-    ) -> TradeLevels:
-        return dummy_trade_levels
-
-    dummy_is_strategy.generate_trade_levels = dummy_generate_trade_levels
-
-    trade_levels = dummy_is_strategy.generate_and_verify_trader_trade_levels(
-        "test_symbol", SimpleNamespace(**candle_data), 1
-    )
-
-    if not is_valid:
-        assert not trade_levels
-        assert caplog.records[-1].levelname == "WARNING"
-        assert "Generated trade levels are invalid" in caplog.text
-        return
-
-    assert trade_levels == dummy_trade_levels
-
-
 def test_handle_finalized_trade_positions(
     dummy_is_strategy, dummy_exchange_orders, mocker
 ) -> None:

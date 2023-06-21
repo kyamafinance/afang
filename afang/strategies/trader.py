@@ -19,11 +19,7 @@ from afang.exchanges.models import OrderSide, OrderType, Symbol
 from afang.models import Timeframe
 from afang.strategies.models import TradeLevels
 from afang.strategies.root import Root
-from afang.utils.util import (
-    generate_uuid,
-    milliseconds_to_datetime,
-    round_float_to_precision,
-)
+from afang.utils.util import generate_uuid, round_float_to_precision
 
 logger = logging.getLogger(__name__)
 
@@ -98,43 +94,6 @@ class Trader(Root):
             target_price=None,
             stop_price=None,
         )
-
-    def generate_and_verify_trader_trade_levels(
-        self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
-    ) -> Optional[TradeLevels]:
-        """Generate price levels for an individual trade signal and verify that
-        they are valid.
-
-        :param symbol: trading symbol.
-        :param current_trading_candle: the candle where the open trade
-            signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a
-            short position.
-        :return: Optional[TradeLevels]
-        """
-
-        trade_levels = self.generate_trade_levels(
-            symbol, current_trading_candle, trade_signal_direction
-        )
-
-        if (
-            trade_signal_direction == 1
-            and trade_levels.entry_price < current_trading_candle.close
-        ) or (
-            trade_signal_direction == -1
-            and trade_levels.entry_price > current_trading_candle.close
-        ):
-            logger.warning(
-                "Generated trade levels are invalid. direction: %s. candle open time: %s. "
-                "desired entry price: %s. current price: %s",
-                trade_signal_direction,
-                milliseconds_to_datetime(current_trading_candle.open_time),
-                trade_levels.entry_price,
-                current_trading_candle.close,
-            )
-            return None
-
-        return trade_levels
 
     def fetch_order_by_exchange_id(self, order_id: str) -> Optional[DBOrder]:
         """Fetch an order by its exchange order ID.
@@ -1540,17 +1499,16 @@ class Trader(Root):
             # only open a position if multiple open positions are allowed or
             # there is no open position.
             if self.allow_multiple_open_positions or not len(symbol_open_positions):
-                trade_levels = self.generate_and_verify_trader_trade_levels(
+                trade_levels = self.generate_trade_levels(
                     symbol,
                     current_candle_data,
                     trade_signal_direction=new_position_direction,
                 )
-                if trade_levels:
-                    self.trader__open_trade_position(
-                        symbol=symbol,
-                        direction=new_position_direction,
-                        trade_levels=trade_levels,
-                    )
+                self.trader__open_trade_position(
+                    symbol=symbol,
+                    direction=new_position_direction,
+                    trade_levels=trade_levels,
+                )
 
         # monitor and handle all open symbol positions.
         self.trader__handle_open_trade_positions(
