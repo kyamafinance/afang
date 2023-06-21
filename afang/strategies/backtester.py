@@ -311,43 +311,6 @@ class Backtester(Root):
             stop_price=None,
         )
 
-    def generate_and_verify_backtest_trade_levels(
-        self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
-    ) -> Optional[TradeLevels]:
-        """Generate price levels for an individual trade signal and verify that
-        they are valid.
-
-        :param symbol: trading symbol.
-        :param current_trading_candle: the historical price dataframe
-            row where the open trade signal was detected.
-        :param trade_signal_direction: 1 for a long position. -1 for a
-            short position.
-        :return: Optional[TradeLevels]
-        """
-
-        trade_levels = self.generate_trade_levels(
-            symbol, current_trading_candle, trade_signal_direction
-        )
-
-        if (
-            trade_signal_direction == 1
-            and trade_levels.entry_price < current_trading_candle.close
-        ) or (
-            trade_signal_direction == -1
-            and trade_levels.entry_price > current_trading_candle.close
-        ):
-            logger.warning(
-                "Generated trade levels are invalid. direction: %s. candle open time: %s. "
-                "desired entry price: %s. current price: %s",
-                trade_signal_direction,
-                current_trading_candle.Index,
-                trade_levels.entry_price,
-                current_trading_candle.close,
-            )
-            return None
-
-        return trade_levels
-
     def handle_position_open_orders(
         self, data: Any, open_symbol_positions: List[DBTradePosition]
     ) -> None:
@@ -580,16 +543,15 @@ class Backtester(Root):
                 if self.allow_multiple_open_positions or not len(
                     self.open_symbol_positions[symbol]
                 ):
-                    trade_levels = self.generate_and_verify_backtest_trade_levels(
+                    trade_levels = self.generate_trade_levels(
                         symbol, row, trade_signal_direction=new_position_direction
                     )
-                    if trade_levels:
-                        self.open_backtest_position(
-                            symbol=symbol,
-                            direction=new_position_direction,
-                            trade_levels=trade_levels,
-                            entry_time=row.Index.to_pydatetime(),
-                        )
+                    self.open_backtest_position(
+                        symbol=symbol,
+                        direction=new_position_direction,
+                        trade_levels=trade_levels,
+                        entry_time=row.Index.to_pydatetime(),
+                    )
 
             # monitor and handle all open positions.
             self.handle_position_open_orders(row, self.open_symbol_positions[symbol])
