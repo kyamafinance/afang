@@ -1365,10 +1365,6 @@ class Trader(Root):
                     close_order_type=self.stop_loss_order_type,
                 )
 
-            # check if vertical barrier has been hit.
-            # TODO: If the position has not yet been filled/has been filled - even partially - but
-            #  has been open for more than *holding time*, close it.
-
             self.calibrate_position_order_quantities(position)
 
     def handle_finalized_trade_positions(

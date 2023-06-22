@@ -40,8 +40,6 @@ class Root:
         self.commission: float = 0.05
         # number of indicator values to be discarded due to being potentially unstable.
         self.unstable_indicator_values: int = 0
-        # maximum number of candles for a single trade.
-        self.max_holding_candles: int = 100
         # percentage of current account balance to risk per trade.
         self.percentage_risk_per_trade: float = 2
         # maximum amount to invest per trade.

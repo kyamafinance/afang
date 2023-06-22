@@ -16,7 +16,6 @@ class SampleStrategy(IsStrategy):
 
         self.leverage = 5
         # hold an open position for a max of 48 hrs.
-        self.max_holding_candles = 192
         self.max_amount_per_trade = 1000
         self.unstable_indicator_values = 300
         self.max_open_positions = 1
