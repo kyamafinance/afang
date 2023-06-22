@@ -38,7 +38,7 @@ def test_unknown_inputs(mocker, args, expected_log, caplog) -> None:
 
     main(args)
 
-    assert caplog.records[-1].levelname == "WARNING"
+    assert caplog.records[-1].levelname == "WARN"
     assert expected_log in caplog.text
 
 

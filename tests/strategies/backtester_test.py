@@ -312,7 +312,7 @@ def test_run_symbol_backtest_no_ohlcv_data(
     dummy_is_strategy.exchange = dummy_is_exchange
     dummy_is_strategy.run_symbol_backtest("test_symbol")
 
-    assert caplog.records[-1].levelname == "WARNING"
+    assert caplog.records[-1].levelname == "WARN"
     assert (
         "test_symbol test_exchange 5m: unable to get price data for the test_strategy strategy"
         in caplog.text
@@ -340,7 +340,7 @@ def test_run_backtest(
     assert mock_run_analysis.assert_called
 
     if not expected_timeframe:
-        assert caplog.records[0].levelname == "WARNING"
+        assert caplog.records[0].levelname == "WARN"
         assert (
             "test_strategy: invalid timeframe invalid defined for the strategy backtest"
             in caplog.text

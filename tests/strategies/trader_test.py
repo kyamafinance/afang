@@ -42,7 +42,7 @@ def test_fetch_order_by_exchange_id(
     if expected_found:
         assert order.order_id == order_id
         return
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[0].levelname == "WARN"
     assert "order not found in DB" in caplog.text
 
 
@@ -368,7 +368,7 @@ def test_get_order_average_price(
 
     assert average_price == expected_return_val
     if not order_found:
-        assert caplog.records[0].levelname == "WARNING"
+        assert caplog.records[0].levelname == "WARN"
         assert (
             "Could not get the order average price for BTCUSDT order: 12345"
             in caplog.text

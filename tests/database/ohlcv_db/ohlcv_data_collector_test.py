@@ -177,7 +177,7 @@ def test_fetch_symbol_data(mocker, dummy_is_exchange, ohlcv_root_db_dir):
 def test_fetch_historical_price_data_no_symbols(dummy_is_exchange, caplog) -> None:
     fetch_historical_price_data(dummy_is_exchange, [])
 
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[0].levelname == "WARN"
     assert "No symbols found to fetch historical price data" in caplog.text
 
 
