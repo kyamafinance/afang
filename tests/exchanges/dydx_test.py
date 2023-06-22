@@ -495,7 +495,7 @@ def test_wss_on_close(mocker, caplog) -> None:
     dydx_exchange = DyDxExchange()
     dydx_exchange._wss_on_close(websocket.WebSocketApp("fake-url"), "500", "error")
 
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[0].levelname == "WARN"
     assert "wss connection closed" in caplog.text
 
 
@@ -851,7 +851,7 @@ def test_wss_handle_candlestick_update_invalid_candle(mocker, caplog) -> None:
         close=9,
         volume=10,
     )
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[0].levelname == "WARN"
     assert (
         "candles cannot be updated because candle(s) are potentially missing"
         in caplog.text

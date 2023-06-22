@@ -86,7 +86,7 @@ def test_write_to_non_existent_dataset(
     ohlcv_db = OHLCVDatabase(dummy_is_exchange, "test_symbol", ohlcv_root_db_dir)
     ohlcv_db.write_data("non_existent_symbol", [])
 
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[0].levelname == "WARN"
     assert (
         "non_existent_symbol: no dataset exists for symbol in database" in caplog.text
     )

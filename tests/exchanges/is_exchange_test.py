@@ -237,7 +237,7 @@ def test_get_exchange_order(
 
     assert order == expected_order
     if should_log_warning:
-        assert caplog.records[0].levelname == "WARNING"
+        assert caplog.records[0].levelname == "WARN"
         assert "Unable to get test_exchange BTCUSDT order with id: 12345" in caplog.text
     if expected_order:
         assert dummy_is_exchange._active_orders["12345"]

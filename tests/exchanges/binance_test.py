@@ -483,7 +483,7 @@ def test_wss_on_close(caplog, mocker) -> None:
     binance_exchange = BinanceExchange()
     binance_exchange._wss_on_close(websocket.WebSocketApp("fake-url"), "500", "error")
 
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[0].levelname == "WARN"
     assert "wss connection closed" in caplog.text
 
 
@@ -513,7 +513,7 @@ def test_wss_handle_margin_call(caplog, mocker) -> None:
     binance_exchange = BinanceExchange()
     binance_exchange._wss_handle_margin_call({"p": [{"s": "BTC"}, {"s": "ETH"}]})
 
-    assert caplog.records[0].levelname == "WARNING"
+    assert caplog.records[0].levelname == "WARN"
     assert "position risk ratio is too high for symbols: BTC, ETH" in caplog.text
 
 
@@ -808,7 +808,7 @@ def test_change_initial_leverage(mocker, caplog, request_response) -> None:
     assert mocked_generate_authed_request_signature.assert_called_once
 
     if not request_response:
-        assert caplog.records[0].levelname == "WARNING"
+        assert caplog.records[0].levelname == "WARN"
         assert "could not change BTC initial leverage to 3" in caplog.text
         return
 
