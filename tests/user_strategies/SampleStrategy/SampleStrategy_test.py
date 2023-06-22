@@ -4,13 +4,14 @@ import pandas as pd
 import pytest
 
 from afang.strategies.models import TradeLevels
-from afang.strategies.SampleStrategy.SampleStrategy import SampleStrategy
+from user_strategies.SampleStrategy.SampleStrategy import SampleStrategy
 
 
 @pytest.fixture
 def sample_strategy(mocker) -> SampleStrategy:
-    mocker.patch(
-        "afang.strategies.SampleStrategy.SampleStrategy.SampleStrategy.read_strategy_config",
+    mocker.patch.object(
+        SampleStrategy,
+        "read_strategy_config",
         return_value={
             "name": "test_strategy",
             "timeframe": "1h",

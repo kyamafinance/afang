@@ -3,7 +3,7 @@ import logging
 import sys
 from typing import Callable, Optional
 
-import afang.strategies as strategies
+import user_strategies as user_strategies
 from afang.cli_handler import parse_args
 from afang.database.ohlcv_db.ohlcv_data_collector import fetch_historical_price_data
 from afang.exchanges import BinanceExchange, DyDxExchange, IsExchange
@@ -42,7 +42,7 @@ def get_strategy_instance(strategy_name: str) -> Optional[Callable]:
 
     try:
         strategy_module = __import__(
-            f"{strategies.__name__}.{strategy_name}.{strategy_name}",
+            f"{user_strategies.__name__}.{strategy_name}.{strategy_name}",
             fromlist=[strategy_name],
         )
         strategy_instance = getattr(strategy_module, strategy_name)
@@ -75,8 +75,13 @@ def main(args):
         fetch_historical_price_data(
             exchange, parsed_args.symbols, strategy=strategy() if strategy else None
         )
+        return
 
-    elif parsed_args.mode == Mode.backtest.value:
+    if not strategy:
+        logger.warning("Trading strategy not provided")
+        return
+
+    if parsed_args.mode == Mode.backtest.value:
         # If the mode provided is backtest, run a backtest on the provided strategy
         strategy().run_backtest(
             exchange,
