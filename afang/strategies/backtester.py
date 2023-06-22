@@ -382,10 +382,6 @@ class Backtester(Root):
             if not position.is_open:
                 continue
 
-            # increment trade holding time by 1.
-            position.holding_time += 1
-            position.save()
-
             is_entry_order_filled = True if position.entry_price else False
 
             # check if the lower horizontal barrier has been hit for long positions.
@@ -446,12 +442,6 @@ class Backtester(Root):
                     position.target_price,
                     data.Index.to_pydatetime(),
                     self.take_profit_order_type,
-                )
-
-            # check if vertical barrier has been hit.
-            elif position.holding_time >= self.max_holding_candles:
-                self.close_backtest_position(
-                    position, data.close, data.Index.to_pydatetime()
                 )
 
             # check if current candle is the last candle in the provided historical price data.

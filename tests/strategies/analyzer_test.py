@@ -21,7 +21,6 @@ def dummy_trade_position(
     entry_time=datetime(2021, 1, 1),
     target_price=150,
     stop_price=50,
-    holding_time=0,
     trade_count=1,
     exit_time=datetime(2022, 1, 1),
     close_price=150,
@@ -42,7 +41,6 @@ def dummy_trade_position(
         entry_time=entry_time,
         target_price=target_price,
         stop_price=stop_price,
-        holding_time=holding_time,
         trade_count=trade_count,
         exit_time=exit_time,
         close_price=close_price,
@@ -605,55 +603,6 @@ def test_compute_largest_losing_trade(dummy_strategy_analyzer) -> None:
     )
 
 
-def test_compute_average_holding_time(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
-        dummy_strategy_analyzer,
-        [
-            dummy_trade_position(direction=1, holding_time=1, sequence_id="1"),
-            dummy_trade_position(direction=-1, holding_time=2, sequence_id="2"),
-            dummy_trade_position(direction=1, holding_time=3, sequence_id="3"),
-            dummy_trade_position(direction=-1, holding_time=4, sequence_id="4"),
-        ],
-    )
-
-    dummy_strategy_analyzer.compute_total_trades()
-    dummy_strategy_analyzer.compute_average_holding_time()
-
-    assert dummy_strategy_analyzer.analysis_results[
-        0
-    ].average_holding_time == AnalysisStat(
-        name="Average Holding Time (candles)",
-        all_trades=2.5,
-        long_trades=2,
-        short_trades=3,
-        is_positive_optimization=False,
-    )
-
-
-def test_compute_maximum_holding_time(dummy_strategy_analyzer) -> None:
-    dummy_strategy_analyzer.analysis_results = mock_analysis_results(
-        dummy_strategy_analyzer,
-        [
-            dummy_trade_position(direction=1, holding_time=1),
-            dummy_trade_position(direction=-1, holding_time=2),
-            dummy_trade_position(direction=1, holding_time=3),
-            dummy_trade_position(direction=-1, holding_time=4),
-        ],
-    )
-
-    dummy_strategy_analyzer.compute_maximum_holding_time()
-
-    assert dummy_strategy_analyzer.analysis_results[
-        0
-    ].maximum_holding_time == AnalysisStat(
-        name="Maximum Holding Time",
-        all_trades=4,
-        long_trades=3,
-        short_trades=4,
-        is_positive_optimization=False,
-    )
-
-
 def test_compute_monthly_pnl(dummy_strategy_analyzer) -> None:
     dummy_strategy_analyzer.analysis_results = mock_analysis_results(
         dummy_strategy_analyzer,
@@ -718,4 +667,4 @@ def test_run_analysis(dummy_strategy_analyzer) -> None:
     analysis_results_fields = [field.name for field in fields(analysis_results[0])]
 
     assert len(analysis_results) == 1
-    assert len(analysis_results_fields) == 29
+    assert len(analysis_results_fields) == 27
