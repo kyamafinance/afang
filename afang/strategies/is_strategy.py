@@ -41,9 +41,7 @@ class IsStrategy(Backtester, Trader):
         :return: Dict
         """
 
-        config_file_path = (
-            f"{pathlib.Path(__file__).parent}/{self.strategy_name}/config.yaml"
-        )
+        config_file_path = f"{pathlib.Path(__file__).parents[2]}/user_strategies/{self.strategy_name}/config.yaml"
         with open(config_file_path) as config_file:
             config_data = yaml.load(config_file, Loader=yaml.FullLoader)
             return config_data

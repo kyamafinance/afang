@@ -5,7 +5,7 @@ import pytest
 
 from afang.exchanges import BinanceExchange, DyDxExchange
 from afang.main import get_exchange_client, get_strategy_instance, main
-from afang.strategies.SampleStrategy.SampleStrategy import SampleStrategy
+from user_strategies.SampleStrategy.SampleStrategy import SampleStrategy
 
 
 @pytest.fixture(autouse=True)
@@ -16,7 +16,10 @@ def mock_dydx_get_api_client(mocker):
 @pytest.mark.parametrize(
     "args, expected_log",
     [
-        (["-m", "unknown_mode", "-e", "dydx"], "Unknown mode provided"),
+        (
+            ["-m", "unknown_mode", "-e", "dydx", "--strategy", "test_strategy"],
+            "Unknown mode provided",
+        ),
         (["-m", "data", "-e", "unknown_exchange"], "Unknown exchange provided"),
     ],
 )
@@ -31,6 +34,7 @@ def test_unknown_inputs(mocker, args, expected_log, caplog) -> None:
 
     mocker.patch("afang.cli_handler.Mode", MockedMode)
     mocker.patch("afang.cli_handler.Exchange", MockedExchange)
+    mocker.patch("afang.main.get_strategy_instance")
 
     main(args)
 
