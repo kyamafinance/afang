@@ -57,6 +57,4 @@ class SymbolAnalysisResult:
     max_consecutive_losers: Optional[AnalysisStat] = None
     largest_winning_trade: Optional[AnalysisStat] = None
     largest_losing_trade: Optional[AnalysisStat] = None
-    average_holding_time: Optional[AnalysisStat] = None
-    maximum_holding_time: Optional[AnalysisStat] = None
     average_monthly_pnl: Optional[AnalysisStat] = None

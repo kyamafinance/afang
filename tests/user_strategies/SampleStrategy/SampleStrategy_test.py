@@ -98,7 +98,6 @@ def ohlcv_df() -> pd.DataFrame:
 
 def test_sample_strategy_params(sample_strategy) -> None:
     assert sample_strategy.leverage == 5
-    assert sample_strategy.max_holding_candles == 192
     assert sample_strategy.max_amount_per_trade == 1000
     assert sample_strategy.unstable_indicator_values == 300
     assert sample_strategy.max_open_positions == 1

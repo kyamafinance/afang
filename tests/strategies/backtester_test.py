@@ -154,14 +154,14 @@ def test_close_backtest_position(dummy_is_strategy) -> None:
 
 
 @pytest.mark.parametrize(
-    "entry_price, target_price, stop_price, direction, max_holding_candles, expected_close_price",
+    "entry_price, target_price, stop_price, direction, expected_close_price",
     [
-        (80, 100, 15, 1, 1, 15),
-        (80, 150, 8, 1, 1, 150),
-        (80, 50, 200, -1, 1, 200),
-        (80, 11, 210, -1, 1, 11),
-        (80, 8, 210, -1, 1, 100),
-        (80, 8, 210, -1, 2, 100),
+        (80, 100, 15, 1, 15),
+        (80, 150, 8, 1, 150),
+        (80, 50, 200, -1, 200),
+        (80, 11, 210, -1, 11),
+        (80, 8, 210, -1, 100),
+        (80, 8, 210, -1, 100),
     ],
 )
 def test_handle_open_backtest_positions(
@@ -173,11 +173,9 @@ def test_handle_open_backtest_positions(
     target_price,
     stop_price,
     direction,
-    max_holding_candles,
     expected_close_price,
 ) -> None:
     dummy_is_strategy.backtest_data["test_symbol"] = ohlcv_df
-    dummy_is_strategy.max_holding_candles = max_holding_candles
 
     mocker.patch.object(backtester, "generate_uuid", side_effect=["1", "2"])
     mocked_close_backtest_position = mocker.patch.object(
@@ -215,14 +213,11 @@ def test_handle_open_backtest_positions(
     assert mocked_close_backtest_position.call_args.args[0].id == 4
     assert mocked_close_backtest_position.call_args.args[1] == expected_close_price
 
-    assert DBTradePosition.get(DBTradePosition.id == 4).holding_time == 1
-
 
 def test_handle_open_backtest_positions_same_candle(
     dummy_is_strategy, ohlcv_row
 ) -> None:
     dummy_is_strategy.backtest_data["test_symbol"] = ohlcv_df
-    dummy_is_strategy.max_holding_candles = 2
     dummy_is_strategy.open_backtest_position(
         "test_symbol", 1, TradeLevels(1, 1, 1), ohlcv_row.Index.to_pydatetime()
     )

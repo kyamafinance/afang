@@ -39,7 +39,6 @@ class TradePosition(BaseModel):
     direction = IntegerField(null=False, index=True)
     desired_entry_price = FloatField(null=False)
     is_open = BooleanField(null=False, default=True, index=True)
-    holding_time = IntegerField(null=False, default=0)
     open_order_id = CharField(null=False)
     position_qty = FloatField(null=False)
     position_size = FloatField(null=False)
