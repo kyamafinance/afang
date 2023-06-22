@@ -1498,7 +1498,7 @@ class Trader(Root):
         if should_open_new_position:
             # only open a position if multiple open positions are allowed or
             # there is no open position.
-            if self.allow_multiple_open_positions or not len(symbol_open_positions):
+            if len(symbol_open_positions) < self.max_open_positions:
                 trade_levels = self.generate_trade_levels(
                     symbol,
                     current_candle_data,

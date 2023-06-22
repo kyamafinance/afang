@@ -100,7 +100,7 @@ def test_sample_strategy_params(sample_strategy) -> None:
     assert sample_strategy.max_holding_candles == 192
     assert sample_strategy.max_amount_per_trade == 1000
     assert sample_strategy.unstable_indicator_values == 300
-    assert not sample_strategy.allow_multiple_open_positions
+    assert sample_strategy.max_open_positions == 1
 
 
 def test_generate_features(sample_strategy, ohlcv_df) -> None:
