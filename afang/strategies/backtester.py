@@ -540,9 +540,7 @@ class Backtester(Root):
             if should_open_new_position:
                 # only open a position if multiple open positions are allowed or
                 # there is no open position.
-                if self.allow_multiple_open_positions or not len(
-                    self.open_symbol_positions[symbol]
-                ):
+                if len(self.open_symbol_positions[symbol]) < self.max_open_positions:
                     trade_levels = self.generate_trade_levels(
                         symbol, row, trade_signal_direction=new_position_direction
                     )

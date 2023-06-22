@@ -19,7 +19,7 @@ class SampleStrategy(IsStrategy):
         self.max_holding_candles = 192
         self.max_amount_per_trade = 1000
         self.unstable_indicator_values = 300
-        self.allow_multiple_open_positions = False
+        self.max_open_positions = 1
 
     def plot_backtest_indicators(self) -> Dict:
         """Get the indicators to plot on the backtest analysis dashboard.

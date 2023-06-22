@@ -47,8 +47,8 @@ class Root:
         # maximum amount to invest per trade.
         # If `None`, there will be no maximum amount to invest per trade.
         self.max_amount_per_trade: Optional[int] = None
-        # Whether to allow for multiple open positions per symbol at a time.
-        self.allow_multiple_open_positions: bool = True
+        # Sets how many trade positions can be open at any given time.
+        self.max_open_positions: int = 1
         # strategy configuration parameters i.e. contents of strategy `config.yaml`.
         self.config: Dict = dict()
         # test account initial balance - will be constantly updated to match current account balance.
