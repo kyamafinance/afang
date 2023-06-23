@@ -66,6 +66,7 @@ TA-Lib==0.4.26
 toml==0.10.2
 tomli==2.0.1
 toolz==0.12.0
+tqdm==4.65.0
 typing_extensions==4.6.3
 urllib3==1.26.16
 varint==1.0.2
