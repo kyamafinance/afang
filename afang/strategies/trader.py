@@ -1,9 +1,10 @@
 import logging
 import multiprocessing
+import threading
 import time
 from abc import abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
 import numpy as np
@@ -1518,6 +1519,8 @@ class Trader(Root):
         # add the symbol back to the trading execution queue.
         time.sleep(cool_down)
         self.trading_execution_queue.put(symbol)
+        with self.shared_lock:
+            self.actively_trading_symbols.add(symbol)
 
     def get_db_name(self) -> str:
         """Get the appropriate database name.
@@ -1532,6 +1535,38 @@ class Trader(Root):
             db_name = "trades_on-testnet.sqlite3"
 
         return db_name
+
+    def report_actively_trading_symbols(
+        self, ttl_minutes: int = 5, run_forever=True
+    ) -> None:
+        """Report all symbols that have successfully gone through the trading
+        loop within a specified TTL.
+
+        :param ttl_minutes: duration between reports in minutes.
+        :param run_forever: whether to run function forever. used for
+            unit testing.
+        :return: None
+        """
+
+        while True:
+            should_report = self.last_report_time < datetime.utcnow() - timedelta(
+                minutes=ttl_minutes
+            )
+            if should_report:
+                with self.shared_lock:
+                    logger.info(
+                        "%s: actively trading: %s",
+                        self.exchange.display_name,
+                        ", ".join(self.actively_trading_symbols),
+                    )
+                    self.actively_trading_symbols.clear()
+                    self.last_report_time = datetime.utcnow()
+
+                if run_forever:
+                    time.sleep(ttl_minutes * 60.0)
+                    continue
+
+                break
 
     def run_trader(
         self,
@@ -1626,6 +1661,12 @@ class Trader(Root):
         # Initialize demo exchange orders.
         if self.on_demo_mode:
             self.initialize_demo_mode_orders(self.symbols)
+
+        # Setup actively trading symbols reporting thread.
+        ats_reporting_thread = threading.Thread(
+            target=self.report_actively_trading_symbols
+        )
+        ats_reporting_thread.start()
 
         # Run trading loop.
         max_workers = multiprocessing.cpu_count() - 1

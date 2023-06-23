@@ -859,6 +859,7 @@ def test_run_symbol_trader(
 def test_run_trader(
     mocker, dummy_is_strategy, dummy_is_exchange, trades_db_filepath
 ) -> None:
+    mocker.patch.object(Trader, "report_actively_trading_symbols")
     mocked_setup_exchange_for_trading = mocker.patch.object(
         IsExchange, "setup_exchange_for_trading"
     )
@@ -873,6 +874,18 @@ def test_run_trader(
 
     assert mocked_setup_exchange_for_trading.called
     assert mocked_change_initial_leverage.called
+
+
+def test_report_actively_trading_symbols(
+    dummy_is_strategy, dummy_is_exchange, caplog
+) -> None:
+    dummy_is_strategy.last_report_time = datetime.datetime(year=2000, month=1, day=1)
+    dummy_is_strategy.actively_trading_symbols = {"ETH-USD"}
+
+    dummy_is_strategy.report_actively_trading_symbols(ttl_minutes=5, run_forever=False)
+
+    assert caplog.records[-1].levelname == "INFO"
+    assert "test_exchange: actively trading: ETH-USD" in caplog.text
 
 
 @pytest.mark.parametrize(

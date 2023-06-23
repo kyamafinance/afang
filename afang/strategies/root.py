@@ -2,6 +2,7 @@ import logging
 import queue
 import threading
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
 import peewee
@@ -57,6 +58,14 @@ class Root:
         self.open_order_type: Literal[
             OrderType.LIMIT, OrderType.MARKET
         ] = OrderType.MARKET
+        # trades' database instance.
+        self.trades_database: Optional[TradesDatabase] = None
+        # Order type to be used to place take profit orders.
+        self.take_profit_order_type: Literal[
+            OrderType.LIMIT, OrderType.MARKET
+        ] = OrderType.MARKET
+        # Order type to be used to place stop loss orders.
+        self.stop_loss_order_type: Literal[OrderType.MARKET] = OrderType.MARKET
 
         # --Unique to Backtester (not in Trader)
         self.backtest_to_time: Optional[int] = None
@@ -73,16 +82,12 @@ class Root:
         self.demo_mode_exchange_orders: Dict[str, List[ExchangeOrder]] = defaultdict(
             list
         )
-        # trades' database instance.
-        self.trades_database: Optional[TradesDatabase] = None
+        # all symbols that have successfully gone through the trading loop within a specified TTL.
+        self.actively_trading_symbols: set = set()
+        # last time that all actively traded symbols was reported.
+        self.last_report_time: datetime = datetime.utcnow()
         # execution queue that will run trader on present symbols FIFO.
         self.trading_execution_queue: queue.Queue = queue.Queue()
-        # Order type to be used to place take profit orders.
-        self.take_profit_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
-        # Order type to be used to place stop loss orders.
-        self.stop_loss_order_type: Literal[OrderType.MARKET] = OrderType.MARKET
         # Orders will only be placed if they enter the order book. May not be supported by all exchanges.
         self.post_only_orders: bool = False
         # Highest accepted fee for a trade on the dYdX exchange. Note that this is specific to dYdX.
