@@ -8,6 +8,8 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 import peewee
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 from afang.database.ohlcv_db.ohlcv_database import OHLCVDatabase
 from afang.database.trades_db.trades_database import Order as DBOrder
@@ -500,7 +502,15 @@ class Backtester(Root):
         idx = self.unstable_indicator_values
         self.backtest_data[symbol] = populated_ohlcv_data.iloc[idx:]
 
-        for row in self.backtest_data[symbol].itertuples():
+        progress_bar = tqdm(
+            self.backtest_data[symbol].itertuples(),
+            ascii=" ━",
+            desc=f"{symbol}:",
+            colour="green",
+            total=self.backtest_data[symbol].shape[0],
+            bar_format="{desc:<12.12}{percentage:3.0f}%|{bar:10}{r_bar}",
+        )
+        for row in progress_bar:
             # Allow user strategies to manipulate open trade positions.
             self.handle_open_trade_positions(
                 symbol, self.open_symbol_positions[symbol], row
@@ -641,8 +651,9 @@ class Backtester(Root):
         self.trades_database.database.close()
 
         max_workers = multiprocessing.cpu_count() - 1
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            executor.map(self.run_symbol_backtest, self.symbols)
+        with logging_redirect_tqdm():
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                executor.map(self.run_symbol_backtest, self.symbols)
 
         # Analyze the trading strategy.
         strategy_analyzer = StrategyAnalyzer(strategy=self)
