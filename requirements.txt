@@ -37,7 +37,7 @@ multiaddr==0.0.9
 multidict==6.0.4
 netaddr==0.8.0
 nodeenv==1.8.0
-numpy==1.25.0
+numpy==1.25.1
 packaging==23.1
 pandas==1.5.3
 parsimonious==0.8.1
