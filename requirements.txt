@@ -70,7 +70,7 @@ tqdm==4.65.0
 typing_extensions==4.6.3
 urllib3==1.26.16
 varint==1.0.2
-virtualenv==20.23.1
+virtualenv==20.24.0
 web3==5.30.0
 websocket-client==1.6.1
 websockets==9.1
