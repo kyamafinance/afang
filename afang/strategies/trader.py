@@ -1230,9 +1230,9 @@ class Trader(Root):
                 total_remaining_qty += order_executed_qty
             else:
                 total_remaining_qty -= order_executed_qty
-                remaining_order_quantities[
-                    db_order.order_id
-                ] = exchange_order.remaining_quantity
+                remaining_order_quantities[db_order.order_id] = (
+                    exchange_order.remaining_quantity
+                )
 
         for db_order in position_db_orders:
             if (not db_order.is_open) or db_order.is_open_order:
