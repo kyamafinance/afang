@@ -55,15 +55,15 @@ class Root:
         # shared threading lock to prevent race conditions.
         self.shared_lock: threading.Lock = threading.Lock()
         # Order type to be used to open positions.
-        self.open_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
+        self.open_order_type: Literal[OrderType.LIMIT, OrderType.MARKET] = (
+            OrderType.MARKET
+        )
         # trades' database instance.
         self.trades_database: Optional[TradesDatabase] = None
         # Order type to be used to place take profit orders.
-        self.take_profit_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
+        self.take_profit_order_type: Literal[OrderType.LIMIT, OrderType.MARKET] = (
+            OrderType.MARKET
+        )
         # Order type to be used to place stop loss orders.
         self.stop_loss_order_type: Literal[OrderType.MARKET] = OrderType.MARKET
 
