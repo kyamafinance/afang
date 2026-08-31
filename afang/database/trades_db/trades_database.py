@@ -20,7 +20,6 @@ class TradesDatabase:
 
         :param db_name: database name/filepath. optional.
         """
-
         db_base_dir = os.path.join(pathlib.Path(__file__).parents[3], "data", "trades")
         db_file_path = os.path.join(db_base_dir, db_name)
 

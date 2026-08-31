@@ -27,7 +27,6 @@ class IsStrategy(Backtester, Trader):
 
         :param strategy_name: name of the trading strategy.
         """
-
         Backtester.__init__(self, strategy_name)
         Trader.__init__(self, strategy_name)
 
@@ -40,7 +39,6 @@ class IsStrategy(Backtester, Trader):
 
         :return: Dict
         """
-
         config_file_path = f"{pathlib.Path(__file__).parents[2]}/user_strategies/{self.strategy_name}/config.yaml"
         with open(config_file_path) as config_file:
             config_data = yaml.load(config_file, Loader=yaml.FullLoader)
@@ -52,7 +50,6 @@ class IsStrategy(Backtester, Trader):
         :param exchange: name of exchange to fetch watchlist for.
         :return: List[str]
         """
-
         watchlist = self.config.get("watchlist", dict())
         if not watchlist:
             return []
@@ -71,7 +68,6 @@ class IsStrategy(Backtester, Trader):
         :param ohlcv_df: OHLCV data for a trading symbol.
         :return: None
         """
-
         return ohlcv_df
 
     @abstractmethod
@@ -84,7 +80,6 @@ class IsStrategy(Backtester, Trader):
         :param current_trading_candle: the current trading candle.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -97,9 +92,7 @@ class IsStrategy(Backtester, Trader):
         :param current_trading_candle: the current trading candle.
         :return: bool
         """
-
         pass
-
     @abstractmethod
     def generate_trade_levels(
         self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
@@ -112,7 +105,6 @@ class IsStrategy(Backtester, Trader):
             short position.
         :return: TradeLevels
         """
-
         return TradeLevels(
             entry_price=current_trading_candle.close,
             target_price=None,
@@ -125,15 +117,12 @@ class IsStrategy(Backtester, Trader):
         contains possible mutated parameters.
 
         :param parameters: parameters generated for strategy
-            optimization. These parameters will follow the
-            specification provided in `config.yaml`. This dict will
-            not contain parameters that are not to be
-            optimized.
+            optimization. These parameters will follow the specification
+            provided in `config.yaml`. This dict will not contain
+            parameters that are not to be optimized.
         :return: Dict
         """
-
         return parameters
-
     def open_trade_position(
         self,
         symbol: str,
@@ -149,7 +138,6 @@ class IsStrategy(Backtester, Trader):
         :param current_trading_candle: current price candle.
         :return: Optional[DBTradePosition]
         """
-
         if self.is_running_backtest:
             return self.open_backtest_position(
                 symbol,
@@ -178,7 +166,6 @@ class IsStrategy(Backtester, Trader):
             position order.
         :return: None
         """
-
         try:
             position = DBTradePosition.get_by_id(position_id)
         except (DBTradePosition.DoesNotExist, peewee.PeeweeException) as db_error:
@@ -213,7 +200,6 @@ class IsStrategy(Backtester, Trader):
         :param updated_trade_levels: updated trade position trade levels.
         :return: Optional[DBTradePosition]
         """
-
         try:
             position = DBTradePosition.get_by_id(position_id)
         except (DBTradePosition.DoesNotExist, peewee.PeeweeException) as db_error:

@@ -35,7 +35,6 @@ class Backtester(Root):
 
         :param strategy_name: name of the trading strategy.
         """
-
         Root.__init__(self, strategy_name=strategy_name)
 
     @abstractmethod
@@ -44,7 +43,6 @@ class Backtester(Root):
 
         :return: Dict
         """
-
         return dict()
 
     def open_backtest_position(
@@ -63,7 +61,6 @@ class Backtester(Root):
         :param entry_time: time at which the long trade was entered.
         :return: Optional[DBTradePosition]
         """
-
         open_order_id = generate_uuid()
         open_order_side = OrderSide.BUY if direction == 1 else OrderSide.SELL
 
@@ -146,7 +143,6 @@ class Backtester(Root):
             position order.
         :return: None
         """
-
         # create position close order.
         close_order_id = generate_uuid()
         close_order_side = OrderSide.SELL if position.direction == 1 else OrderSide.BUY
@@ -193,7 +189,6 @@ class Backtester(Root):
             position order.
         :return: Optional[DBTradePosition]
         """
-
         if not position.is_open:
             logger.error(
                 "%s %s: attempting to close a closed position %s",
@@ -262,7 +257,6 @@ class Backtester(Root):
         :param ohlcv_df: OHLCV data for a trading symbol.
         :return: None
         """
-
         return ohlcv_df
 
     @abstractmethod
@@ -276,9 +270,7 @@ class Backtester(Root):
             row at the current time in backtest.
         :return: bool
         """
-
         pass
-
     @abstractmethod
     def is_short_trade_signal_present(
         self, symbol: str, current_trading_candle: Any
@@ -290,9 +282,7 @@ class Backtester(Root):
             row at the current time in backtest.
         :return: bool
         """
-
         pass
-
     @abstractmethod
     def generate_trade_levels(
         self, symbol: str, current_trading_candle: Any, trade_signal_direction: int
@@ -306,7 +296,6 @@ class Backtester(Root):
             short position.
         :return: TradeLevels
         """
-
         return TradeLevels(
             entry_price=current_trading_candle.close,
             target_price=None,
@@ -324,7 +313,6 @@ class Backtester(Root):
         :param open_symbol_positions: open symbol trade positions.
         :return: None
         """
-
         for position in open_symbol_positions:
             # ensure that the trade position was not opened during the current candle.
             if position.entry_time == data.Index.to_pydatetime():
@@ -374,7 +362,6 @@ class Backtester(Root):
         :param open_symbol_positions: open symbol trade positions.
         :return: None
         """
-
         for position in open_symbol_positions:
             # ensure that the trade position was not opened during the current candle.
             if position.entry_time == data.Index.to_pydatetime():
@@ -458,7 +445,6 @@ class Backtester(Root):
         :param symbol: symbol to run backtest for.
         :return: None
         """
-
         if symbol not in self.exchange.exchange_symbols:
             logger.error(
                 "%s %s: provided symbol not present in the exchange",
@@ -584,10 +570,8 @@ class Backtester(Root):
         :param to_time: desired end time of the backtest.
         :return: Optional[List[SymbolAnalysisResult]]
         """
-
         # Record strategy run mode.
         self.is_running_backtest = True
-
         # Get symbols to backtest.
         self.symbols = symbols
         if not self.symbols:
