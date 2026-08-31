@@ -48,7 +48,6 @@ class Trader(Root):
         :param ohlcv_df: OHLCV data for a trading symbol.
         :return: None
         """
-
         return ohlcv_df
 
     @abstractmethod
@@ -61,7 +60,6 @@ class Trader(Root):
         :param current_trading_candle: the current trading candle.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -74,7 +72,6 @@ class Trader(Root):
         :param current_trading_candle: the current trading candle.
         :return: bool
         """
-
         pass
 
     @abstractmethod
@@ -89,7 +86,6 @@ class Trader(Root):
             short position.
         :return: TradeLevels
         """
-
         return TradeLevels(
             entry_price=current_trading_candle.close,
             target_price=None,
@@ -102,7 +98,6 @@ class Trader(Root):
         :param order_id: exchange order ID of the order to be fetched.
         :return: Optional[DBOrder]
         """
-
         try:
             db_order: DBOrder = (
                 DBOrder.select(DBOrder, DBTradePosition)
@@ -130,7 +125,6 @@ class Trader(Root):
             Used for testing purposes.
         :return: Optional[str]
         """
-
         while True:
             if not self.trading_execution_queue.empty():
                 return self.trading_execution_queue.get()
@@ -144,7 +138,6 @@ class Trader(Root):
         :param symbol: name of symbol.
         :return: Optional[Symbol]
         """
-
         trading_symbol = self.exchange.trading_symbols.get(symbol, None)
         if not trading_symbol:
             logger.error(
@@ -162,7 +155,6 @@ class Trader(Root):
         :param symbol: trading symbol.
         :return: Optional[float]
         """
-
         if self.on_demo_mode:
             with self.shared_lock:
                 return self.initial_test_account_balance
@@ -192,7 +184,6 @@ class Trader(Root):
         :param quote_asset_wallet_balance: quote asset wallet balance.
         :return: float
         """
-
         intended_position_size = self.leverage * (
             (self.percentage_risk_per_trade / 100.0) * quote_asset_wallet_balance
         )
@@ -210,7 +201,6 @@ class Trader(Root):
         :param position: DB TradePosition.
         :return: float
         """
-
         position_db_orders: List[DBOrder] = position.orders
 
         close_order_quantity: float = float()
@@ -233,7 +223,6 @@ class Trader(Root):
         :param order_qty: desired order quantity.
         :return: float
         """
-
         if order_qty <= 0:
             logger.error(
                 "%s %s: intended order qty is invalid. intended order qty: %s",
@@ -252,7 +241,6 @@ class Trader(Root):
         :param order_price: desired order price.
         :return: float
         """
-
         if order_price <= 0:
             logger.error(
                 "%s %s: intended order price is invalid. intended order price: %s",
@@ -275,7 +263,6 @@ class Trader(Root):
         :param db_order: database order instance.
         :return: None
         """
-
         try:
             query = DBOrder.update(
                 {
@@ -312,7 +299,6 @@ class Trader(Root):
             canceled.
         :return: None
         """
-
         db_position_order = self.fetch_order_by_exchange_id(exchange_order_id)
         if not db_position_order:
             logger.error(
@@ -360,7 +346,6 @@ class Trader(Root):
         :param order_exchange_id: exchange ID of the order to query.
         :return: bool
         """
-
         order = self.get_exchange_order(symbol, order_exchange_id)
         if order and order.executed_quantity:
             return True
@@ -374,7 +359,6 @@ class Trader(Root):
         :param order_exchange_id: order exchange ID.
         :return: float
         """
-
         order = self.get_exchange_order(symbol, order_exchange_id)
         if not order:
             logger.warning(
@@ -394,7 +378,6 @@ class Trader(Root):
         :param symbol: symbol whose OHLCV candles are to be fetched.
         :return: pd.Dataframe
         """
-
         if (
             symbol not in self.exchange.trading_price_data
             or not self.exchange.trading_price_data[symbol]
@@ -429,7 +412,6 @@ class Trader(Root):
             data.
         :return: Any
         """
-
         current_candle_data_list = list(ohlcv_data.iloc[-1:].itertuples())
         if not current_candle_data_list:
             logger.error(
@@ -451,7 +433,6 @@ class Trader(Root):
         :param position: database trade position.
         :return: float
         """
-
         total_commission = float()
 
         position_order: DBOrder
@@ -467,7 +448,6 @@ class Trader(Root):
         :param position: database trade position.
         :return: float
         """
-
         total_slippage = float()
 
         position_order: DBOrder
@@ -491,7 +471,6 @@ class Trader(Root):
         :param position: database trade position.
         :return: float
         """
-
         total_executed_qty = float()
 
         position_order: DBOrder
@@ -507,7 +486,6 @@ class Trader(Root):
         :param position: database trade position.
         :return: float
         """
-
         position_close_price = float()
 
         position_executed_qty = self.get_position_executed_qty(position)
@@ -527,7 +505,6 @@ class Trader(Root):
         :param position: database trade position.
         :return: float
         """
-
         position_pnl = float()
 
         position_order: DBOrder
@@ -554,7 +531,6 @@ class Trader(Root):
             i.e. inclusive of commission.
         :return: float
         """
-
         position_pnl = self.get_position_pnl(position)
         if not cost_adjusted:
             position_pnl += self.get_position_total_commission(position)
@@ -583,7 +559,6 @@ class Trader(Root):
         :param position: database trade position.
         :return: None
         """
-
         quote_asset_wallet_balance = self.get_quote_asset_wallet_balance(
             position.symbol
         )
@@ -682,10 +657,8 @@ class Trader(Root):
         :param order_id: exchange order ID.
         :return: Optional[ExchangeOrder]
         """
-
         if not self.on_demo_mode:
             return self.exchange.get_exchange_order(symbol, order_id)
-
         for order in self.demo_mode_exchange_orders.get(symbol, list()):
             if order.order_id == order_id:
                 return order
@@ -715,7 +688,6 @@ class Trader(Root):
         :param price: optional. order price.
         :return: str
         """
-
         order = ExchangeOrder(
             symbol=symbol_name,
             order_id=generate_uuid(),
@@ -743,7 +715,6 @@ class Trader(Root):
             initialized.
         :return: None
         """
-
         self.trades_database.database.connect(reuse_if_open=True)
 
         try:
@@ -786,7 +757,6 @@ class Trader(Root):
         :param demo_order: demo mode exchange order.
         :return: None
         """
-
         try:
             query = DBOrder.update(
                 {
@@ -820,7 +790,6 @@ class Trader(Root):
         :param current_trading_candle: current trading candle.
         :return: None
         """
-
         for order in self.demo_mode_exchange_orders.get(symbol, list()):
             if not order.remaining_quantity:
                 continue
@@ -932,7 +901,6 @@ class Trader(Root):
         :param price: optional. order price.
         :return: Optional[str]
         """
-
         if self.on_demo_mode:
             order_id = self.add_demo_mode_order(
                 symbol_name, side, quantity, order_type, price
@@ -963,7 +931,6 @@ class Trader(Root):
         :param trade_levels: desired trade levels.
         :return: None
         """
-
         logger.info(
             "%s %s: attempting to open a new trade position. "
             "entry price: %s. target price: %s. stop price: %s",
@@ -1093,7 +1060,6 @@ class Trader(Root):
             position order.
         :return: None
         """
-
         logger.info(
             "%s %s: attempting to place a close trade position order. "
             "position id: %s. close price: %s",
@@ -1216,7 +1182,6 @@ class Trader(Root):
             calibrated.
         :return: None
         """
-
         remaining_order_quantities = dict()
         total_remaining_qty: float = float()
         position_db_orders: List[DBOrder] = position.orders
@@ -1230,9 +1195,9 @@ class Trader(Root):
                 total_remaining_qty += order_executed_qty
             else:
                 total_remaining_qty -= order_executed_qty
-                remaining_order_quantities[
-                    db_order.order_id
-                ] = exchange_order.remaining_quantity
+                remaining_order_quantities[db_order.order_id] = (
+                    exchange_order.remaining_quantity
+                )
 
         for db_order in position_db_orders:
             if (not db_order.is_open) or db_order.is_open_order:
@@ -1264,7 +1229,6 @@ class Trader(Root):
             symbol.
         :return: None
         """
-
         for position in open_symbol_positions:
             # ensure that the trade position is still open.
             if not position.is_open:
@@ -1379,7 +1343,6 @@ class Trader(Root):
             symbol.
         :return: None
         """
-
         for position in open_symbol_positions:
             # ensure that the trade position is still open.
             if not position.is_open:
@@ -1441,7 +1404,6 @@ class Trader(Root):
             back to the execution queue.
         :return: None
         """
-
         # ensure symbol is present in the exchange.
         if symbol not in self.exchange.exchange_symbols:
             logger.error(
@@ -1527,15 +1489,12 @@ class Trader(Root):
 
         :return: str
         """
-
         db_name = "trades.sqlite3"
         if self.on_demo_mode:
             db_name = "trades_on-demo-mode.sqlite3"
         elif self.exchange.testnet:
             db_name = "trades_on-testnet.sqlite3"
-
         return db_name
-
     def report_actively_trading_symbols(
         self, ttl_minutes: int = 5, run_forever=True
     ) -> None:
@@ -1547,7 +1506,6 @@ class Trader(Root):
             unit testing.
         :return: None
         """
-
         while True:
             should_report = self.last_report_time < datetime.utcnow() - timedelta(
                 minutes=ttl_minutes
@@ -1585,7 +1543,6 @@ class Trader(Root):
         :param db_path: database path. optional.
         :return: None
         """
-
         # Record strategy run mode.
         self.is_running_backtest = False
 

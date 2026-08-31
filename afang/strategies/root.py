@@ -26,7 +26,6 @@ class Root:
 
         :param strategy_name: name of the trading strategy.
         """
-
         # --Shared variables (used by both the Trader and Backtester)
         self.strategy_name: str = strategy_name
         self.allow_long_positions: bool = True
@@ -55,15 +54,15 @@ class Root:
         # shared threading lock to prevent race conditions.
         self.shared_lock: threading.Lock = threading.Lock()
         # Order type to be used to open positions.
-        self.open_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
+        self.open_order_type: Literal[OrderType.LIMIT, OrderType.MARKET] = (
+            OrderType.MARKET
+        )
         # trades' database instance.
         self.trades_database: Optional[TradesDatabase] = None
         # Order type to be used to place take profit orders.
-        self.take_profit_order_type: Literal[
-            OrderType.LIMIT, OrderType.MARKET
-        ] = OrderType.MARKET
+        self.take_profit_order_type: Literal[OrderType.LIMIT, OrderType.MARKET] = (
+            OrderType.MARKET
+        )
         # Order type to be used to place stop loss orders.
         self.stop_loss_order_type: Literal[OrderType.MARKET] = OrderType.MARKET
 
@@ -101,7 +100,6 @@ class Root:
         :param symbols: symbols to fetch open positions for. optional.
         :return: List[DBTradePosition]
         """
-
         try:
             open_positions: List[DBTradePosition] = DBTradePosition.select().where(
                 DBTradePosition.is_open.__eq__(True),
@@ -120,7 +118,6 @@ class Root:
         :param position: newly opened trade position.
         :return: None
         """
-
         pass
 
     def on_trade_position_closed(self, position: DBTradePosition) -> None:
@@ -129,7 +126,6 @@ class Root:
         :param position: closed trade position.
         :return: None
         """
-
         pass
 
     def handle_open_trade_positions(
@@ -146,5 +142,4 @@ class Root:
         :param current_trading_candle: current trading candle.
         :return: None
         """
-
         pass
