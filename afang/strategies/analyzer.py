@@ -24,7 +24,6 @@ class StrategyAnalyzer:
 
         :param strategy: user defined strategy instance.
         """
-
         self.strategy = strategy
         self.analysis_results: List[SymbolAnalysisResult] = list()
 
@@ -34,7 +33,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             net_profit = self.safe_sum(trade.pnl for trade in symbol_analysis.trades)
             net_profit_long = self.safe_sum(
@@ -58,7 +56,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             gross_profit = self.safe_sum(
                 trade.pnl
@@ -90,7 +87,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             gross_loss = self.safe_sum(
                 trade.pnl
@@ -122,7 +118,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             commission = self.safe_sum(
                 trade.commission for trade in symbol_analysis.trades
@@ -152,7 +147,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             slippage = self.safe_sum(trade.slippage for trade in symbol_analysis.trades)
             slippage_long = self.safe_sum(
@@ -176,13 +170,14 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_profit_factor(self) -> None:
-        """Calculate profit factor for all symbols. This function must be run
-        after compute_gross_profit and compute_gross_loss. It relies on both
-        gross profit and loss calculations.
+        """Calculate profit factor for all symbols.
+
+        This function must be run after compute_gross_profit and
+        compute_gross_loss. It relies on both gross profit and loss
+        calculations.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             profit_factor = (
                 symbol_analysis.gross_profit.all_trades
@@ -267,7 +262,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             total_trades = len({trade.sequence_id for trade in symbol_analysis.trades})
             total_trades_long = len(
@@ -299,7 +293,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             winning_trades = len(
                 [
@@ -337,7 +330,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             losing_trades = len(
                 [
@@ -375,7 +367,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             even_trades = len(
                 [
@@ -411,14 +402,15 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_percent_profitable(self) -> None:
-        """Calculate percentage profitability for all symbols. This function
-        must be run after compute_total_trades, compute_winning_trades,
-        compute_losing_trades, and compute_even_trades. It relies on the total
-        number of winning, losing, and even trades.
+        """Calculate percentage profitability for all symbols.
+
+        This function must be run after compute_total_trades,
+        compute_winning_trades, compute_losing_trades, and
+        compute_even_trades. It relies on the total number of winning,
+        losing, and even trades.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             percent_profitable = (
                 (
@@ -467,13 +459,13 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_average_roe(self) -> None:
-        """Calculate average cost adjusted ROE for all symbols. This function
-        needs to run after compute_total_trades. It relies on computing the
-        total number of trades.
+        """Calculate average cost adjusted ROE for all symbols.
+
+        This function needs to run after compute_total_trades. It relies
+        on computing the total number of trades.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             average_roe = (
                 self.safe_sum(
@@ -514,13 +506,13 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_average_trade_pnl(self) -> None:
-        """Calculate average PnL for all symbols. This function needs to run
-        after compute_total_trades. It relies on computing the total number of
-        trades.
+        """Calculate average PnL for all symbols.
+
+        This function needs to run after compute_total_trades. It relies
+        on computing the total number of trades.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             average_trade_pnl = (
                 self.safe_sum(trade.pnl for trade in symbol_analysis.trades)
@@ -559,13 +551,13 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_average_winning_trade(self) -> None:
-        """Calculate average winning trade PnL for all symbols. This function
-        needs to run after compute_winning_trades. It relies on the computation
-        of the total number of winning trades.
+        """Calculate average winning trade PnL for all symbols.
+
+        This function needs to run after compute_winning_trades. It
+        relies on the computation of the total number of winning trades.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             average_winning_trade = (
                 self.safe_sum(
@@ -610,13 +602,13 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_average_losing_trade(self) -> None:
-        """Calculate average losing trade PnL for all symbols. This function
-        needs to run after compute_losing_trades. It relies on the computation
-        of the total number of losing trades.
+        """Calculate average losing trade PnL for all symbols.
+
+        This function needs to run after compute_losing_trades. It
+        relies on the computation of the total number of losing trades.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             average_losing_trade = (
                 self.safe_sum(
@@ -659,14 +651,14 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_take_profit_ratio(self) -> None:
-        """Calculate take profit ratio for all symbols. This function needs to
-        run after compute_average_winning_trade and
-        compute_average_losing_trade. It relies on the computation of the
-        average winning and losing trades in terms of PnL.
+        """Calculate take profit ratio for all symbols.
+
+        This function needs to run after compute_average_winning_trade
+        and compute_average_losing_trade. It relies on the computation
+        of the average winning and losing trades in terms of PnL.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             take_profit_ratio = (
                 symbol_analysis.average_winning_trade.all_trades
@@ -697,14 +689,15 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_trade_expectancy(self) -> None:
-        """Calculate trade expectancy for all symbols. This function needs to
-        run after compute_percent_profitable, compute_average_winning_trade and
-        compute_average_losing_trade. It relies on the win rate and average
-        winning and losing trade in terms of PnL.
+        """Calculate trade expectancy for all symbols.
+
+        This function needs to run after compute_percent_profitable,
+        compute_average_winning_trade and compute_average_losing_trade.
+        It relies on the win rate and average winning and losing trade
+        in terms of PnL.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             trade_expectancy = (
                 (symbol_analysis.percent_profitable.all_trades / 100.0)
@@ -842,7 +835,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             largest_winning_trade = max(
                 (
@@ -883,7 +875,6 @@ class StrategyAnalyzer:
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             largest_losing_trade = min(
                 (
@@ -952,13 +943,14 @@ class StrategyAnalyzer:
 
     @function_group.add
     def compute_average_monthly_pnl(self) -> None:
-        """Calculate average monthly PnL for all symbols. This function needs
-        to run after compute_total_trades and compute_monthly_pnl. It relies on
-        the computation of the monthly PnL.
+        """Calculate average monthly PnL for all symbols.
+
+        This function needs to run after compute_total_trades and
+        compute_monthly_pnl. It relies on the computation of the monthly
+        PnL.
 
         :return: None
         """
-
         for symbol_analysis in self.analysis_results:
             average_monthly_pnl = (
                 self.safe_sum(
@@ -1003,7 +995,6 @@ class StrategyAnalyzer:
 
         :return: float
         """
-
         return sum(filter(None, iterable))
 
     @classmethod
@@ -1013,7 +1004,6 @@ class StrategyAnalyzer:
         :param trades: list of DB trade positions.
         :return: List[dict]
         """
-
         sequenced_trades: Dict[str, DBTradePosition] = dict()
         for trade in trades:
             if trade.sequence_id not in sequenced_trades:
@@ -1030,7 +1020,6 @@ class StrategyAnalyzer:
 
         :return: List[SymbolAnalysisResult]
         """
-
         logger.info(
             "%s %s: started analysis on the %s strategy",
             self.strategy.config["exchange"].display_name,
