@@ -26,7 +26,6 @@ def fetch_initial_data(
     :param ohlcv_db: an instance of an interface of an ohlcv database.
     :return: Union[Tuple[None, None], Tuple[float, float]]
     """
-
     data = exchange.get_historical_candles(symbol, end_time=int(time.time() * 1000))
 
     if data is None:
@@ -82,7 +81,6 @@ def fetch_most_recent_data(
         saving them to the DB.
     :return: Optional[float]
     """
-
     data_to_insert = []
     _most_recent_timestamp = most_recent_timestamp
 
@@ -161,7 +159,6 @@ def fetch_older_data(
         saving them to the DB.
     :return: Optional[float]
     """
-
     data_to_insert = []
     _oldest_timestamp = oldest_timestamp
 
@@ -234,7 +231,6 @@ def fetch_symbol_data(
         directory.
     :return: Optional[bool]
     """
-
     if symbol not in exchange.exchange_symbols:
         logger.warning(
             "%s %s: provided symbol not present in the exchange",
@@ -303,7 +299,6 @@ def fetch_historical_price_data(
     :param strategy: optional strategy instance.
     :return: None
     """
-
     if not symbols and strategy:
         symbols = strategy.config.get("watchlist", dict()).get(exchange.name, [])
     if not symbols:
