@@ -11,7 +11,6 @@ class SampleStrategy(IsStrategy):
 
     def __init__(self) -> None:
         """Initialize SampleStrategy class."""
-
         IsStrategy.__init__(self, strategy_name="SampleStrategy")
 
         self.leverage = 5
@@ -25,7 +24,6 @@ class SampleStrategy(IsStrategy):
 
         :return: Dict
         """
-
         return dict()
 
     def generate_features(self, symbol: str, ohlcv_df: pd.DataFrame) -> pd.DataFrame:
@@ -39,7 +37,6 @@ class SampleStrategy(IsStrategy):
         :param ohlcv_df: OHLCV data for a trading symbol.
         :return: None
         """
-
         params = self.config["parameters"]
 
         # EMA.
@@ -74,7 +71,6 @@ class SampleStrategy(IsStrategy):
         :param current_trading_candle: the current trading candle.
         :return: bool
         """
-
         # Ensure that the candle is above the EMA.
         if not (current_trading_candle.low > current_trading_candle.ema):
             return False
@@ -102,7 +98,6 @@ class SampleStrategy(IsStrategy):
         :param current_trading_candle: the current trading candle.
         :return: bool
         """
-
         # Ensure that the candle is below the EMA.
         if not (current_trading_candle.high < current_trading_candle.ema):
             return False
@@ -132,7 +127,6 @@ class SampleStrategy(IsStrategy):
             short position.
         :return: TradeLevels
         """
-
         params = self.config["parameters"]
 
         entry_price = current_trading_candle.close
@@ -159,13 +153,11 @@ class SampleStrategy(IsStrategy):
         contains possible mutated parameters.
 
         :param parameters: parameters generated for strategy
-            optimization. These parameters will follow the
-            specification provided in `config.yaml`. This dict will
-            not contain parameters that are not to be
-            optimized.
+            optimization. These parameters will follow the specification
+            provided in `config.yaml`. This dict will not contain
+            parameters that are not to be optimized.
         :return: Dict
         """
-
         # ensure that psar acceleration is less than psar max value.
         # the psar acceleration and the psar max value could end up being the same value.
         # however, if this were to happen, the optimizer would discard the backtest due to
