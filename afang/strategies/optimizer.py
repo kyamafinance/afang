@@ -18,7 +18,6 @@ class BacktestProfile:
 
     def __init__(self) -> None:
         """Initialize BacktestProfile class."""
-
         self.backtest_analysis: List[SymbolAnalysisResult] = []
         self.backtest_parameters: Dict = dict()
         self.front: int = 0
@@ -34,7 +33,6 @@ class BacktestProfile:
         :param other: another backtest profile.
         :return: bool.
         """
-
         if isinstance(other, BacktestProfile):
             return self.backtest_parameters == other.backtest_parameters
         return False
@@ -46,7 +44,6 @@ class BacktestProfile:
         :param objective: objective to check.
         :return: bool
         """
-
         try:
             return getattr(
                 getattr(self.backtest_analysis[0], objective),
@@ -67,7 +64,6 @@ class BacktestProfile:
         :param objective: objective whose value is to be retrieved.
         :return: Any
         """
-
         try:
             return statistics.mean(
                 getattr(getattr(symbol_bt_analysis, objective), "all_trades")
@@ -87,7 +83,6 @@ class BacktestProfile:
         :param value: value to use for the update.
         :return: None
         """
-
         try:
             for symbol_bt_analysis in self.backtest_analysis:
                 setattr(getattr(symbol_bt_analysis, objective), "all_trades", value)
@@ -99,7 +94,6 @@ class BacktestProfile:
 
         :return: None
         """
-
         self.front = 0
         self.domination_count = 0
         self.crowding_distance = 0.0
@@ -134,7 +128,6 @@ class StrategyOptimizer:
             backtests.
         :param to_time: desired end time of the optimization backtests.
         """
-
         self.strategy = strategy
         self.exchange = exchange
         self.symbols = symbols
@@ -153,7 +146,6 @@ class StrategyOptimizer:
 
         :return List[BacktestProfile]
         """
-
         population: List[BacktestProfile] = list()
         while len(population) < self.optimizer_config["population_size"]:
             backtest_profile = BacktestProfile()
@@ -192,7 +184,6 @@ class StrategyOptimizer:
         :param population: backtest population to evaluate.
         :return: List[BacktestProfile]
         """
-
         for backtest_profile in population:
             strategy = self.strategy()
             strategy.config["parameters"].update(backtest_profile.backtest_parameters)
@@ -228,7 +219,6 @@ class StrategyOptimizer:
             crowding distance.
         :return: List[BacktestProfile]
         """
-
         if not population:
             return population
 
@@ -270,7 +260,6 @@ class StrategyOptimizer:
         :param population: initial population.
         :return: List[BacktestProfile]
         """
-
         if len(population) < 2:
             return population
 
@@ -349,10 +338,8 @@ class StrategyOptimizer:
         :param objectives: list of objectives to judge dominance on.
         :return: bool
         """
-
         a_objectively_better = True
         a_is_advantageous_to_b = False
-
         for objective in objectives:
             objective_val_a = profile_a.get_objective_value(objective)
             objective_val_b = profile_b.get_objective_value(objective)
@@ -389,7 +376,6 @@ class StrategyOptimizer:
         :param population: evaluated population to sort.
         :return: List[List[BacktestProfile]]
         """
-
         fronts: List[List[BacktestProfile]] = list()
 
         for profile_id_x, profile_x in population.items():
@@ -435,7 +421,6 @@ class StrategyOptimizer:
         :param fronts: sorted fronts.
         :return: List[BacktestProfile]
         """
-
         new_population: List[BacktestProfile] = list()
 
         for front in fronts:
@@ -467,7 +452,6 @@ class StrategyOptimizer:
             results.
         :return: str
         """
-
         if not filepath:
             filepath = f"{pathlib.Path(__file__).parents[2]}/data/optimization"
 
@@ -508,7 +492,6 @@ class StrategyOptimizer:
         :param persist: whether to persist the optimization run.
         :return: None
         """
-
         logger.info(
             "Started optimizing the %s strategy",
             self.strategy_instance.strategy_name,

@@ -62,7 +62,6 @@ class IsExchange(ABC):
 
         :return: dict
         """
-
         return {"query_limit": 1, "write_limit": 50000}
 
     @abstractmethod
@@ -71,7 +70,6 @@ class IsExchange(ABC):
 
         :return: Dict[str, Symbol]
         """
-
         return dict()
 
     def _make_request(
@@ -81,9 +79,10 @@ class IsExchange(ABC):
         query_parameters: Dict,
         headers: Optional[Dict] = None,
     ) -> Any:
-        """Make an HTTP request to the exchange. If the request is successful,
-        a JSON object instance will be returned. If the request in
-        unsuccessful, None will be returned.
+        """Make an HTTP request to the exchange.
+
+        If the request is successful, a JSON object instance will be
+        returned. If the request in unsuccessful, None will be returned.
 
         :param method: HTTP method to be used to make the request.
         :param endpoint: the URL path of the associated GET request.
@@ -92,7 +91,6 @@ class IsExchange(ABC):
         :param headers: optional headers to send with the request.
         :return: Any
         """
-
         try:
             if method == HTTPMethod.GET:
                 response = requests.get(
@@ -141,7 +139,6 @@ class IsExchange(ABC):
         :param symbols: exchange symbols to be traded.
         :return: None
         """
-
         for symbol in symbols:
             try:
                 self.trading_symbols[symbol] = self.exchange_symbols[symbol]
@@ -159,7 +156,6 @@ class IsExchange(ABC):
         :param supported_exchange_tfs: supported exchange timeframes.
         :return: None
         """
-
         self.trading_timeframe = timeframe
         if timeframe.name not in supported_exchange_tfs:
             err_msg = (
@@ -180,7 +176,6 @@ class IsExchange(ABC):
             trading symbol.
         :return: None
         """
-
         logger.info(
             "%s %s: fetching initial price data candles", self.display_name, symbol
         )
@@ -211,7 +206,6 @@ class IsExchange(ABC):
             each trading symbol.
         :return: None
         """
-
         pool = Pool(multiprocessing.cpu_count() - 1)
         for symbol in self.trading_symbols:
             pool.apply_async(
@@ -229,7 +223,6 @@ class IsExchange(ABC):
         :param order_id: ID of the order to query.
         :return: Optional[Order]
         """
-
         if not order_id:
             return None
 
@@ -258,9 +251,10 @@ class IsExchange(ABC):
         end_time: Optional[int] = None,
         timeframe: Timeframe = Timeframe.M1,
     ) -> Optional[List[Candle]]:
-        """Fetch candlestick bars for a particular symbol from the exchange. If
-        start_time and end_time are not provided, the most recent klines are
-        returned.
+        """Fetch candlestick bars for a particular symbol from the exchange.
+
+        If start_time and end_time are not provided, the most recent
+        klines are returned.
 
         :param symbol: symbol to fetch historical candlestick bars for.
         :param start_time: optional. the start time to begin fetching
@@ -271,9 +265,7 @@ class IsExchange(ABC):
             candles.
         :return: Optional[List[Candle]]
         """
-
         return None
-
     @abstractmethod
     def place_order(
         self,
@@ -284,8 +276,9 @@ class IsExchange(ABC):
         price: Optional[float] = None,
         **_kwargs,
     ) -> Optional[str]:
-        """Place a new order for a specified symbol on the exchange. Returns
-        the order ID if order placement was successful.
+        """Place a new order for a specified symbol on the exchange.
+
+        Returns the order ID if order placement was successful.
 
         :param symbol_name: name of symbol.
         :param side: order side.
@@ -298,9 +291,7 @@ class IsExchange(ABC):
             dydx_limit_fee: Optional[float]: highest accepted fee for the trade on the dYdX exchange.
         :return: Optional[str]
         """
-
         return None
-
     @abstractmethod
     def get_order_by_id(self, symbol_name: str, order_id: str) -> Optional[Order]:
         """Query an order by ID.
@@ -309,19 +300,17 @@ class IsExchange(ABC):
         :param order_id: ID of the order to query.
         :return: Optional[Order]
         """
-
         return None
-
     @abstractmethod
     def cancel_order(self, symbol_name: str, order_id: str) -> bool:
-        """Cancel an active order on the exchange. Returns a bool on whether
-        order cancellation was successful.
+        """Cancel an active order on the exchange.
+
+        Returns a bool on whether order cancellation was successful.
 
         :param symbol_name: name of symbol.
         :param order_id: ID of the order to cancel.
         :return: bool
         """
-
         return False
 
     @abstractmethod
@@ -334,7 +323,6 @@ class IsExchange(ABC):
         :param timeframe: desired trading timeframe.
         :return: None
         """
-
         return None
 
     @abstractmethod
@@ -345,5 +333,4 @@ class IsExchange(ABC):
         :param leverage: updated leverage.
         :return: None
         """
-
         return None
