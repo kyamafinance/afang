@@ -48,7 +48,6 @@ class BinanceExchange(IsExchange):
     def __init__(self, testnet: bool = False) -> None:
         """:param testnet: whether to use the testnet version of the
         exchange."""
-
         name = "binance"
         base_url = "https://fapi.binance.com"
         wss_url = "wss://fstream.binance.com/ws"
@@ -78,7 +77,6 @@ class BinanceExchange(IsExchange):
 
         :return: dict
         """
-
         return {"query_limit": 1.1, "write_limit": 10000}
 
     def _get_symbols(self) -> Dict[str, Symbol]:
@@ -86,7 +84,6 @@ class BinanceExchange(IsExchange):
 
         :return: Dict[str, Symbol]
         """
-
         symbols: Dict[str, Symbol] = dict()
         params: Dict = dict()
         endpoint = "/fapi/v1/exchangeInfo"
@@ -139,7 +136,6 @@ class BinanceExchange(IsExchange):
             candles.
         :return: Optional[List[Candle]]
         """
-
         try:
             tf_interval: str = TimeframeMapping[timeframe.name].value
         except KeyError:
@@ -194,7 +190,6 @@ class BinanceExchange(IsExchange):
         :param req_params: request query string parameters.
         :return: str
         """
-
         return hmac.new(
             self._SECRET_KEY.encode(), urlencode(req_params).encode(), hashlib.sha256
         ).hexdigest()
@@ -208,8 +203,9 @@ class BinanceExchange(IsExchange):
         price: Optional[float] = None,
         **_kwargs,
     ) -> Optional[str]:
-        """Place a new order for a specified symbol on the exchange. Returns
-        the order ID if order placement was successful.
+        """Place a new order for a specified symbol on the exchange.
+
+        Returns the order ID if order placement was successful.
 
         :param symbol_name: name of symbol.
         :param side: order side.
@@ -221,7 +217,6 @@ class BinanceExchange(IsExchange):
                             NOTE: post_only orders will override the time in force if specified.
         :return: Optional[str]
         """
-
         params: Dict = dict()
         params["symbol"] = symbol_name
         params["side"] = side.value
@@ -264,7 +259,6 @@ class BinanceExchange(IsExchange):
         :param order_type: order type of the trade in question.
         :return: Optional[float]
         """
-
         params: Dict = dict()
         params["symbol"] = symbol_name
         params["timestamp"] = int(time.time() * 1000)
@@ -293,7 +287,6 @@ class BinanceExchange(IsExchange):
         :param order_id: ID of the order to query.
         :return: Optional[Order]
         """
-
         params: Dict = dict()
         params["symbol"] = symbol_name
         params["orderId"] = order_id
@@ -347,14 +340,14 @@ class BinanceExchange(IsExchange):
         )
 
     def cancel_order(self, symbol_name: str, order_id: str) -> bool:
-        """Cancel an active order on the exchange. Returns a bool on whether
-        order cancellation was successful.
+        """Cancel an active order on the exchange.
+
+        Returns a bool on whether order cancellation was successful.
 
         :param symbol_name: name of symbol.
         :param order_id: ID of the order to cancel.
         :return: bool
         """
-
         params: Dict = dict()
         params["symbol"] = symbol_name
         params["orderId"] = order_id
@@ -375,7 +368,6 @@ class BinanceExchange(IsExchange):
 
         :return: None
         """
-
         params: Dict = dict()
         params["timestamp"] = int(time.time() * 1000)
         params["signature"] = self._generate_authed_request_signature(params)
@@ -399,7 +391,6 @@ class BinanceExchange(IsExchange):
 
         :return: None
         """
-
         wss_data: Dict[str, Any] = dict()
         wss_data["method"] = "SUBSCRIBE"
         wss_data["params"] = list()
@@ -418,7 +409,6 @@ class BinanceExchange(IsExchange):
         :param _ws: instance of websocket connection.
         :return: None
         """
-
         logger.info("%s: wss connection opened", self.display_name)
         self._subscribe_wss_candlestick_stream()
 
@@ -432,7 +422,6 @@ class BinanceExchange(IsExchange):
         :param close_msg: wss close msg.
         :return: None
         """
-
         logger.warning(
             "%s: wss connection closed. status code: %s. %s",
             self.display_name,
@@ -447,7 +436,6 @@ class BinanceExchange(IsExchange):
         :param msg: error message.
         :return: None
         """
-
         logger.error("%s: wss connection error: %s", self.display_name, msg)
         self._start_wss(in_thread=False)
 
@@ -458,9 +446,7 @@ class BinanceExchange(IsExchange):
         :param _msg_data: corresponding websocket message.
         :return: None
         """
-
         logger.error("%s: wss listen key expired", self.display_name)
-
     def _wss_handle_margin_call(self, msg_data: Any) -> None:
         """Runs when exchange websocket receives message data that a user's
         position risk ratio is too high.
@@ -468,7 +454,6 @@ class BinanceExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         logger.warning(
             "%s: position risk ratio is too high for symbols: %s",
             self.display_name,
@@ -482,7 +467,6 @@ class BinanceExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "a" not in msg_data or "B" not in msg_data["a"]:
             return
 
@@ -499,7 +483,6 @@ class BinanceExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         msg_order = msg_data["o"]
         msg_order_id = str(msg_order["i"])
 
@@ -549,7 +532,6 @@ class BinanceExchange(IsExchange):
         :param msg_data: corresponding websocket message.
         :return: None
         """
-
         if "k" not in msg_data:
             return
 
@@ -580,7 +562,6 @@ class BinanceExchange(IsExchange):
         :param msg: received message.
         :return: None
         """
-
         msg_data = json.loads(msg)
         if "e" not in msg_data:
             return None
@@ -604,7 +585,6 @@ class BinanceExchange(IsExchange):
 
         :return: Optional[str]
         """
-
         params: Dict = dict()
         endpoint = "/fapi/v1/listenKey"
 
@@ -624,7 +604,6 @@ class BinanceExchange(IsExchange):
             used for testing purposes.
         :return: None
         """
-
         while True:
             wss_listen_key = self._fetch_wss_listen_key()
             if not wss_listen_key:
@@ -648,7 +627,6 @@ class BinanceExchange(IsExchange):
         :param in_thread: whether to start wss in thread.
         :return: None
         """
-
         self._wss_listen_key = self._fetch_wss_listen_key()
         if not self._wss_listen_key:
             logger.error(
@@ -685,7 +663,6 @@ class BinanceExchange(IsExchange):
         :param timeframe: desired trading timeframe.
         :return: None
         """
-
         # Populate trading symbols and timeframe.
         self._populate_trading_symbols(symbols)
         supported_exchange_timeframes = [tf.name for tf in TimeframeMapping]
@@ -707,7 +684,6 @@ class BinanceExchange(IsExchange):
         :param leverage: updated leverage.
         :return: None
         """
-
         for symbol in symbols:
             params = dict()
             params["symbol"] = symbol

@@ -19,7 +19,6 @@ def get_exchange_client(parsed_args: argparse.Namespace) -> Optional[IsExchange]
     :param parsed_args: arguments parsed from the CLI.
     :return: Optional[IsExchange]
     """
-
     exchange: Optional[IsExchange] = None
     if parsed_args.exchange == Exchange.binance.value:
         exchange = BinanceExchange(testnet=parsed_args.testnet)
@@ -30,13 +29,14 @@ def get_exchange_client(parsed_args: argparse.Namespace) -> Optional[IsExchange]
 
 
 def get_strategy_instance(strategy_name: str) -> Optional[Callable]:
-    """Returns a callable strategy instance. If the strategy name does not
-    correspond to a properly defined strategy, a ValueError is raised.
+    """Returns a callable strategy instance.
+
+    If the strategy name does not correspond to a properly defined
+    strategy, a ValueError is raised.
 
     :param strategy_name: name of the user defined strategy.
     :return: Callable
     """
-
     if not strategy_name:
         return None
 
@@ -58,7 +58,6 @@ def main(args):
     :param args: command line arguments to parse.
     :return: None
     """
-
     parsed_args = parse_args(args)
 
     # Get the exchange client.
