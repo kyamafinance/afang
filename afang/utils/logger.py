@@ -47,7 +47,6 @@ class Logger:
 
         :return: RotatingFileHandler
         """
-
         rotating_file_handler = RotatingFileHandler(
             "logs/logs.log",
             maxBytes=10485760,
@@ -71,7 +70,6 @@ class Logger:
         :param default_level: the default logging level.
         :return: None
         """
-
         logger.setLevel(default_level)
         color_logging_handler = logging.StreamHandler()
         color_logging_handler.name = "console"

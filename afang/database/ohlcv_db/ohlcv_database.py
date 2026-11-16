@@ -28,7 +28,6 @@ class OHLCVDatabase:
         :param symbol: symbol to use.
         :param root_db_dir: root database directory.
         """
-
         if not root_db_dir:
             root_db_dir = f"{pathlib.Path(__file__).parents[3]}/data/ohlcv"
 
@@ -48,7 +47,6 @@ class OHLCVDatabase:
         :param symbol: symbol to create a dataset for.
         :return: None
         """
-
         if symbol in self.hf.keys():
             return
 
@@ -67,7 +65,6 @@ class OHLCVDatabase:
         :param symbol: name of symbol to use.
         :return: Union[Tuple[None, None], Tuple[float, float]]
         """
-
         if symbol not in self.hf.keys():
             return None, None
 
@@ -89,7 +86,6 @@ class OHLCVDatabase:
             symbol's dataset.
         :return: None
         """
-
         if symbol not in self.hf.keys():
             logger.warning("%s: no dataset exists for symbol in database", symbol)
             return
@@ -144,7 +140,6 @@ class OHLCVDatabase:
             should not be newer than.
         :return: Optional[pd.DataFrame]
         """
-
         if symbol not in self.hf.keys():
             logger.warning("%s: no dataset exists for symbol in database", symbol)
             return None
@@ -190,7 +185,6 @@ class OHLCVDatabase:
         :param astype: type to cast disallowed values to.
         :return: List[str]
         """
-
         value_counts = df_col.value_counts()
         disallowed_values = set(df_col.unique()) - allowed_vals
 
@@ -209,7 +203,6 @@ class OHLCVDatabase:
         :param symbol: name of symbol whose data is to be validated.
         :return: bool
         """
-
         if symbol not in self.hf.keys():
             logger.warning("%s: no dataset exists for symbol in database", symbol)
             return False
